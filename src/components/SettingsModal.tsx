@@ -7,6 +7,7 @@ import {
   KeyRound,
   MonitorCog,
   Save,
+  UserCheck,
 } from "lucide-react";
 import { tauriApi } from "../api/tauriClient";
 import { useSmoothWheel } from "../hooks/useSmoothWheel";
@@ -24,6 +25,7 @@ interface SettingsModalProps {
   settings: AppSettings;
   diagnostics: SystemDiagnostics | null;
   onClose: () => void;
+  onOpenOnboarding: () => void;
   onSave: (next: AppSettings) => Promise<void>;
 }
 
@@ -37,20 +39,23 @@ const BACKEND_OPTIONS: SelectOption<DisplayBackend>[] = [
 ];
 
 /**
- * `sonsus-engine` `#000000` tasarım dilinde iki sütunlu (Sol kapsül menü + Sağ Bento ayar kartları)
- * özgün Kontrol Merkezi sayfası.
+ * `sonsus-engine` `#000000` tasarım dilinde iki sütunlu Kontrol Merkezi sayfası.
  */
 export function SettingsModal({
   open,
   settings,
   diagnostics,
   onClose,
+  onOpenOnboarding,
   onSave,
 }: SettingsModalProps) {
   const [activeSection, setActiveSection] = useState<SettingsSection>("storage");
   const [draft, setDraft] = useState<AppSettings>(settings);
   const [suspendText, setSuspendText] = useState(
     settings.default_hook.suspend_processes.join(", ")
+  );
+  const [customEnvText, setCustomEnvText] = useState(
+    (settings.default_hook.custom_env ?? []).join(", ")
   );
   const [locations, setLocations] = useState<InstallLocationOption[]>([]);
   const [saving, setSaving] = useState(false);
@@ -61,6 +66,7 @@ export function SettingsModal({
   useEffect(() => {
     setDraft(settings);
     setSuspendText(settings.default_hook.suspend_processes.join(", "));
+    setCustomEnvText((settings.default_hook.custom_env ?? []).join(", "));
   }, [settings, open]);
 
   useEffect(() => {
@@ -77,6 +83,17 @@ export function SettingsModal({
       ...(diagnostics?.displays ?? []).map((d) => ({
         value: d.name,
         label: `${d.name} (${d.current_mode} @ ${d.current_rate}Hz)`,
+      })),
+    ],
+    [diagnostics]
+  );
+
+  const runnerOptions = useMemo<SelectOption<string>[]>(
+    () => [
+      { value: "", label: "Varsayılan Başlatıcı / Otomatik" },
+      ...(diagnostics?.runners ?? []).map((r) => ({
+        value: r.path,
+        label: `${r.name} (${r.kind.toUpperCase()})`,
       })),
     ],
     [diagnostics]
@@ -108,6 +125,10 @@ export function SettingsModal({
             .split(",")
             .map((s) => s.trim())
             .filter(Boolean),
+          custom_env: customEnvText
+            .split(",")
+            .map((s) => s.trim())
+            .filter((s) => s.includes("=")),
         },
       };
       await onSave(updated);
@@ -180,7 +201,7 @@ export function SettingsModal({
               }`}
             >
               <MonitorCog className="w-4 h-4" />
-              <span>Ekran ve Süreç Hook</span>
+              <span>Proton, MangoHud & Hook</span>
             </button>
 
             <button
@@ -431,7 +452,7 @@ export function SettingsModal({
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <h2 className="text-base font-bold text-white">
-                      Varsayılan Çözünürlük ve Arka Plan Süreç Hook&apos;u
+                      Varsayılan Proton, MangoHud, FSR & Çözünürlük Hook&apos;u
                     </h2>
                     <p className="text-[11px] text-zinc-400 mt-0.5">
                       Özel profili olmayan tüm oyunlar başlatılırken bu kurallar
@@ -455,6 +476,25 @@ export function SettingsModal({
                     />
                     <span>Aktif</span>
                   </label>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-zinc-400 mb-1.5">
+                    Varsayılan Uyumluluk Katmanı (Proton / GE-Proton / Wine)
+                  </label>
+                  <CustomSelect
+                    value={draft.default_hook.runner_path ?? ""}
+                    options={runnerOptions}
+                    onChange={(val) =>
+                      setDraft({
+                        ...draft,
+                        default_hook: {
+                          ...draft.default_hook,
+                          runner_path: val || null,
+                        },
+                      })
+                    }
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -539,23 +579,74 @@ export function SettingsModal({
                   </div>
                 </div>
 
-                <label className="flex items-center gap-2.5 cursor-pointer text-zinc-200">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <label className="p-3 rounded-xl bg-black border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
+                    <input
+                      type="checkbox"
+                      checked={draft.default_hook.use_gamemode}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          default_hook: {
+                            ...draft.default_hook,
+                            use_gamemode: e.target.checked,
+                          },
+                        })
+                      }
+                      className="w-4 h-4 accent-emerald-500"
+                    />
+                    <span>GameMode (`gamemoderun`)</span>
+                  </label>
+
+                  <label className="p-3 rounded-xl bg-black border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(draft.default_hook.use_mangohud)}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          default_hook: {
+                            ...draft.default_hook,
+                            use_mangohud: e.target.checked,
+                          },
+                        })
+                      }
+                      className="w-4 h-4 accent-emerald-500"
+                    />
+                    <span>MangoHud FPS Katmanı</span>
+                  </label>
+
+                  <label className="p-3 rounded-xl bg-black border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(draft.default_hook.gamescope_fsr)}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          default_hook: {
+                            ...draft.default_hook,
+                            gamescope_fsr: e.target.checked,
+                          },
+                        })
+                      }
+                      className="w-4 h-4 accent-emerald-500"
+                    />
+                    <span>Gamescope AMD FSR</span>
+                  </label>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-zinc-400 mb-1.5">
+                    Özel Ortam Değişkenleri (`ANAHTAR=DEĞER`, virgülle ayrılmış)
+                  </label>
                   <input
-                    type="checkbox"
-                    checked={draft.default_hook.use_gamemode}
-                    onChange={(e) =>
-                      setDraft({
-                        ...draft,
-                        default_hook: {
-                          ...draft.default_hook,
-                          use_gamemode: e.target.checked,
-                        },
-                      })
-                    }
-                    className="w-4 h-4 accent-emerald-500"
+                    type="text"
+                    placeholder="DXVK_ASYNC=1, MANGOHUD_CONFIG=fps_limit=144"
+                    value={customEnvText}
+                    onChange={(e) => setCustomEnvText(e.target.value)}
+                    className="w-full h-10 rounded-xl bg-black border border-white/12 focus:border-white/35 px-3.5 text-xs font-mono outline-none"
                   />
-                  <span>Feral GameMode (`gamemoderun`) ile başlat</span>
-                </label>
+                </div>
 
                 <div>
                   <label className="block text-[11px] text-zinc-400 mb-1.5">
@@ -617,6 +708,30 @@ export function SettingsModal({
 
             {activeSection === "integrations" && (
               <>
+                {/* Doğrudan Mağaza Oturumları Kısayolu */}
+                <section className="p-6 rounded-2xl bg-[#09090d] border border-white/[0.08] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <h2 className="text-base font-bold text-white">
+                      Mağaza Oturumları & Giriş Ekranı
+                    </h2>
+                    <p className="text-[11px] text-zinc-400">
+                      Epic Games, GOG ve oyuncu profilinizi doğrudan uygulama içi giriş
+                      ekranından bağlayın veya yönetin.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenOnboarding();
+                    }}
+                    className="h-10 px-5 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs flex items-center gap-2 shrink-0 cursor-pointer"
+                  >
+                    <UserCheck className="w-4 h-4" />
+                    <span>Giriş & Hesap Ekranını Aç</span>
+                  </button>
+                </section>
+
                 <section className="p-6 rounded-2xl bg-[#09090d] border border-white/[0.08] space-y-4">
                   <h2 className="text-base font-bold text-white">
                     API Anahtarları (İsteğe Bağlı)
@@ -678,6 +793,12 @@ export function SettingsModal({
                           {diagnostics.detected_heroic_config || "Yok"}
                         </span>
                       </div>
+                      <div>
+                        Algılanan Proton / Wine Sürümleri:{" "}
+                        <span className="text-emerald-400 font-semibold">
+                          {diagnostics.runners.length} adet
+                        </span>
+                      </div>
                     </div>
                     <div className="flex flex-wrap gap-2 pt-2">
                       {[
@@ -685,6 +806,7 @@ export function SettingsModal({
                         ["kscreen-doctor", diagnostics.has_kscreen_doctor],
                         ["gamescope", diagnostics.has_gamescope],
                         ["gamemoderun", diagnostics.has_gamemoderun],
+                        ["mangohud", diagnostics.has_mangohud],
                       ].map(([name, ok]) => (
                         <span
                           key={String(name)}

@@ -11,6 +11,7 @@ pub enum Platform {
     Steam,
     Epic,
     Gog,
+    Custom,
 }
 
 impl Platform {
@@ -19,6 +20,7 @@ impl Platform {
             Platform::Steam => "steam",
             Platform::Epic => "epic",
             Platform::Gog => "gog",
+            Platform::Custom => "custom",
         }
     }
 }
@@ -64,6 +66,14 @@ pub struct HookProfile {
     #[serde(default)]
     pub use_gamemode: bool,
     #[serde(default)]
+    pub use_mangohud: bool,
+    #[serde(default)]
+    pub gamescope_fsr: bool,
+    #[serde(default)]
+    pub runner_path: Option<String>,
+    #[serde(default)]
+    pub custom_env: Vec<String>,
+    #[serde(default)]
     pub suspend_processes: Vec<String>,
     pub pre_launch_cmd: Option<String>,
     pub post_exit_cmd: Option<String>,
@@ -78,6 +88,10 @@ impl Default for HookProfile {
             target_resolution: None,
             target_refresh_hz: None,
             use_gamemode: false,
+            use_mangohud: false,
+            gamescope_fsr: false,
+            runner_path: None,
+            custom_env: Vec::new(),
             suspend_processes: Vec::new(),
             pre_launch_cmd: None,
             post_exit_cmd: None,
@@ -108,6 +122,14 @@ pub struct UnifiedGame {
     pub store_slug: Option<String>,
     #[serde(default)]
     pub summary_hint: Option<String>,
+    #[serde(default)]
+    pub is_favorite: bool,
+    #[serde(default)]
+    pub is_hidden: bool,
+    #[serde(default)]
+    pub collection_tag: Option<String>,
+    #[serde(default)]
+    pub update_available: Option<bool>,
     pub launch: Option<LaunchConfig>,
     pub install_uri: Option<String>,
 }
@@ -148,6 +170,16 @@ pub struct OnlineGameDetails {
     pub has_turkish: bool,
     #[serde(default)]
     pub controller_support: Option<String>,
+    #[serde(default)]
+    pub estimated_main_hours: Option<f32>,
+    #[serde(default)]
+    pub estimated_extra_hours: Option<f32>,
+    #[serde(default)]
+    pub estimated_completionist_hours: Option<f32>,
+    #[serde(default)]
+    pub live_players_ccu: Option<u64>,
+    #[serde(default)]
+    pub community_rating_percent: Option<u8>,
     pub minimum_requirements: Option<String>,
     #[serde(default)]
     pub recommended_requirements: Option<String>,
@@ -186,7 +218,39 @@ pub struct DownloadTaskInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomGameInput {
+    pub title: String,
+    pub executable_path: String,
+    #[serde(default)]
+    pub args: Vec<String>,
+    pub working_dir: Option<String>,
+    pub wine_prefix: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RunnerInfo {
+    pub name: String,
+    pub path: String,
+    pub kind: String, // "proton" | "wine"
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct StoreAuthStatus {
+    pub steam_connected: bool,
+    pub steam_persona: Option<String>,
+    pub steam_id64: Option<String>,
+    pub epic_connected: bool,
+    pub epic_display_name: Option<String>,
+    pub gog_connected: bool,
+    pub gog_username: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
+    #[serde(default)]
+    pub player_name: Option<String>,
+    #[serde(default)]
+    pub onboarding_completed: bool,
     pub steam_api_key: Option<String>,
     pub steam_id64_override: Option<String>,
     pub sgdb_api_key: Option<String>,
@@ -205,6 +269,8 @@ pub struct AppSettings {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
+            player_name: None,
+            onboarding_completed: false,
             steam_api_key: None,
             steam_id64_override: None,
             sgdb_api_key: None,
@@ -259,5 +325,7 @@ pub struct SystemDiagnostics {
     pub has_gamescope: bool,
     pub has_kscreen_doctor: bool,
     pub has_gamemoderun: bool,
+    pub has_mangohud: bool,
     pub displays: Vec<DisplayOutputInfo>,
+    pub runners: Vec<RunnerInfo>,
 }

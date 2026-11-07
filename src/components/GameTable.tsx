@@ -1,9 +1,10 @@
-import { Download, Play } from "lucide-react";
+import { Download, Heart, Play } from "lucide-react";
 import {
   UnifiedGame,
   formatBytes,
   formatEpochDate,
   formatPlaytime,
+  platformLabel,
 } from "../types/game";
 
 interface GameTableProps {
@@ -11,6 +12,7 @@ interface GameTableProps {
   runningId: string | null;
   onOpenDetail: (game: UnifiedGame, autoOpenInstall?: boolean) => void;
   onLaunch: (game: UnifiedGame) => void;
+  onToggleFavorite: (game: UnifiedGame) => void;
 }
 
 export function GameTable({
@@ -18,12 +20,14 @@ export function GameTable({
   runningId,
   onOpenDetail,
   onLaunch,
+  onToggleFavorite,
 }: GameTableProps) {
   return (
     <div className="w-full overflow-x-auto rounded-2xl border border-white/[0.08] bg-[#09090c]">
       <table className="w-full border-collapse text-left text-xs">
         <thead className="text-zinc-500 border-b border-white/[0.08] text-[11px]">
           <tr>
+            <th className="py-3 px-4 font-medium w-10"></th>
             <th className="py-3 px-4 font-medium">Oyun</th>
             <th className="py-3 px-4 font-medium w-28">Mağaza</th>
             <th className="py-3 px-4 font-medium w-28">Durum</th>
@@ -44,12 +48,28 @@ export function GameTable({
                 onClick={() => onOpenDetail(g, false)}
                 className="cursor-pointer transition-colors hover:bg-white/[0.04]"
               >
+                <td className="py-2.5 pl-4 pr-1">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleFavorite(g);
+                    }}
+                    className="text-zinc-500 hover:text-rose-400 cursor-pointer"
+                  >
+                    <Heart
+                      className={`w-3.5 h-3.5 ${
+                        g.is_favorite ? "text-rose-400 fill-rose-400" : ""
+                      }`}
+                    />
+                  </button>
+                </td>
                 <td className="py-2.5 px-4 font-semibold text-zinc-100 truncate max-w-md">
                   {g.title}
                 </td>
                 <td className="py-2.5 px-4">
                   <span className="bg-white text-black text-[9px] font-black uppercase px-2 py-0.5 rounded-[3px]">
-                    {g.platform}
+                    {platformLabel(g.platform)}
                   </span>
                 </td>
                 <td className="py-2.5 px-4">

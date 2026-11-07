@@ -1,14 +1,15 @@
 import { RefObject, useRef } from "react";
-import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
-import { GenreCountItem } from "../hooks/useLibrary";
-import { InstallStatus, Platform, SortMode } from "../types/game";
+import { ChevronLeft, ChevronRight, EyeOff, Search, X } from "lucide-react";
+import { GenreCountItem, LibraryCounts } from "../hooks/useLibrary";
+import { LibraryQuickFilter, Platform, SortMode } from "../types/game";
 import { CustomSelect, SelectOption } from "./ui/CustomSelect";
 
 interface FilterStripProps {
   query: string;
   onQueryChange: (q: string) => void;
   searchInputRef: RefObject<HTMLInputElement | null>;
-  statusFilter: "all" | InstallStatus;
+  statusFilter: LibraryQuickFilter;
+  onStatusFilterChange: (s: LibraryQuickFilter) => void;
   platformFilter: "all" | Platform;
   onPlatformFilterChange: (p: "all" | Platform) => void;
   genreFilter: string | null;
@@ -17,14 +18,7 @@ interface FilterStripProps {
   sortMode: SortMode;
   onSortModeChange: (m: SortMode) => void;
   visibleCount: number;
-  counts: {
-    all: number;
-    installed: number;
-    cloud: number;
-    steam: number;
-    epic: number;
-    gog: number;
-  };
+  counts: LibraryCounts;
 }
 
 const SORT_OPTIONS: SelectOption<SortMode>[] = [
@@ -40,6 +34,7 @@ export function FilterStrip({
   onQueryChange,
   searchInputRef,
   statusFilter,
+  onStatusFilterChange,
   platformFilter,
   onPlatformFilterChange,
   genreFilter,
@@ -61,6 +56,10 @@ export function FilterStrip({
       ? "Yüklü oyunlar"
       : statusFilter === "cloud"
       ? "Bulut kütüphanesi"
+      : statusFilter === "favorites"
+      ? "Favorilerim"
+      : statusFilter === "hidden"
+      ? "Gizlenen oyunlar"
       : "The library";
 
   const stores: { key: "all" | Platform; label: string; count: number }[] = [
@@ -68,15 +67,38 @@ export function FilterStrip({
     { key: "steam", label: "Steam", count: counts.steam },
     { key: "epic", label: "Epic", count: counts.epic },
     { key: "gog", label: "GOG", count: counts.gog },
+    ...(counts.custom > 0 || platformFilter === "custom"
+      ? [{ key: "custom" as const, label: "Özel", count: counts.custom }]
+      : []),
   ];
 
   return (
     <section className="max-w-[1480px] w-full mx-auto px-8 lg:px-12 pt-4 pb-6 shrink-0">
       {/* Başlık + Özel Karanlık Sıralama Menüsü & Sayaç */}
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-[32px] md:text-[36px] font-bold tracking-tight text-white leading-none">
-          {headingText}
-        </h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-[32px] md:text-[36px] font-bold tracking-tight text-white leading-none">
+            {headingText}
+          </h1>
+
+          {(counts.hidden > 0 || statusFilter === "hidden") && (
+            <button
+              type="button"
+              onClick={() =>
+                onStatusFilterChange(statusFilter === "hidden" ? "all" : "hidden")
+              }
+              className={`h-7 px-3 rounded-full text-[11px] font-medium flex items-center gap-1.5 border cursor-pointer transition-colors ${
+                statusFilter === "hidden"
+                  ? "bg-white text-black border-white font-semibold"
+                  : "bg-[#0c0c10] text-zinc-400 hover:text-zinc-200 border-white/10"
+              }`}
+              title="Gizlenen oyunları göster / gizle"
+            >
+              <EyeOff className="w-3 h-3" />
+              <span>Gizlenenler ({counts.hidden})</span>
+            </button>
+          )}
+        </div>
 
         <div className="flex items-center gap-3">
           <CustomSelect
@@ -92,7 +114,7 @@ export function FilterStrip({
         </div>
       </div>
 
-      {/* Arama + Yenilenmiş Mağaza Seçici + Kategori Pill Barı */}
+      {/* Arama + Mağaza Seçici + Kategori Pill Barı */}
       <div className="mt-5 flex items-center gap-2.5">
         {/* Yuvarlatılmış Arama Kutusu */}
         <div className="relative flex items-center w-52 md:w-60 shrink-0">
@@ -102,7 +124,7 @@ export function FilterStrip({
             type="text"
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="Oyun ara..."
+            placeholder="Oyun ara... (/ veya Ctrl+K)"
             className="w-full h-9 rounded-full bg-[#0c0c10] border border-white/[0.09] focus:border-white/30 pl-9 pr-8 text-[13px] text-zinc-100 placeholder:text-zinc-500 outline-none transition-colors"
           />
           {query && (
@@ -116,7 +138,7 @@ export function FilterStrip({
           )}
         </div>
 
-        {/* Sade, Tek Katmanlı, Akıcı Mağaza Seçici (Tümü | Steam | Epic | GOG) */}
+        {/* Sade, Tek Katmanlı Mağaza Seçici */}
         <div className="h-9 rounded-full bg-[#0c0c10] border border-white/[0.09] p-1 flex items-center gap-0.5 shrink-0">
           {stores.map((st) => {
             const active = platformFilter === st.key;
@@ -136,11 +158,7 @@ export function FilterStrip({
               >
                 <span>{st.label}</span>
                 {st.key !== "all" && (
-                  <span
-                    className={`text-[10px] tabular-nums ${
-                      active ? "text-zinc-600" : "text-zinc-600"
-                    }`}
-                  >
+                  <span className="text-[10px] tabular-nums text-zinc-600">
                     {st.count}
                   </span>
                 )}

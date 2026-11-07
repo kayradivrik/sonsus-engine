@@ -1,15 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
+  ArrowUpCircle,
+  Clock,
   Cloud,
   CloudDownload,
   Cpu,
   Download,
+  Eye,
+  EyeOff,
   FolderCheck,
   FolderOpen,
   Gamepad2,
   Globe,
   HardDrive,
+  Heart,
   ImageDown,
   Layers,
   MessageSquareQuote,
@@ -23,6 +28,8 @@ import {
   ThumbsDown,
   ThumbsUp,
   Trash2,
+  Users,
+  Wrench,
   X,
 } from "lucide-react";
 import { tauriApi } from "../api/tauriClient";
@@ -33,12 +40,14 @@ import {
   DownloadTaskInfo,
   HookProfile,
   OnlineGameDetails,
+  RunnerInfo,
   UnifiedGame,
   buildCoverCandidates,
   createEmptyHookProfile,
   formatBytes,
   formatEpochDate,
   formatPlaytime,
+  platformLabel,
   resolveMediaSrc,
 } from "../types/game";
 import { InstallModal } from "./InstallModal";
@@ -50,9 +59,11 @@ interface GameDetailViewProps {
   isRunning: boolean;
   downloadTask?: DownloadTaskInfo;
   displays: DisplayOutputInfo[];
+  runners: RunnerInfo[];
   onBack: () => void;
   onLaunch: (game: UnifiedGame) => void;
   onGameUpdated: (updated: UnifiedGame) => void;
+  onGameRemoved: (gameId: string) => void;
   onNotify: (msg: string) => void;
 }
 
@@ -65,7 +76,9 @@ const BACKEND_OPTIONS: SelectOption<DisplayBackend>[] = [
   { value: "gamescope", label: "Valve Gamescope" },
 ];
 
-function parseRequirementLines(raw?: string | null): { key?: string; value: string }[] {
+function parseRequirementLines(
+  raw?: string | null
+): { key?: string; value: string }[] {
   if (!raw) return [];
   return raw
     .split("\n")
@@ -108,8 +121,8 @@ function protonPillClass(tier?: string | null): string {
 }
 
 /**
- * `sonsus-engine` sinematik siyah tasarım diline (%100 özgün kapsül navigasyon + tam genişlikli sahne + Bento bilgi kartları)
- * sahip tam ekran oyun detay sayfası. Steam, Epic Games Store ve GOG verilerini birleştirir.
+ * `sonsus-engine` sinematik siyah tasarım diline sahip tam ekran oyun detay sayfası.
+ * Doğrulama/Onarma, Kaldırma, Güncelleme Kontrolü, Bitirme Süresi, Canlı Oyuncu ve Proton/MangoHud/FSR yönetimini birleştirir.
  */
 export function GameDetailView({
   game,
@@ -117,9 +130,11 @@ export function GameDetailView({
   isRunning,
   downloadTask,
   displays,
+  runners,
   onBack,
   onLaunch,
   onGameUpdated,
+  onGameRemoved,
   onNotify,
 }: GameDetailViewProps) {
   const [section, setSection] = useState<DetailSection>("overview");
@@ -129,14 +144,18 @@ export function GameDetailView({
   const [posterIdx, setPosterIdx] = useState(0);
   const [fetchingCover, setFetchingCover] = useState(false);
 
-  const [installModalTab, setInstallModalTab] = useState<"install" | "locate" | null>(
-    autoOpenInstall && game.status !== "installed" ? "install" : null
-  );
+  const [installModalTab, setInstallModalTab] = useState<
+    "install" | "locate" | null
+  >(autoOpenInstall && game.status !== "installed" ? "install" : null);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+
+  const [confirmUninstall, setConfirmUninstall] = useState(false);
+  const [actionBusy, setActionBusy] = useState(false);
 
   const [hook, setHook] = useState<HookProfile>(createEmptyHookProfile());
   const [hasCustomHook, setHasCustomHook] = useState(false);
   const [suspendText, setSuspendText] = useState("");
+  const [customEnvText, setCustomEnvText] = useState("");
   const [savingHook, setSavingHook] = useState(false);
 
   const pageScrollRef = useRef<HTMLDivElement>(null);
@@ -164,14 +183,28 @@ export function GameDetailView({
     [displays]
   );
 
+  const runnerOptions = useMemo<SelectOption<string>[]>(
+    () => [
+      { value: "", label: "Varsayılan Başlatıcı / Otomatik" },
+      ...runners.map((r) => ({
+        value: r.path,
+        label: `${r.name} (${r.kind.toUpperCase()})`,
+      })),
+    ],
+    [runners]
+  );
+
   const loadOnlineInfo = (forceRefresh = false) => {
     setLoadingDetails(true);
     tauriApi
       .getOnlineGameDetails(game, forceRefresh)
       .then((fetched) => {
         setDetails(fetched);
-        // Çevrimiçi çekilen yeni kategori etiketlerini ana kütüphane nesnesine de senkronla
-        if (fetched.genres && fetched.genres.length > 0 && (!game.genres || game.genres.length === 0)) {
+        if (
+          fetched.genres &&
+          fetched.genres.length > 0 &&
+          (!game.genres || game.genres.length === 0)
+        ) {
           onGameUpdated({ ...game, genres: fetched.genres });
         }
       })
@@ -183,6 +216,7 @@ export function GameDetailView({
     setPosterIdx(0);
     setDetails(null);
     setSection("overview");
+    setConfirmUninstall(false);
     if (pageScrollRef.current) {
       pageScrollRef.current.scrollTop = 0;
     }
@@ -195,10 +229,12 @@ export function GameDetailView({
           setHook(saved);
           setHasCustomHook(true);
           setSuspendText(saved.suspend_processes.join(", "));
+          setCustomEnvText((saved.custom_env ?? []).join(", "));
         } else {
           setHook(createEmptyHookProfile());
           setHasCustomHook(false);
           setSuspendText("");
+          setCustomEnvText("");
         }
       })
       .catch(() => {});
@@ -211,12 +247,13 @@ export function GameDetailView({
         e.stopPropagation();
         if (lightboxSrc) setLightboxSrc(null);
         else if (installModalTab) setInstallModalTab(null);
+        else if (confirmUninstall) setConfirmUninstall(false);
         else onBack();
       }
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [lightboxSrc, installModalTab, onBack]);
+  }, [lightboxSrc, installModalTab, confirmUninstall, onBack]);
 
   const handleRefreshCover = async () => {
     setFetchingCover(true);
@@ -233,12 +270,108 @@ export function GameDetailView({
     }
   };
 
+  const handleToggleFavorite = async () => {
+    try {
+      const nextFav = !game.is_favorite;
+      const updated = await tauriApi.setGamePreferences(
+        game,
+        nextFav,
+        Boolean(game.is_hidden),
+        game.collection_tag ?? null
+      );
+      onGameUpdated(updated);
+      onNotify(
+        nextFav
+          ? `${game.title} favorilere eklendi.`
+          : `${game.title} favorilerden çıkarıldı.`
+      );
+    } catch (err) {
+      onNotify(String(err));
+    }
+  };
+
+  const handleToggleHidden = async () => {
+    try {
+      const nextHidden = !game.is_hidden;
+      const updated = await tauriApi.setGamePreferences(
+        game,
+        Boolean(game.is_favorite),
+        nextHidden,
+        game.collection_tag ?? null
+      );
+      onGameUpdated(updated);
+      onNotify(
+        nextHidden
+          ? `${game.title} kütüphaneden gizlendi.`
+          : `${game.title} tekrar görünür yapıldı.`
+      );
+      if (nextHidden) onBack();
+    } catch (err) {
+      onNotify(String(err));
+    }
+  };
+
   const handleOpenFolder = async () => {
     if (!game.install_path) return;
     try {
       await tauriApi.openGameFolder(game.install_path);
     } catch (err) {
       onNotify(`Klasör açılamadı: ${String(err)}`);
+    }
+  };
+
+  const handleVerifyRepair = async () => {
+    setActionBusy(true);
+    try {
+      const task = await tauriApi.verifyOrRepairGame(game);
+      if (task) {
+        onNotify(`${game.title} dosya doğrulama ve onarım işlemi başlatıldı.`);
+      } else {
+        onNotify(`${game.title} için Steam dosya doğrulaması tetiklendi.`);
+      }
+    } catch (err) {
+      onNotify(`Doğrulama başlatılamadı: ${String(err)}`);
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const handleCheckUpdate = async () => {
+    setActionBusy(true);
+    try {
+      const updated = await tauriApi.checkGameUpdate(game);
+      onGameUpdated(updated);
+      if (updated.update_available) {
+        onNotify(`${game.title} için yeni bir güncelleme mevcut!`);
+      } else {
+        onNotify(`${game.title} güncel sürümde.`);
+      }
+    } catch (err) {
+      onNotify(`Güncelleme kontrolü başarısız: ${String(err)}`);
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const handleUninstall = async () => {
+    setActionBusy(true);
+    try {
+      const updated = await tauriApi.uninstallGame(game);
+      setConfirmUninstall(false);
+      if (game.platform === "custom") {
+        onGameRemoved(game.id);
+        onNotify(`${game.title} özel kütüphaneden kaldırıldı.`);
+        onBack();
+      } else if (game.platform === "steam") {
+        onNotify(`${game.title} için Steam kaldırma penceresi açıldı.`);
+      } else {
+        onGameUpdated(updated);
+        onNotify(`${game.title} bilgisayarınızdan kaldırıldı.`);
+      }
+    } catch (err) {
+      onNotify(`Kaldırma hatası: ${String(err)}`);
+    } finally {
+      setActionBusy(false);
     }
   };
 
@@ -251,6 +384,10 @@ export function GameDetailView({
           .split(",")
           .map((s) => s.trim())
           .filter(Boolean),
+        custom_env: customEnvText
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => s.includes("=")),
       };
       await tauriApi.setGameHookProfile(game.id, payload);
       setHook(payload);
@@ -267,6 +404,7 @@ export function GameDetailView({
     await tauriApi.setGameHookProfile(game.id, null);
     setHook(createEmptyHookProfile());
     setSuspendText("");
+    setCustomEnvText("");
     setHasCustomHook(false);
     onNotify("Özel oyun hook profili sıfırlandı.");
   };
@@ -297,8 +435,10 @@ export function GameDetailView({
       ? details.developers.join(", ")
       : game.developer ?? null;
 
-  const effectiveDescription = details?.short_description || game.summary_hint || null;
-  const effectiveInstallBytes = game.size_bytes ?? details?.install_size_bytes ?? null;
+  const effectiveDescription =
+    details?.short_description || game.summary_hint || null;
+  const effectiveInstallBytes =
+    game.size_bytes ?? details?.install_size_bytes ?? null;
   const playtimeText = formatPlaytime(game.playtime_minutes);
 
   const activeDl =
@@ -320,9 +460,25 @@ export function GameDetailView({
           </button>
 
           <div className="flex items-center gap-2 flex-wrap justify-end">
+            {details?.live_players_ccu && details.live_players_ccu > 0 ? (
+              <span className="h-8 px-3 rounded-full border border-emerald-500/35 bg-emerald-500/10 text-emerald-300 text-xs font-semibold flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5" />
+                <span className="tabular-nums">
+                  {details.live_players_ccu.toLocaleString("tr-TR")} Aktif Oyuncu
+                </span>
+              </span>
+            ) : null}
+
+            {details?.community_rating_percent ? (
+              <span className="h-8 px-3 rounded-full border border-white/12 bg-[#121218] text-zinc-200 text-xs font-semibold flex items-center gap-1.5">
+                <ThumbsUp className="w-3 h-3 text-emerald-400" />
+                <span>%{details.community_rating_percent} Olumlu</span>
+              </span>
+            ) : null}
+
             {details?.metacritic_score && (
               <span className="h-8 px-3 rounded-full border border-emerald-500/35 bg-emerald-500/10 text-emerald-300 text-xs font-bold flex items-center gap-1.5">
-                <span>Puan</span>
+                <span>Metacritic</span>
                 <span>{details.metacritic_score}</span>
               </span>
             )}
@@ -345,6 +501,48 @@ export function GameDetailView({
               </span>
             )}
 
+            {/* Favori Kapsülü */}
+            <button
+              type="button"
+              onClick={handleToggleFavorite}
+              className={`h-8 px-3 rounded-full border text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
+                game.is_favorite
+                  ? "bg-rose-500/15 border-rose-500/45 text-rose-200"
+                  : "bg-[#121217] hover:bg-[#1c1c24] border-white/10 text-zinc-300 hover:text-white"
+              }`}
+              title="Favorilere ekle / çıkar"
+            >
+              <Heart
+                className={`w-3.5 h-3.5 ${
+                  game.is_favorite ? "text-rose-400 fill-rose-400" : ""
+                }`}
+              />
+              <span className="hidden md:inline">
+                {game.is_favorite ? "Favoride" : "Favori"}
+              </span>
+            </button>
+
+            {/* Gizle / Göster Kapsülü */}
+            <button
+              type="button"
+              onClick={handleToggleHidden}
+              className="h-8 px-3 rounded-full bg-[#121217] hover:bg-[#1c1c24] border border-white/10 text-xs text-zinc-300 hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+              title={
+                game.is_hidden
+                  ? "Kütüphanede tekrar göster"
+                  : "Bu oyunu ana kütüphaneden gizle"
+              }
+            >
+              {game.is_hidden ? (
+                <Eye className="w-3.5 h-3.5 text-emerald-400" />
+              ) : (
+                <EyeOff className="w-3.5 h-3.5" />
+              )}
+              <span className="hidden lg:inline">
+                {game.is_hidden ? "Görünür Yap" : "Gizle"}
+              </span>
+            </button>
+
             <button
               type="button"
               onClick={handleRefreshCover}
@@ -354,7 +552,7 @@ export function GameDetailView({
             >
               <ImageDown className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">
-                {fetchingCover ? "Poster İndiriliyor..." : "Poster Yenile"}
+                {fetchingCover ? "İndiriliyor..." : "Poster Yenile"}
               </span>
             </button>
 
@@ -410,7 +608,7 @@ export function GameDetailView({
             <div className="flex-1 min-w-0 space-y-4">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="bg-white text-black text-[10px] font-black tracking-wider uppercase px-2.5 py-0.5 rounded-[4px]">
-                  {game.platform}
+                  {platformLabel(game.platform)}
                 </span>
                 <span
                   className={`px-3 py-0.5 rounded-full text-[11px] font-semibold border ${
@@ -421,6 +619,12 @@ export function GameDetailView({
                 >
                   {isInstalled ? "Bilgisayarda Yüklü" : "Bulut Kütüphanesinde"}
                 </span>
+                {game.update_available && (
+                  <span className="px-3 py-0.5 rounded-full text-[11px] font-bold border border-cyan-400/50 bg-cyan-400/15 text-cyan-200 inline-flex items-center gap-1">
+                    <ArrowUpCircle className="w-3.5 h-3.5" />
+                    <span>Güncelleme Mevcut</span>
+                  </span>
+                )}
                 {effectiveGenres.map((genre) => (
                   <span
                     key={genre}
@@ -451,18 +655,20 @@ export function GameDetailView({
                 </div>
               </div>
 
-              {/* CANLI UYGULAMA İÇİ İNDİRME PANELİ VEYA RENKLİ ANA AKSİYON KAPSÜLLERİ */}
-              {activeDl && !isInstalled ? (
+              {/* CANLI UYGULAMA İÇİ İNDİRME / ONARIM PANELİ VEYA ANA AKSİYON KAPSÜLLERİ */}
+              {activeDl ? (
                 <div className="p-4 rounded-2xl bg-[#0e0e16]/95 border border-blue-500/35 max-w-2xl space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <div className="text-xs font-bold text-white flex items-center gap-2">
                       <Download className="w-4 h-4 text-blue-400" />
                       <span>
                         {activeDl.status === "downloading"
-                          ? "Uygulama İçinde İndiriliyor"
+                          ? isInstalled
+                            ? "Dosyalar Doğrulanıyor / Onarılıyor"
+                            : "Uygulama İçinde İndiriliyor"
                           : activeDl.status === "paused"
-                          ? "İndirme Duraklatıldı"
-                          : "İndirme Durdu"}
+                          ? "İşlem Duraklatıldı"
+                          : "İşlem Durdu"}
                       </span>
                       <span className="text-blue-300 tabular-nums">
                         %{activeDl.progress_percent.toFixed(1)}
@@ -502,7 +708,7 @@ export function GameDetailView({
                           tauriApi.removeDownloadTask(game.id).catch(() => {})
                         }
                         className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-rose-500/20 flex items-center justify-center text-zinc-400 hover:text-rose-300 cursor-pointer"
-                        title="İndirmeyi iptal et"
+                        title="İptal et / Kapat"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -534,7 +740,7 @@ export function GameDetailView({
                   </div>
                 </div>
               ) : (
-                <div className="pt-2 flex flex-wrap items-center gap-3">
+                <div className="pt-2 flex flex-wrap items-center gap-2.5">
                   {isInstalled ? (
                     <>
                       <button
@@ -556,17 +762,87 @@ export function GameDetailView({
                           type="button"
                           onClick={handleOpenFolder}
                           title={game.install_path}
-                          className="h-12 px-5 rounded-full bg-[#121218] hover:bg-[#1b1b24] border border-white/15 text-xs font-semibold text-zinc-200 hover:text-white flex items-center gap-2 transition-colors cursor-pointer"
+                          className="h-11 px-4 rounded-full bg-[#121218] hover:bg-[#1b1b24] border border-white/15 text-xs font-semibold text-zinc-200 hover:text-white flex items-center gap-2 transition-colors cursor-pointer"
                         >
                           <FolderOpen className="w-4 h-4 text-emerald-400" />
-                          <span>Dosya Konumunu Aç</span>
+                          <span>Klasörü Aç</span>
                         </button>
                       )}
 
-                      {game.install_path && (
-                        <span className="text-[11px] text-zinc-400 font-mono truncate max-w-md px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.07]">
-                          {game.install_path}
-                        </span>
+                      {game.platform !== "custom" && (
+                        <button
+                          type="button"
+                          disabled={actionBusy || isRunning}
+                          onClick={handleVerifyRepair}
+                          className="h-11 px-4 rounded-full bg-[#121218] hover:bg-[#1b1b24] border border-white/15 text-xs font-semibold text-zinc-200 hover:text-white flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+                          title="Oyun dosyalarının bütünlüğünü doğrula ve eksik dosyaları onar"
+                        >
+                          <Wrench className="w-3.5 h-3.5 text-cyan-400" />
+                          <span>Doğrula / Onar</span>
+                        </button>
+                      )}
+
+                      {game.platform === "epic" && (
+                        <button
+                          type="button"
+                          disabled={actionBusy}
+                          onClick={
+                            game.update_available && game.install_path
+                              ? () =>
+                                  tauriApi
+                                    .startGameDownload(
+                                      game,
+                                      game.install_path || ""
+                                    )
+                                    .catch((e) => onNotify(String(e)))
+                              : handleCheckUpdate
+                          }
+                          className={`h-11 px-4 rounded-full border text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50 ${
+                            game.update_available
+                              ? "bg-cyan-500/20 border-cyan-400/50 text-cyan-200"
+                              : "bg-[#121218] hover:bg-[#1b1b24] border-white/15 text-zinc-200"
+                          }`}
+                        >
+                          <ArrowUpCircle className="w-3.5 h-3.5 text-cyan-400" />
+                          <span>
+                            {game.update_available
+                              ? "Güncellemeyi İndir"
+                              : "Güncelleme Kontrol"}
+                          </span>
+                        </button>
+                      )}
+
+                      {!confirmUninstall ? (
+                        <button
+                          type="button"
+                          disabled={actionBusy || isRunning}
+                          onClick={() => setConfirmUninstall(true)}
+                          className="h-11 px-4 rounded-full bg-[#121218] hover:bg-rose-500/15 border border-white/12 hover:border-rose-500/40 text-xs font-semibold text-zinc-300 hover:text-rose-300 flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Kaldır</span>
+                        </button>
+                      ) : (
+                        <div className="h-11 px-3 rounded-full bg-rose-950/70 border border-rose-500/50 flex items-center gap-2 text-xs">
+                          <span className="text-rose-200 font-semibold pl-1">
+                            Silinsin mi?
+                          </span>
+                          <button
+                            type="button"
+                            disabled={actionBusy}
+                            onClick={handleUninstall}
+                            className="px-3 py-1 rounded-full bg-rose-500 hover:bg-rose-400 text-black font-bold cursor-pointer"
+                          >
+                            Evet
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmUninstall(false)}
+                            className="px-2.5 py-1 rounded-full bg-white/10 text-zinc-200 cursor-pointer"
+                          >
+                            İptal
+                          </button>
+                        </div>
                       )}
                     </>
                   ) : (
@@ -598,7 +874,7 @@ export function GameDetailView({
 
         {/* Alt İçerik Konteyneri */}
         <div className="max-w-[1480px] w-full mx-auto px-8 lg:px-12 pt-7 space-y-8">
-          {/* KURULUM BİLGİSİ BENTO ŞERİDİ */}
+          {/* KURULUM & BİTİRME SÜRESİ BENTO ŞERİDİ */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
             <div className="p-4 rounded-2xl bg-[#0a0a0f] border border-white/[0.08] flex items-start gap-3.5">
               <div className="w-9 h-9 rounded-xl bg-blue-500/12 border border-blue-500/25 flex items-center justify-center text-blue-400 shrink-0">
@@ -639,18 +915,23 @@ export function GameDetailView({
             </div>
 
             <div className="p-4 rounded-2xl bg-[#0a0a0f] border border-white/[0.08] flex items-start gap-3.5">
-              <div className="w-9 h-9 rounded-xl bg-purple-500/12 border border-purple-500/25 flex items-center justify-center text-purple-300 shrink-0">
-                <Cloud className="w-4 h-4" />
+              <div className="w-9 h-9 rounded-xl bg-amber-500/12 border border-amber-500/25 flex items-center justify-center text-amber-300 shrink-0">
+                <Clock className="w-4 h-4" />
               </div>
               <div className="min-w-0">
                 <div className="text-[11px] text-zinc-500 font-medium">
-                  Bulut Kayıt & Sürüm
+                  Tahmini Bitirme Süresi
                 </div>
                 <div className="text-sm font-bold text-white mt-0.5 truncate">
-                  {details?.cloud_saves_supported
-                    ? "Bulut Kayıt Aktif"
-                    : "Yerel Kayıt"}
-                  {details?.build_version ? ` • ${details.build_version}` : ""}
+                  {details?.estimated_main_hours
+                    ? `~${details.estimated_main_hours} sa (Tam: ~${
+                        details.estimated_completionist_hours ??
+                        details.estimated_extra_hours ??
+                        details.estimated_main_hours
+                      } sa)`
+                    : loadingDetails
+                    ? "Hesaplanıyor..."
+                    : "Çok Oyunculu / Serbest"}
                 </div>
               </div>
             </div>
@@ -661,12 +942,14 @@ export function GameDetailView({
               </div>
               <div className="min-w-0">
                 <div className="text-[11px] text-zinc-500 font-medium">
-                  Uyumluluk & Kontrolcü
+                  Uyumluluk & Bulut Kayıt
                 </div>
                 <div className="text-sm font-bold text-white mt-0.5 truncate">
                   {details?.controller_support ??
                     (details?.protondb_tier
                       ? `ProtonDB ${details.protondb_tier.toUpperCase()}`
+                      : details?.cloud_saves_supported
+                      ? "Bulut Kayıt Aktif"
                       : "Standart Girdi")}
                 </div>
               </div>
@@ -736,7 +1019,7 @@ export function GameDetailView({
                 }`}
               >
                 <Sliders className="w-3.5 h-3.5" />
-                <span>Başlatma & Çözünürlük Hook</span>
+                <span>Proton, MangoHud & Çözünürlük Hook</span>
                 {hasCustomHook && hook.enabled && (
                   <span className="w-2 h-2 rounded-full bg-emerald-500" />
                 )}
@@ -744,7 +1027,7 @@ export function GameDetailView({
             </div>
           </div>
 
-          {/* SEKME 1: GENEL BAKIŞ, EKRAN GÖRÜNTÜLERİ VE KURULUM ÖZETİ */}
+          {/* SEKME 1: GENEL BAKIŞ */}
           {section === "overview" && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-7">
               <div className="lg:col-span-7 space-y-7">
@@ -850,8 +1133,43 @@ export function GameDetailView({
                 )}
               </div>
 
-              {/* Sağ Sütun: Detaylı Kurulum & Teknik Kütüphane Özeti + Hızlı Sistem Gereksinimi Özeti */}
+              {/* Sağ Sütun: Tahmini Bitirme Süresi + Kurulum & Teknik Kütüphane Özeti */}
               <div className="lg:col-span-5 space-y-5">
+                {details?.estimated_main_hours && (
+                  <div className="p-5 rounded-2xl bg-[#09090d] border border-white/[0.08] space-y-3.5">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-amber-400" />
+                        <span>Tahmini Bitirme & Oynanış Süresi</span>
+                      </h2>
+                      <span className="text-[10px] text-zinc-500 uppercase tracking-wider">
+                        Topluluk Verisi
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2.5 text-center">
+                      <div className="p-3 rounded-xl bg-black border border-white/[0.06]">
+                        <div className="text-[10px] text-zinc-500">Ana Hikaye</div>
+                        <div className="text-sm font-extrabold text-white mt-0.5 tabular-nums">
+                          ~{details.estimated_main_hours} sa
+                        </div>
+                      </div>
+                      <div className="p-3 rounded-xl bg-black border border-white/[0.06]">
+                        <div className="text-[10px] text-zinc-500">Ana + Ekstra</div>
+                        <div className="text-sm font-extrabold text-amber-300 mt-0.5 tabular-nums">
+                          ~{details.estimated_extra_hours ?? details.estimated_main_hours} sa
+                        </div>
+                      </div>
+                      <div className="p-3 rounded-xl bg-black border border-white/[0.06]">
+                        <div className="text-[10px] text-zinc-500">%100 Bitirme</div>
+                        <div className="text-sm font-extrabold text-emerald-400 mt-0.5 tabular-nums">
+                          ~{details.estimated_completionist_hours ?? details.estimated_extra_hours} sa
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="p-6 rounded-2xl bg-[#09090d] border border-white/[0.08] space-y-4">
                   <h2 className="text-sm font-bold text-white">
                     Kurulum ve Teknik Bilgiler
@@ -890,9 +1208,20 @@ export function GameDetailView({
                       </span>
                     </div>
                     <div className="py-2.5 flex items-center justify-between gap-4">
+                      <span className="text-zinc-500">Bulut Kayıt</span>
+                      <span className="text-zinc-200 inline-flex items-center gap-1.5">
+                        <Cloud className="w-3.5 h-3.5 text-purple-400" />
+                        <span>
+                          {details?.cloud_saves_supported
+                            ? "Destekleniyor"
+                            : "Yerel Kayıt"}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="py-2.5 flex items-center justify-between gap-4">
                       <span className="text-zinc-500">Mağaza Kimliği</span>
                       <span className="text-zinc-300 font-mono">
-                        {game.platform.toUpperCase()} / {game.platform_id}
+                        {platformLabel(game.platform)} / {game.platform_id}
                       </span>
                     </div>
                     {effectiveDevelopers && (
@@ -957,7 +1286,7 @@ export function GameDetailView({
             </div>
           )}
 
-          {/* SEKME 2: KARŞILAŞTIRMALI SİSTEM GEREKSİNİMLERİ (Minimum & Önerilen & Linux) */}
+          {/* SEKME 2: KARŞILAŞTIRMALI SİSTEM GEREKSİNİMLERİ */}
           {section === "requirements" && (
             <div className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -987,7 +1316,8 @@ export function GameDetailView({
                     </div>
                   ) : (
                     <p className="text-xs text-zinc-500">
-                      Bu oyun için mağazada minimum sistem gereksinimi bilgisi paylaşılmamış.
+                      Bu oyun için mağazada minimum sistem gereksinimi bilgisi
+                      paylaşılmamış.
                     </p>
                   )}
                 </div>
@@ -1018,8 +1348,8 @@ export function GameDetailView({
                     </div>
                   ) : (
                     <p className="text-xs text-zinc-500">
-                      Mağaza tarafından ayrı bir önerilen donanım profili belirtilmemiş;
-                      minimum gereksinimleri baz alabilirsiniz.
+                      Mağaza tarafından ayrı bir önerilen donanım profili
+                      belirtilmemiş; minimum gereksinimleri baz alabilirsiniz.
                     </p>
                   )}
                 </div>
@@ -1034,7 +1364,9 @@ export function GameDetailView({
                     {linuxReqs.map((r, i) => (
                       <div key={i}>
                         {r.key && (
-                          <div className="text-[11px] text-zinc-500">{r.key}</div>
+                          <div className="text-[11px] text-zinc-500">
+                            {r.key}
+                          </div>
                         )}
                         <div className="text-zinc-200">{r.value}</div>
                       </div>
@@ -1107,17 +1439,17 @@ export function GameDetailView({
             </div>
           )}
 
-          {/* SEKME 4: OYUN BAZLI ÇÖZÜNÜRLÜK & ARKA PLAN SÜREÇ HOOK AYARLARI */}
+          {/* SEKME 4: PROTON / GE-PROTON, MANGOHUD, FSR & ÇÖZÜNÜRLÜK HOOK AYARLARI */}
           {section === "hooks" && (
             <div className="max-w-3xl p-6 rounded-2xl bg-[#09090d] border border-white/[0.08] space-y-5 text-xs">
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-sm font-bold text-white">
-                    {game.title} — Özel Başlatma & Çözünürlük Profili
+                    {game.title} — Özel Proton, Performans & Çözünürlük Profili
                   </h2>
                   <p className="text-[11px] text-zinc-400 mt-0.5">
-                    Oyun başlarken ekran çözünürlüğünü ve arka plan süreçlerini
-                    otomatik uyarlar, oyun kapandığında eski haline döndürür.
+                    Proton/Wine sürümünü, MangoHud FPS katmanını, FSR keskinleştirmesini ve
+                    ekran çözünürlüğünü bu oyuna özel yapılandırın.
                   </p>
                 </div>
                 <label className="flex items-center gap-2 cursor-pointer font-semibold text-white shrink-0">
@@ -1131,6 +1463,20 @@ export function GameDetailView({
                   />
                   <span>Etkin</span>
                 </label>
+              </div>
+
+              {/* Uyumluluk Katmanı Seçici (Proton / GE-Proton / Wine) */}
+              <div>
+                <label className="block text-[11px] text-zinc-400 mb-1.5">
+                  Uyumluluk Katmanı (Proton / GE-Proton / Wine Sürümü)
+                </label>
+                <CustomSelect
+                  value={hook.runner_path ?? ""}
+                  options={runnerOptions}
+                  onChange={(val) =>
+                    setHook({ ...hook, runner_path: val || null })
+                  }
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1197,17 +1543,57 @@ export function GameDetailView({
                 </div>
               </div>
 
-              <label className="flex items-center gap-2.5 cursor-pointer text-zinc-200">
+              {/* Performans Anahtarları (GameMode + MangoHud + Gamescope FSR) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <label className="p-3 rounded-xl bg-black border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
+                  <input
+                    type="checkbox"
+                    checked={hook.use_gamemode}
+                    onChange={(e) =>
+                      setHook({ ...hook, use_gamemode: e.target.checked })
+                    }
+                    className="w-4 h-4 accent-emerald-500"
+                  />
+                  <span>GameMode (`gamemoderun`)</span>
+                </label>
+
+                <label className="p-3 rounded-xl bg-black border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(hook.use_mangohud)}
+                    onChange={(e) =>
+                      setHook({ ...hook, use_mangohud: e.target.checked })
+                    }
+                    className="w-4 h-4 accent-emerald-500"
+                  />
+                  <span>MangoHud FPS Katmanı</span>
+                </label>
+
+                <label className="p-3 rounded-xl bg-black border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(hook.gamescope_fsr)}
+                    onChange={(e) =>
+                      setHook({ ...hook, gamescope_fsr: e.target.checked })
+                    }
+                    className="w-4 h-4 accent-emerald-500"
+                  />
+                  <span>Gamescope AMD FSR</span>
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-[11px] text-zinc-400 mb-1.5">
+                  Özel Ortam Değişkenleri (Virgülle ayrılmış `ANAHTAR=DEĞER`)
+                </label>
                 <input
-                  type="checkbox"
-                  checked={hook.use_gamemode}
-                  onChange={(e) =>
-                    setHook({ ...hook, use_gamemode: e.target.checked })
-                  }
-                  className="w-4 h-4 accent-emerald-500"
+                  type="text"
+                  placeholder="DXVK_ASYNC=1, PROTON_ENABLE_NVAPI=1"
+                  value={customEnvText}
+                  onChange={(e) => setCustomEnvText(e.target.value)}
+                  className="w-full h-10 rounded-xl bg-black border border-white/12 focus:border-white/35 px-3.5 text-xs font-mono text-zinc-100 outline-none"
                 />
-                <span>Feral GameMode (`gamemoderun`) ile başlat</span>
-              </label>
+              </div>
 
               <div>
                 <label className="block text-[11px] text-zinc-400 mb-1.5">

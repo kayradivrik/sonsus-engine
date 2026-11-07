@@ -596,6 +596,101 @@ async fn fetch_protondb_summary(
     (tier, total)
 }
 
+async fn fetch_steamspy_metrics(
+    client: &reqwest::Client,
+    appid: u64,
+) -> (Option<u64>, Option<u8>, Option<u64>) {
+    let url = format!("https://steamspy.com/api.php?request=appdetails&appid={appid}");
+    let Ok(resp) = client.get(&url).send().await else {
+        return (None, None, None);
+    };
+    if !resp.status().is_success() {
+        return (None, None, None);
+    }
+    let Ok(json) = resp.json::<serde_json::Value>().await else {
+        return (None, None, None);
+    };
+
+    let ccu = json.get("ccu").and_then(|v| v.as_u64()).filter(|&n| n > 0);
+    let pos = json.get("positive").and_then(|v| v.as_u64()).unwrap_or(0);
+    let neg = json.get("negative").and_then(|v| v.as_u64()).unwrap_or(0);
+    let rating = if pos + neg > 0 {
+        Some(((pos * 100) / (pos + neg)).min(100) as u8)
+    } else {
+        None
+    };
+    let avg_forever_mins = json
+        .get("average_forever")
+        .and_then(|v| v.as_u64())
+        .filter(|&m| m > 0);
+
+    (ccu, rating, avg_forever_mins)
+}
+
+fn round_half_hour(val: f32) -> f32 {
+    ((val * 2.0).round() / 2.0).max(0.5)
+}
+
+fn parse_hours_from_review_label(label: &str) -> Option<f32> {
+    let mut num_buf = String::new();
+    for ch in label.chars() {
+        if ch.is_ascii_digit() || ch == '.' {
+            num_buf.push(ch);
+        } else if ch == ',' {
+            // Binlik ayracı mı ondalık mı kontrol et
+            continue;
+        } else if !num_buf.is_empty() {
+            break;
+        }
+    }
+    let parsed = num_buf.parse::<f32>().ok()?;
+    if (0.5..=2500.0).contains(&parsed) {
+        Some(parsed)
+    } else {
+        None
+    }
+}
+
+fn compute_playtime_estimates(
+    reviews: &[PlayerReview],
+    avg_forever_mins: Option<u64>,
+) -> (Option<f32>, Option<f32>, Option<f32>) {
+    let mut sample_hours: Vec<f32> = reviews
+        .iter()
+        .filter_map(|r| parse_hours_from_review_label(&r.hours_played))
+        .collect();
+    sample_hours.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+    if let Some(avg_mins) = avg_forever_mins {
+        let spy_avg = (avg_mins as f32 / 60.0).clamp(1.0, 400.0);
+        if sample_hours.len() >= 3 {
+            let p25 = sample_hours[sample_hours.len() / 4];
+            let p50 = sample_hours[sample_hours.len() / 2];
+            let p85 = sample_hours[(sample_hours.len() * 85) / 100];
+            let main_h = round_half_hour(((p25 + spy_avg * 0.65) / 2.0).clamp(1.0, 250.0));
+            let extra_h = round_half_hour(((p50 + spy_avg) / 2.0).max(main_h + 1.0));
+            let comp_h = round_half_hour(p85.max(extra_h * 1.35).min(600.0));
+            return (Some(main_h), Some(extra_h), Some(comp_h));
+        }
+        let main_h = round_half_hour((spy_avg * 0.65).max(1.0));
+        let extra_h = round_half_hour(spy_avg.max(main_h + 1.0));
+        let comp_h = round_half_hour((spy_avg * 1.75).max(extra_h + 2.0));
+        return (Some(main_h), Some(extra_h), Some(comp_h));
+    }
+
+    if sample_hours.len() >= 2 {
+        let p25 = sample_hours[sample_hours.len() / 4];
+        let p50 = sample_hours[sample_hours.len() / 2];
+        let p85 = sample_hours[(sample_hours.len() * 85) / 100];
+        let main_h = round_half_hour(p25.clamp(1.0, 250.0));
+        let extra_h = round_half_hour(p50.max(main_h + 1.0));
+        let comp_h = round_half_hour(p85.max(extra_h * 1.3).min(600.0));
+        return (Some(main_h), Some(extra_h), Some(comp_h));
+    }
+
+    (None, None, None)
+}
+
 async fn fetch_community_reviews(client: &reqwest::Client, appid: u64) -> Vec<PlayerReview> {
     let mut reviews = fetch_community_reviews_lang(client, appid, "turkish").await;
     if reviews.len() < 3 {
@@ -703,7 +798,7 @@ pub async fn fetch_online_game_details(
     game: &UnifiedGame,
     force_refresh: bool,
 ) -> Result<OnlineGameDetails, String> {
-    let cache_key = format!("v3:{}", game.id);
+    let cache_key = format!("v4:{}", game.id);
     if !force_refresh {
         if let Some(cached) = load_cached_online_details(&cache_key, CACHE_TTL_SECS) {
             return Ok(cached);
@@ -720,7 +815,7 @@ pub async fn fetch_online_game_details(
             match game.platform {
                 Platform::Epic => fetch_gogdb_release(&client, "epic", &game.platform_id).await,
                 Platform::Gog => fetch_gogdb_release(&client, "gog", &game.platform_id).await,
-                Platform::Steam => (StoreSpecificMeta::default(), None),
+                Platform::Steam | Platform::Custom => (StoreSpecificMeta::default(), None),
             }
         },
         async {
@@ -800,19 +895,26 @@ pub async fn fetch_online_game_details(
         ..Default::default()
     };
 
-    // 2. Steam + ProtonDB + Oyuncu İncelemeleri Katmanı (Steam oyunlarında birincil, Epic/GOG'da tamamlayıcı)
+    // 2. Steam + ProtonDB + SteamSpy + Oyuncu İncelemeleri Katmanı
     if let Some(appid) = appid_opt {
         let appdetails_url =
             format!("https://store.steampowered.com/api/appdetails?appids={appid}&l=turkish");
 
-        let (appdetails_res, proton_res, reviews) = tokio::join!(
+        let (appdetails_res, proton_res, reviews, spy_res) = tokio::join!(
             client.get(&appdetails_url).send(),
             fetch_protondb_summary(&client, appid),
             fetch_community_reviews(&client, appid),
+            fetch_steamspy_metrics(&client, appid),
         );
 
         details.protondb_tier = proton_res.0;
         details.protondb_total = proton_res.1;
+        details.live_players_ccu = spy_res.0;
+        details.community_rating_percent = spy_res.1;
+        let (main_h, extra_h, comp_h) = compute_playtime_estimates(&reviews, spy_res.2);
+        details.estimated_main_hours = main_h;
+        details.estimated_extra_hours = extra_h;
+        details.estimated_completionist_hours = comp_h;
         details.reviews = reviews;
 
         if details.hero_url.is_none() {

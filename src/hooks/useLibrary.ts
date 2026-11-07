@@ -1,7 +1,7 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { tauriApi } from "../api/tauriClient";
 import {
-  InstallStatus,
+  LibraryQuickFilter,
   PageSizeOption,
   Platform,
   SortMode,
@@ -13,13 +13,25 @@ export interface GenreCountItem {
   count: number;
 }
 
+export interface LibraryCounts {
+  all: number;
+  installed: number;
+  cloud: number;
+  favorites: number;
+  hidden: number;
+  steam: number;
+  epic: number;
+  gog: number;
+  custom: number;
+}
+
 /**
- * Kütüphane verisini, filtreleri, gecikmesiz (`useDeferredValue`) aramayı,
- * istatistikleri ve gerçek Sayfalama (Pagination) durumunu tek bir kancada yönetir.
+ * Kütüphane verisini, filtreleri (Favoriler & Gizlenenler dahil), gecikmesiz (`useDeferredValue`) aramayı,
+ * "Son Oynananlar" rafını, istatistikleri ve Sayfalamayı (Pagination) tek bir kancada yönetir.
  */
 export function useLibrary(onError: (msg: string) => void) {
   const [games, setGames] = useState<UnifiedGame[]>([]);
-  const [statusFilter, setStatusFilter] = useState<"all" | InstallStatus>("all");
+  const [statusFilter, setStatusFilter] = useState<LibraryQuickFilter>("all");
   const [platformFilter, setPlatformFilter] = useState<"all" | Platform>("all");
   const [genreFilter, setGenreFilter] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>("status");
@@ -54,31 +66,91 @@ export function useLibrary(onError: (msg: string) => void) {
   }, [performScan]);
 
   const replaceSingleGame = useCallback((updated: UnifiedGame) => {
-    setGames((prev) => prev.map((g) => (g.id === updated.id ? updated : g)));
+    setGames((prev) => {
+      const exists = prev.some((g) => g.id === updated.id);
+      if (!exists) {
+        return [...prev, updated].sort((a, b) =>
+          a.title.toLowerCase().localeCompare(b.title.toLowerCase())
+        );
+      }
+      return prev.map((g) => (g.id === updated.id ? updated : g));
+    });
   }, []);
 
-  const counts = useMemo(() => {
+  const removeSingleGame = useCallback((gameId: string) => {
+    setGames((prev) => prev.filter((g) => g.id !== gameId));
+  }, []);
+
+  const counts = useMemo<LibraryCounts>(() => {
+    let visibleAll = 0;
     let installed = 0;
     let cloud = 0;
+    let favorites = 0;
+    let hidden = 0;
     let steam = 0;
     let epic = 0;
     let gog = 0;
+    let custom = 0;
 
     for (const g of games) {
+      if (g.is_hidden) {
+        hidden++;
+        continue;
+      }
+      visibleAll++;
       if (g.status === "installed") installed++;
       else cloud++;
+      if (g.is_favorite) favorites++;
+
       if (g.platform === "steam") steam++;
       else if (g.platform === "epic") epic++;
-      else gog++;
+      else if (g.platform === "gog") gog++;
+      else custom++;
     }
 
-    return { all: games.length, installed, cloud, steam, epic, gog };
+    return {
+      all: visibleAll,
+      installed,
+      cloud,
+      favorites,
+      hidden,
+      steam,
+      epic,
+      gog,
+      custom,
+    };
+  }, [games]);
+
+  const recentGames = useMemo<UnifiedGame[]>(() => {
+    return games
+      .filter(
+        (g) =>
+          !g.is_hidden &&
+          ((g.last_played_epoch && g.last_played_epoch > 0) ||
+            g.playtime_minutes > 0)
+      )
+      .sort(
+        (a, b) =>
+          (b.last_played_epoch ?? 0) - (a.last_played_epoch ?? 0) ||
+          b.playtime_minutes - a.playtime_minutes
+      )
+      .slice(0, 6);
   }, [games]);
 
   const genreCounts = useMemo<GenreCountItem[]>(() => {
     const map = new Map<string, number>();
     for (const g of games) {
-      if (statusFilter !== "all" && g.status !== statusFilter) continue;
+      if (statusFilter === "hidden") {
+        if (!g.is_hidden) continue;
+      } else {
+        if (g.is_hidden) continue;
+        if (statusFilter === "favorites" && !g.is_favorite) continue;
+        if (
+          (statusFilter === "installed" || statusFilter === "cloud") &&
+          g.status !== statusFilter
+        )
+          continue;
+      }
       if (platformFilter !== "all" && g.platform !== platformFilter) continue;
       for (const genre of g.genres ?? []) {
         map.set(genre, (map.get(genre) ?? 0) + 1);
@@ -92,24 +164,45 @@ export function useLibrary(onError: (msg: string) => void) {
   const filteredGames = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
     const list = games.filter((g) => {
-      if (statusFilter !== "all" && g.status !== statusFilter) return false;
+      if (statusFilter === "hidden") {
+        if (!g.is_hidden) return false;
+      } else {
+        if (g.is_hidden) return false;
+        if (statusFilter === "favorites" && !g.is_favorite) return false;
+        if (
+          (statusFilter === "installed" || statusFilter === "cloud") &&
+          g.status !== statusFilter
+        ) {
+          return false;
+        }
+      }
+
       if (platformFilter !== "all" && g.platform !== platformFilter) return false;
       if (genreFilter && !(g.genres ?? []).includes(genreFilter)) return false;
+
       if (q) {
         const inTitle = g.title.toLowerCase().includes(q);
         const inDev = (g.developer ?? "").toLowerCase().includes(q);
-        if (!inTitle && !inDev) return false;
+        const inTag = (g.collection_tag ?? "").toLowerCase().includes(q);
+        if (!inTitle && !inDev && !inTag) return false;
       }
       return true;
     });
 
     list.sort((a, b) => {
+      // Favoriler eşit durumda hafif öncelik alır
       if (sortMode === "status") {
+        if (Boolean(a.is_favorite) !== Boolean(b.is_favorite)) {
+          return a.is_favorite ? -1 : 1;
+        }
         if (a.status !== b.status) return a.status === "installed" ? -1 : 1;
         return a.title.localeCompare(b.title);
       }
       if (sortMode === "playtime") {
-        return b.playtime_minutes - a.playtime_minutes || a.title.localeCompare(b.title);
+        return (
+          b.playtime_minutes - a.playtime_minutes ||
+          a.title.localeCompare(b.title)
+        );
       }
       if (sortMode === "recent") {
         return (b.last_played_epoch ?? 0) - (a.last_played_epoch ?? 0);
@@ -138,6 +231,7 @@ export function useLibrary(onError: (msg: string) => void) {
 
   return {
     games,
+    recentGames,
     filteredGames,
     paginatedGames,
     counts,
@@ -160,5 +254,6 @@ export function useLibrary(onError: (msg: string) => void) {
     scanning,
     performScan,
     replaceSingleGame,
+    removeSingleGame,
   };
 }

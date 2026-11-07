@@ -1,7 +1,13 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 
-export type Platform = "steam" | "epic" | "gog";
+export type Platform = "steam" | "epic" | "gog" | "custom";
 export type InstallStatus = "installed" | "cloud";
+export type LibraryQuickFilter =
+  | "all"
+  | "installed"
+  | "cloud"
+  | "favorites"
+  | "hidden";
 export type DisplayBackend = "auto" | "xrandr" | "gamescope" | "kscreen";
 export type SortMode = "status" | "title" | "playtime" | "recent" | "size";
 export type ViewMode = "grid" | "table";
@@ -21,6 +27,10 @@ export interface HookProfile {
   target_resolution?: string | null;
   target_refresh_hz?: string | null;
   use_gamemode: boolean;
+  use_mangohud: boolean;
+  gamescope_fsr: boolean;
+  runner_path?: string | null;
+  custom_env: string[];
   suspend_processes: string[];
   pre_launch_cmd?: string | null;
   post_exit_cmd?: string | null;
@@ -43,6 +53,10 @@ export interface UnifiedGame {
   developer?: string | null;
   store_slug?: string | null;
   summary_hint?: string | null;
+  is_favorite?: boolean;
+  is_hidden?: boolean;
+  collection_tag?: string | null;
+  update_available?: boolean | null;
   launch?: LaunchConfig | null;
   install_uri?: string | null;
 }
@@ -74,6 +88,11 @@ export interface OnlineGameDetails {
   cloud_saves_supported?: boolean | null;
   has_turkish: boolean;
   controller_support?: string | null;
+  estimated_main_hours?: number | null;
+  estimated_extra_hours?: number | null;
+  estimated_completionist_hours?: number | null;
+  live_players_ccu?: number | null;
+  community_rating_percent?: number | null;
   minimum_requirements?: string | null;
   recommended_requirements?: string | null;
   linux_requirements?: string | null;
@@ -106,7 +125,33 @@ export interface InstallGamePayload {
   target_dir?: string | null;
 }
 
+export interface CustomGameInput {
+  title: string;
+  executable_path: string;
+  args: string[];
+  working_dir?: string | null;
+  wine_prefix?: string | null;
+}
+
+export interface RunnerInfo {
+  name: string;
+  path: string;
+  kind: "proton" | "wine" | string;
+}
+
+export interface StoreAuthStatus {
+  steam_connected: boolean;
+  steam_persona?: string | null;
+  steam_id64?: string | null;
+  epic_connected: boolean;
+  epic_display_name?: string | null;
+  gog_connected: boolean;
+  gog_username?: string | null;
+}
+
 export interface AppSettings {
+  player_name?: string | null;
+  onboarding_completed: boolean;
   steam_api_key?: string | null;
   steam_id64_override?: string | null;
   sgdb_api_key?: string | null;
@@ -135,7 +180,9 @@ export interface SystemDiagnostics {
   has_gamescope: boolean;
   has_kscreen_doctor: boolean;
   has_gamemoderun: boolean;
+  has_mangohud: boolean;
   displays: DisplayOutputInfo[];
+  runners: RunnerInfo[];
 }
 
 export function createEmptyHookProfile(): HookProfile {
@@ -146,6 +193,10 @@ export function createEmptyHookProfile(): HookProfile {
     target_resolution: null,
     target_refresh_hz: null,
     use_gamemode: false,
+    use_mangohud: false,
+    gamescope_fsr: false,
+    runner_path: null,
+    custom_env: [],
     suspend_processes: [],
     pre_launch_cmd: null,
     post_exit_cmd: null,
@@ -154,6 +205,8 @@ export function createEmptyHookProfile(): HookProfile {
 
 export function createDefaultAppSettings(): AppSettings {
   return {
+    player_name: null,
+    onboarding_completed: false,
     steam_api_key: null,
     steam_id64_override: null,
     sgdb_api_key: null,
@@ -163,6 +216,19 @@ export function createDefaultAppSettings(): AppSettings {
     sync_epic_heroic: true,
     default_hook: createEmptyHookProfile(),
   };
+}
+
+export function platformLabel(platform: Platform): string {
+  switch (platform) {
+    case "steam":
+      return "STEAM";
+    case "epic":
+      return "EPIC";
+    case "gog":
+      return "GOG";
+    case "custom":
+      return "ÖZEL";
+  }
 }
 
 export function isLocalFilePath(pathOrUrl: string): boolean {

@@ -1,5 +1,5 @@
 //! Linux ve Windows işletim sistemleri arasındaki dosya yöneticisi, URI şeması,
-//! disk boş alan (`statvfs` / `GetDiskFreeSpaceExW`), kabuk komutu ve yerel klasör seçme köprüsü.
+//! disk boş alan (`statvfs` / `GetDiskFreeSpaceExW`), kabuk komutu ve yerel klasör/dosya seçme köprüsü.
 
 use std::{path::Path, process::Command};
 
@@ -152,11 +152,11 @@ pub fn run_shell_command(cmd_line: &str) {
     }
 }
 
-/// Linux (KDE `kdialog` / GTK `zenity`) ve Windows (PowerShell `FolderBrowserDialog`) üzerinde
-/// yerel işletim sistemi klasör seçme penceresini açar.
+/// Linux (`kdialog` / `zenity`) ve Windows (PowerShell `FolderBrowserDialog`) üzerinde klasör seçme penceresi açar.
 pub fn pick_directory_dialog(initial: Option<&str>) -> Option<String> {
     #[cfg(windows)]
     {
+        let _ = initial;
         let script = r#"Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.FolderBrowserDialog; $f.ShowNewFolderButton = $true; if ($f.ShowDialog() -eq 'OK') { Write-Output $f.SelectedPath }"#;
         let out = Command::new("powershell")
             .args(["-NoProfile", "-Command", script])
@@ -194,6 +194,69 @@ pub fn pick_directory_dialog(initial: Option<&str>) -> Option<String> {
                     "--file-selection",
                     "--directory",
                     "--title=Klasör Seç",
+                    &format!("--filename={start_dir}/"),
+                ])
+                .output()
+            {
+                if out.status.success() {
+                    let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                    if !s.is_empty() {
+                        return Some(s);
+                    }
+                }
+            }
+        }
+
+        None
+    }
+}
+
+/// Özel oyun ekleme için çalıştırılabilir dosya (`.exe`, `.AppImage`, `.sh`, vb.) seçme penceresi açar.
+pub fn pick_executable_dialog(initial: Option<&str>) -> Option<String> {
+    #[cfg(windows)]
+    {
+        let _ = initial;
+        let script = r#"Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.OpenFileDialog; $f.Filter = 'Oyun Dosyaları (*.exe;*.bat;*.cmd)|*.exe;*.bat;*.cmd|Tüm Dosyalar (*.*)|*.*'; if ($f.ShowDialog() -eq 'OK') { Write-Output $f.FileName }"#;
+        let out = Command::new("powershell")
+            .args(["-NoProfile", "-Command", script])
+            .output()
+            .ok()?;
+        let chosen = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        return if chosen.is_empty() { None } else { Some(chosen) };
+    }
+
+    #[cfg(not(windows))]
+    {
+        let start_dir = initial
+            .filter(|s| !s.trim().is_empty())
+            .map(ToOwned::to_owned)
+            .or_else(|| dirs::home_dir().map(|p| p.to_string_lossy().into_owned()))
+            .unwrap_or_else(|| "/".to_string());
+
+        if has_binary("kdialog") {
+            if let Ok(out) = Command::new("kdialog")
+                .args([
+                    "--getopenfilename",
+                    &start_dir,
+                    "--title",
+                    "Çalıştırılabilir Oyun Dosyası Seç",
+                ])
+                .output()
+            {
+                if out.status.success() {
+                    let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                    if !s.is_empty() {
+                        return Some(s);
+                    }
+                }
+            }
+        }
+
+        if has_binary("zenity") {
+            if let Ok(out) = Command::new("zenity")
+                .args([
+                    "--file-selection",
+                    "--title=Çalıştırılabilir Oyun Dosyası Seç",
                     &format!("--filename={start_dir}/"),
                 ])
                 .output()

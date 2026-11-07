@@ -1,13 +1,14 @@
-//! Uygulama içi arka plan indirme yöneticisi (`downloader.rs`).
+//! Uygulama içi arka plan indirme, dosya doğrulama/onarma ve güncelleme yöneticisi (`downloader.rs`).
 //!
 //! Harici Heroic veya terminal penceresi açmadan Epic (`legendary`) ve GOG (`gogdl`) oyunlarını
-//! doğrudan seçilen dizine indirir; canlı yüzde, hız (`MiB/s`) ve kalan süre (`ETA`) akışı üretir.
+//! doğrudan seçilen dizine indirir veya onarır; canlı yüzde, hız (`MiB/s`) ve kalan süre (`ETA`) akışı üretir.
 
 use crate::{
+    auth::sonsus_gog_auth_file,
     db::update_single_cached_game,
     models::{DownloadTaskInfo, InstallStatus, LaunchConfig, Platform, UnifiedGame},
     parsers::epic::{find_heroic_roots, find_legendary_binary_path},
-    platform_os::has_binary,
+    platform_os::{has_binary, open_uri_scheme},
 };
 use std::{
     collections::HashMap,
@@ -51,10 +52,24 @@ fn find_gogdl_binary_path() -> Option<String> {
     None
 }
 
+fn resolve_gog_auth_config_path() -> Option<PathBuf> {
+    if let Some(direct) = sonsus_gog_auth_file() {
+        if direct.exists() {
+            return Some(direct);
+        }
+    }
+    for hr in find_heroic_roots() {
+        let auth = hr.join("gog_store/auth.json");
+        if auth.exists() {
+            return Some(auth);
+        }
+    }
+    None
+}
+
 fn parse_progress_line(line: &str, info: &mut DownloadTaskInfo) -> bool {
     let mut changed = false;
 
-    // Örn: `[cli] INFO: Progress: 42.50% (1250/2940), Running for 00:01:12, ETA: 00:02:10`
     if let Some(p_idx) = line.find("Progress:") {
         let rest = line[p_idx + "Progress:".len()..].trim();
         if let Some(pct_str) = rest.split('%').next() {
@@ -72,7 +87,18 @@ fn parse_progress_line(line: &str, info: &mut DownloadTaskInfo) -> bool {
         }
     }
 
-    // Örn: `[cli] INFO:  + Download	- 48.25 MiB/s (raw) / 51.10 MiB/s (decompressed)`
+    if line.contains("Verification progress:") {
+        if let Some(open_p) = line.rfind('(') {
+            if let Some(pct_str) = line[open_p + 1..].split('%').next() {
+                if let Ok(pct) = pct_str.trim().parse::<f32>() {
+                    info.progress_percent = pct.clamp(0.0, 100.0);
+                    info.speed_text = "Doğrulanıyor...".into();
+                    changed = true;
+                }
+            }
+        }
+    }
+
     if line.contains("Download") && line.contains("MiB/s") {
         if let Some(dash_idx) = line.find('-') {
             let speed_raw = line[dash_idx + 1..]
@@ -104,7 +130,10 @@ fn parse_progress_line(line: &str, info: &mut DownloadTaskInfo) -> bool {
     changed
 }
 
-fn resolve_epic_installed_after_download(app_name: &str, fallback_base: &str) -> (PathBuf, Option<u64>) {
+fn resolve_epic_installed_after_download(
+    app_name: &str,
+    fallback_base: &str,
+) -> (PathBuf, Option<u64>) {
     let mut legendary_roots: Vec<PathBuf> = Vec::new();
     if let Some(cfg) = dirs::config_dir() {
         legendary_roots.push(cfg.join("legendary"));
@@ -146,7 +175,8 @@ impl DownloadManager {
             }
             slot.info.status = "paused".into();
             slot.info.speed_text.clear();
-            slot.info.detail_text = "Duraklatıldı — İstediğiniz zaman kaldığı yerden devam ettirebilirsiniz".into();
+            slot.info.detail_text =
+                "Duraklatıldı — İstediğiniz zaman kaldığı yerden devam ettirebilirsiniz".into();
             let _ = app.emit("download-updated", &slot.info);
         }
         Ok(())
@@ -162,11 +192,54 @@ impl DownloadManager {
         let _ = app.emit("download-removed", game_id);
     }
 
+    pub fn start_repair(
+        self: &Arc<Self>,
+        app: AppHandle,
+        game: UnifiedGame,
+    ) -> Result<Option<DownloadTaskInfo>, String> {
+        match game.platform {
+            Platform::Steam => {
+                open_uri_scheme(&format!("steam://validate/{}", game.platform_id))?;
+                Ok(None)
+            }
+            Platform::Epic => {
+                let target_dir = game
+                    .install_path
+                    .as_ref()
+                    .and_then(|p| p.parent())
+                    .map(|p| p.to_string_lossy().into_owned())
+                    .unwrap_or_default();
+                let task = self.spawn_managed_job(app, game, target_dir, true)?;
+                Ok(Some(task))
+            }
+            Platform::Gog => {
+                let target_dir = game
+                    .install_path
+                    .as_ref()
+                    .map(|p| p.to_string_lossy().into_owned())
+                    .unwrap_or_default();
+                let task = self.spawn_managed_job(app, game, target_dir, true)?;
+                Ok(Some(task))
+            }
+            Platform::Custom => Err("Yerel özel oyunlar için mağaza dosya doğrulaması bulunmuyor.".into()),
+        }
+    }
+
     pub fn start_download(
         self: &Arc<Self>,
         app: AppHandle,
         game: UnifiedGame,
         target_dir: String,
+    ) -> Result<DownloadTaskInfo, String> {
+        self.spawn_managed_job(app, game, target_dir, false)
+    }
+
+    fn spawn_managed_job(
+        self: &Arc<Self>,
+        app: AppHandle,
+        game: UnifiedGame,
+        target_dir: String,
+        is_repair: bool,
     ) -> Result<DownloadTaskInfo, String> {
         let clean_target = if target_dir.trim().is_empty() {
             dirs::home_dir()
@@ -184,17 +257,21 @@ impl DownloadManager {
         let mut cmd = match game.platform {
             Platform::Epic => {
                 let bin = find_legendary_binary_path().ok_or_else(|| {
-                    "Doğrudan uygulama içi indirme için sistemde Legendary motoru bulunamadı."
+                    "Doğrudan uygulama içi işlem için sistemde Legendary motoru bulunamadı."
                         .to_string()
                 })?;
                 let mut c = TokioCommand::new(bin);
-                c.args([
-                    "install",
-                    &game.platform_id,
-                    "--base-path",
-                    &clean_target,
-                    "-y",
-                ]);
+                if is_repair {
+                    c.args(["repair", &game.platform_id, "-y"]);
+                } else {
+                    c.args([
+                        "install",
+                        &game.platform_id,
+                        "--base-path",
+                        &clean_target,
+                        "-y",
+                    ]);
+                }
                 if let Some(cfg) = dirs::config_dir() {
                     let heroic_xdg = cfg.join("heroic/legendaryConfig");
                     if heroic_xdg.exists() && !cfg.join("legendary/user.json").exists() {
@@ -206,17 +283,14 @@ impl DownloadManager {
             }
             Platform::Gog => {
                 let bin = find_gogdl_binary_path().ok_or_else(|| {
-                    "Doğrudan GOG indirmesi için sistemde gogdl motoru bulunamadı.".to_string()
+                    "Doğrudan GOG işlemi için sistemde gogdl motoru bulunamadı.".to_string()
                 })?;
                 let mut c = TokioCommand::new(bin);
-                if let Some(hr) = find_heroic_roots().into_iter().next() {
-                    let auth = hr.join("gog_store/auth.json");
-                    if auth.exists() {
-                        c.arg("--auth-config-path").arg(auth);
-                    }
+                if let Some(auth_pb) = resolve_gog_auth_config_path() {
+                    c.arg("--auth-config-path").arg(auth_pb);
                 }
                 c.args([
-                    "download",
+                    if is_repair { "repair" } else { "download" },
                     &game.platform_id,
                     "--path",
                     &clean_target,
@@ -229,6 +303,9 @@ impl DownloadManager {
                         .into(),
                 );
             }
+            Platform::Custom => {
+                return Err("Özel oyun zaten yerel diskte kayıtlı.".into());
+            }
         };
 
         cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
@@ -237,15 +314,14 @@ impl DownloadManager {
         {
             #[allow(unused_imports)]
             use std::os::windows::process::CommandExt;
-            cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+            cmd.creation_flags(0x0800_0000);
         }
 
-        // Aynı oyun için çalışan eski indirme varsa önce durdur
         let _ = self.pause_task(&app, &game.id);
 
         let mut child = cmd
             .spawn()
-            .map_err(|e| format!("İndirme motoru başlatılamadı: {e}"))?;
+            .map_err(|e| format!("İndirme/doğrulama motoru başlatılamadı: {e}"))?;
 
         let (cancel_tx, mut cancel_rx) = oneshot::channel::<()>();
         let initial_info = DownloadTaskInfo {
@@ -255,9 +331,17 @@ impl DownloadManager {
             target_dir: clean_target.clone(),
             status: "downloading".into(),
             progress_percent: 0.0,
-            speed_text: "Bağlanıyor...".into(),
+            speed_text: if is_repair {
+                "Dosyalar taranıyor...".into()
+            } else {
+                "Bağlanıyor...".into()
+            },
             eta_text: "Hesaplanıyor".into(),
-            detail_text: format!("Hedef: {clean_target}"),
+            detail_text: if is_repair {
+                "Dosya bütünlüğü doğrulanıyor ve eksik parçalar onarılıyor".into()
+            } else {
+                format!("Hedef: {clean_target}")
+            },
             updated_game: None,
         };
 
@@ -352,49 +436,69 @@ impl DownloadManager {
                     }
                     if exit_ok {
                         let (inst_pb, disk_sz) = if game_clone.platform == Platform::Epic {
-                            resolve_epic_installed_after_download(&game_clone.platform_id, &target_clone)
+                            resolve_epic_installed_after_download(
+                                &game_clone.platform_id,
+                                &target_clone,
+                            )
                         } else {
-                            (PathBuf::from(&target_clone), None)
+                            (
+                                game_clone
+                                    .install_path
+                                    .clone()
+                                    .unwrap_or_else(|| PathBuf::from(&target_clone)),
+                                None,
+                            )
                         };
 
                         let mut finished_game = game_clone.clone();
                         finished_game.status = InstallStatus::Installed;
                         finished_game.install_path = Some(inst_pb.clone());
+                        finished_game.update_available = Some(false);
                         if disk_sz.is_some() {
                             finished_game.size_bytes = disk_sz;
                         }
-                        finished_game.launch = Some(LaunchConfig {
-                            command_uri_or_bin: if let Some(leg) = find_legendary_binary_path() {
-                                if game_clone.platform == Platform::Epic {
-                                    leg
+                        if finished_game.launch.is_none() {
+                            finished_game.launch = Some(LaunchConfig {
+                                command_uri_or_bin: if let Some(leg) = find_legendary_binary_path()
+                                {
+                                    if game_clone.platform == Platform::Epic {
+                                        leg
+                                    } else {
+                                        format!("heroic://launch/gog/{}", game_clone.platform_id)
+                                    }
                                 } else {
-                                    format!("heroic://launch/gog/{}", game_clone.platform_id)
-                                }
-                            } else {
-                                format!("heroic://launch/legendary/{}", game_clone.platform_id)
-                            },
-                            args: if game_clone.platform == Platform::Epic {
-                                vec!["launch".into(), game_clone.platform_id.clone()]
-                            } else {
-                                vec![]
-                            },
-                            working_dir: Some(inst_pb),
-                            wine_prefix: None,
-                        });
+                                    format!(
+                                        "heroic://launch/legendary/{}",
+                                        game_clone.platform_id
+                                    )
+                                },
+                                args: if game_clone.platform == Platform::Epic {
+                                    vec!["launch".into(), game_clone.platform_id.clone()]
+                                } else {
+                                    vec![]
+                                },
+                                working_dir: Some(inst_pb),
+                                wine_prefix: None,
+                            });
+                        }
                         let _ = update_single_cached_game(&finished_game);
 
                         slot.info.status = "completed".into();
                         slot.info.progress_percent = 100.0;
                         slot.info.speed_text = "Tamamlandı".into();
                         slot.info.eta_text = "00:00".into();
-                        slot.info.detail_text = "Kurulum başarıyla tamamlandı!".into();
+                        slot.info.detail_text = if is_repair {
+                            "Dosya doğrulama ve onarım başarıyla tamamlandı!".into()
+                        } else {
+                            "Kurulum başarıyla tamamlandı!".into()
+                        };
                         slot.info.updated_game = Some(finished_game);
                         slot.cancel_tx = None;
                     } else {
                         slot.info.status = "failed".into();
                         slot.info.speed_text.clear();
                         slot.info.detail_text = if last_err_line.is_empty() {
-                            "İndirme işlemi sonlandı (Oturum veya disk alanını kontrol edin).".into()
+                            "İşlem sonlandı (Oturum veya disk alanını kontrol edin).".into()
                         } else {
                             last_err_line
                         };

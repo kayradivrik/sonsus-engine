@@ -1,23 +1,34 @@
 use crate::{
+    auth::{
+        login_epic_with_code, login_gog_with_code, logout_epic, logout_gog,
+        query_store_auth_status, EPIC_AUTH_URL, GOG_AUTH_URL,
+    },
     covers::resolve_or_fetch_cover,
     db::{
-        load_cached_games, load_game_hook, save_cached_games, save_game_hook, save_settings,
+        apply_prefs_to_games, load_cached_games, load_custom_games, load_game_hook,
+        save_cached_games, save_game_hook, save_game_pref, save_settings,
         update_single_cached_game,
     },
     downloader::DownloadManager,
-    installer::{execute_install_action, list_install_locations, open_in_file_manager},
-    launcher::{enumerate_displays, launch_with_hooks},
+    installer::{
+        check_single_game_update, create_custom_game, execute_install_action,
+        list_install_locations, open_in_file_manager, uninstall_installed_game,
+    },
+    launcher::{enumerate_displays, enumerate_runners, launch_with_hooks},
     metadata::fetch_online_game_details,
     models::{
-        AppSettings, DownloadTaskInfo, HookProfile, InstallGamePayload, InstallLocationOption,
-        OnlineGameDetails, SystemDiagnostics, UnifiedGame,
+        AppSettings, CustomGameInput, DownloadTaskInfo, HookProfile, InstallGamePayload,
+        InstallLocationOption, OnlineGameDetails, StoreAuthStatus, SystemDiagnostics, UnifiedGame,
     },
     parsers::{
         epic::{find_heroic_roots, scan_epic_all},
         gog::{find_lutris_db, scan_gog_all},
         steam::{detect_steam_id64, find_steam_root_with_override, scan_steam_all},
     },
-    platform_os::{detect_session_label, has_binary, pick_directory_dialog},
+    platform_os::{
+        detect_session_label, has_binary, open_uri_scheme, pick_directory_dialog,
+        pick_executable_dialog,
+    },
 };
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, State};
@@ -58,7 +69,9 @@ pub async fn scan_all_libraries(state: State<'_, AppState>) -> Result<Vec<Unifie
     let mut all = steam_games;
     all.extend(epic_games?);
     all.extend(gog_games.map_err(|e| e.to_string())?);
+    all.extend(load_custom_games());
 
+    apply_prefs_to_games(&mut all);
     all.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
     let _ = save_cached_games(&all);
 
@@ -157,8 +170,25 @@ pub async fn pick_folder(initial_dir: Option<String>) -> Option<String> {
 }
 
 #[tauri::command]
+pub async fn pick_executable(initial_dir: Option<String>) -> Option<String> {
+    tokio::task::spawn_blocking(move || pick_executable_dialog(initial_dir.as_deref()))
+        .await
+        .ok()
+        .flatten()
+}
+
+#[tauri::command]
 pub fn open_game_folder(path: String) -> Result<(), String> {
     open_in_file_manager(&path)
+}
+
+#[tauri::command]
+pub fn open_external_url(url: String) -> Result<(), String> {
+    let trimmed = url.trim();
+    if !trimmed.starts_with("https://") && !trimmed.starts_with("http://") {
+        return Err("Yalnızca geçerli web bağlantıları açılabilir.".into());
+    }
+    open_uri_scheme(trimmed)
 }
 
 #[tauri::command]
@@ -239,6 +269,104 @@ pub fn get_system_diagnostics(state: State<'_, AppState>) -> SystemDiagnostics {
         has_gamescope: has_binary("gamescope"),
         has_kscreen_doctor: has_binary("kscreen-doctor"),
         has_gamemoderun: has_binary("gamemoderun"),
+        has_mangohud: has_binary("mangohud"),
         displays: enumerate_displays(),
+        runners: enumerate_runners(custom_steam.as_deref()),
     }
+}
+
+#[tauri::command]
+pub fn get_store_auth_status(state: State<'_, AppState>) -> StoreAuthStatus {
+    let custom_steam = state.settings.lock().unwrap().custom_steam_root.clone();
+    query_store_auth_status(custom_steam.as_deref())
+}
+
+#[tauri::command]
+pub fn get_oauth_login_urls() -> (String, String) {
+    (EPIC_AUTH_URL.to_string(), GOG_AUTH_URL.to_string())
+}
+
+#[tauri::command]
+pub async fn connect_epic_account(code: String) -> Result<String, String> {
+    login_epic_with_code(&code).await
+}
+
+#[tauri::command]
+pub fn disconnect_epic_account() -> Result<(), String> {
+    logout_epic()
+}
+
+#[tauri::command]
+pub async fn connect_gog_account(code: String) -> Result<String, String> {
+    login_gog_with_code(&code).await
+}
+
+#[tauri::command]
+pub fn disconnect_gog_account() -> Result<(), String> {
+    logout_gog()
+}
+
+#[tauri::command]
+pub fn set_game_preferences(
+    mut game: UnifiedGame,
+    is_favorite: bool,
+    is_hidden: bool,
+    collection_tag: Option<String>,
+) -> Result<UnifiedGame, String> {
+    save_game_pref(&game.id, is_favorite, is_hidden, collection_tag.as_deref())?;
+    game.is_favorite = is_favorite;
+    game.is_hidden = is_hidden;
+    game.collection_tag = collection_tag.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+    let _ = update_single_cached_game(&game);
+    Ok(game)
+}
+
+#[tauri::command]
+pub async fn add_custom_game(
+    input: CustomGameInput,
+    state: State<'_, AppState>,
+) -> Result<UnifiedGame, String> {
+    let mut game = create_custom_game(input)?;
+    let sgdb_key = state.settings.lock().unwrap().sgdb_api_key.clone();
+    if let Ok(Some(cover_path)) = resolve_or_fetch_cover(
+        game.platform.as_str(),
+        &game.platform_id,
+        &game.title,
+        None,
+        sgdb_key.as_deref(),
+        false,
+    )
+    .await
+    {
+        game.cover_path_or_url = Some(cover_path);
+        let _ = update_single_cached_game(&game);
+    }
+    Ok(game)
+}
+
+#[tauri::command]
+pub async fn uninstall_game(game: UnifiedGame) -> Result<UnifiedGame, String> {
+    tokio::task::spawn_blocking(move || uninstall_installed_game(game))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub fn verify_or_repair_game(
+    app: AppHandle,
+    game: UnifiedGame,
+    state: State<'_, AppState>,
+) -> Result<Option<DownloadTaskInfo>, String> {
+    state.downloads.start_repair(app, game)
+}
+
+#[tauri::command]
+pub async fn check_game_update(mut game: UnifiedGame) -> Result<UnifiedGame, String> {
+    let g_clone = game.clone();
+    let has_upd = tokio::task::spawn_blocking(move || check_single_game_update(&g_clone))
+        .await
+        .map_err(|e| e.to_string())??;
+    game.update_available = Some(has_upd);
+    let _ = update_single_cached_game(&game);
+    Ok(game)
 }

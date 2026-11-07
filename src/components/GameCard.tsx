@@ -1,10 +1,11 @@
 import { memo, useEffect, useMemo, useState } from "react";
-import { Download, Play } from "lucide-react";
+import { ArrowUpCircle, Download, Heart, Play } from "lucide-react";
 import {
   DownloadTaskInfo,
   UnifiedGame,
   buildCoverCandidates,
   formatPlaytime,
+  platformLabel,
 } from "../types/game";
 
 interface GameCardProps {
@@ -13,6 +14,7 @@ interface GameCardProps {
   downloadTask?: DownloadTaskInfo;
   onOpenDetail: (game: UnifiedGame, autoOpenInstall?: boolean) => void;
   onLaunch: (game: UnifiedGame) => void;
+  onToggleFavorite: (game: UnifiedGame) => void;
 }
 
 /**
@@ -25,6 +27,7 @@ export const GameCard = memo(function GameCard({
   downloadTask,
   onOpenDetail,
   onLaunch,
+  onToggleFavorite,
 }: GameCardProps) {
   const candidates = useMemo(() => buildCoverCandidates(game), [game]);
   const [candidateIdx, setCandidateIdx] = useState(0);
@@ -48,7 +51,9 @@ export const GameCard = memo(function GameCard({
       ? "Steam"
       : game.platform === "epic"
       ? "Epic Games"
-      : "GOG";
+      : game.platform === "gog"
+      ? "GOG"
+      : "Yerel Oyun";
 
   const playtimeText = formatPlaytime(game.playtime_minutes);
   const subtitleParts = [primaryGenre];
@@ -88,13 +93,32 @@ export const GameCard = memo(function GameCard({
           </div>
         )}
 
+        {/* Sağ Üst Favori Kalp Butonu */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleFavorite(game);
+          }}
+          title={game.is_favorite ? "Favorilerden çıkar" : "Favorilere ekle"}
+          className={`absolute top-2.5 right-2.5 z-20 w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+            game.is_favorite
+              ? "bg-black/75 border border-rose-500/50 text-rose-400 opacity-100"
+              : "bg-black/65 border border-white/15 text-zinc-300 hover:text-rose-300 opacity-0 group-hover:opacity-100"
+          }`}
+        >
+          <Heart
+            className={`w-3.5 h-3.5 ${game.is_favorite ? "fill-rose-400" : ""}`}
+          />
+        </button>
+
         {/* Alt karartma */}
         <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/80 via-black/25 to-transparent pointer-events-none" />
 
         {/* Sol Alt Mağaza & Kurulum Durumu Rozetleri */}
         <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 z-10 pointer-events-none">
           <span className="bg-white text-black text-[9px] font-black tracking-wider uppercase px-2 py-[2px] rounded-[3px]">
-            {game.platform}
+            {platformLabel(game.platform)}
           </span>
           {isRunning ? (
             <span className="bg-amber-400 text-black text-[9px] font-extrabold uppercase px-1.5 py-[2px] rounded-[3px] animate-pulse">
@@ -107,6 +131,11 @@ export const GameCard = memo(function GameCard({
           ) : isPaused ? (
             <span className="bg-amber-500 text-black text-[9px] font-extrabold uppercase px-1.5 py-[2px] rounded-[3px]">
               DURAKLATILDI
+            </span>
+          ) : game.update_available ? (
+            <span className="bg-cyan-400 text-black text-[9px] font-extrabold uppercase px-1.5 py-[2px] rounded-[3px] inline-flex items-center gap-0.5">
+              <ArrowUpCircle className="w-2.5 h-2.5" />
+              <span>GÜNCELLEME</span>
             </span>
           ) : isInstalled ? (
             <span className="bg-emerald-500 text-black text-[9px] font-extrabold uppercase px-1.5 py-[2px] rounded-[3px]">

@@ -1,6 +1,6 @@
 [package]
 name = "sonsus-engine"
-version = "0.2.0"
+version = "0.3.0"
 description = "Cross-platform (Linux & Windows) multi-store Game Library Manager (Steam, Epic Games, GOG)"
 authors = ["Kayra Divrik"]
 edition = "2021"

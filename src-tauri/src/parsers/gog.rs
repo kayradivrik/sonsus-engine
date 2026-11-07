@@ -1,7 +1,9 @@
 //! GOG kütüphane tarayıcısı (Linux + Windows).
-//! Heroic GOG, Lutris SQLite, Windows GOG Galaxy 2.0 SQLite (`galaxy-2.0.db`) ve yerel GOG kurulumlarını okur.
+//! `sonsus-engine` doğrudan GOG OAuth kütüphanesi, Heroic GOG, Lutris SQLite,
+//! Windows GOG Galaxy 2.0 SQLite (`galaxy-2.0.db`) ve yerel GOG kurulumlarını okur.
 
 use crate::{
+    auth::sonsus_gog_cloud_cache_file,
     models::{InstallStatus, LaunchConfig, Platform, UnifiedGame},
     parsers::epic::{find_heroic_roots, load_heroic_gogdb_cache},
 };
@@ -75,7 +77,6 @@ pub fn find_lutris_db() -> Option<PathBuf> {
     None
 }
 
-/// Windows GOG Galaxy 2.0 veritabanını (`C:\ProgramData\GOG.com\Galaxy\storage\galaxy-2.0.db`) okur
 fn scan_windows_gog_galaxy_db(games: &mut HashMap<String, UnifiedGame>) {
     let mut candidates = vec![PathBuf::from(
         r"C:\ProgramData\GOG.com\Galaxy\storage\galaxy-2.0.db",
@@ -94,7 +95,6 @@ fn scan_windows_gog_galaxy_db(games: &mut HashMap<String, UnifiedGame>) {
         return;
     };
 
-    // Sahip olunan GOG oyun başlıkları (`GamePieces` içindeki `gog_<id>` kayıtları)
     if let Ok(mut stmt) = conn.prepare(
         "SELECT releaseKey, value FROM GamePieces WHERE releaseKey LIKE 'gog_%' AND value LIKE '%\"title\"%'",
     ) {
@@ -124,6 +124,10 @@ fn scan_windows_gog_galaxy_db(games: &mut HashMap<String, UnifiedGame>) {
                             developer: None,
                             store_slug: None,
                             summary_hint: None,
+                            is_favorite: false,
+                            is_hidden: false,
+                            collection_tag: None,
+                            update_available: None,
                             launch: None,
                             install_uri: Some(format!("goggalaxy://openGameView/{gog_id}")),
                         });
@@ -133,7 +137,6 @@ fn scan_windows_gog_galaxy_db(games: &mut HashMap<String, UnifiedGame>) {
         }
     }
 
-    // Yüklü GOG oyunları (`InstalledBaseProducts`)
     if let Ok(mut stmt) =
         conn.prepare("SELECT productId, installationPath FROM InstalledBaseProducts")
     {
@@ -175,6 +178,10 @@ fn scan_windows_gog_galaxy_db(games: &mut HashMap<String, UnifiedGame>) {
                         developer: None,
                         store_slug: None,
                         summary_hint: None,
+                        is_favorite: false,
+                        is_hidden: false,
+                        collection_tag: None,
+                        update_available: None,
                         launch: Some(launch),
                         install_uri: Some(format!("goggalaxy://openGameView/{gog_id}")),
                     });
@@ -183,10 +190,79 @@ fn scan_windows_gog_galaxy_db(games: &mut HashMap<String, UnifiedGame>) {
     };
 }
 
+/// Doğrudan `sonsus-engine` GOG OAuth ile çekilen bulut ürün listesini (`gog_cloud_library.json`) okur
+fn scan_sonsus_direct_gog_cloud(games: &mut HashMap<String, UnifiedGame>) {
+    let Some(pb) = sonsus_gog_cloud_cache_file() else {
+        return;
+    };
+    let Ok(raw) = fs::read_to_string(pb) else {
+        return;
+    };
+    let Ok(items) = serde_json::from_str::<Vec<serde_json::Value>>(&raw) else {
+        return;
+    };
+
+    for item in items {
+        let Some(id_num) = item.get("id").and_then(|v| v.as_i64()) else {
+            continue;
+        };
+        let gog_id = id_num.to_string();
+        let Some(title) = item
+            .get("title")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.trim().is_empty())
+        else {
+            continue;
+        };
+        let img = item.get("image").and_then(|v| v.as_str()).map(|raw_img| {
+            if raw_img.starts_with("//") {
+                format!("https:{raw_img}_glx_vertical_cover.webp")
+            } else if raw_img.starts_with("http") {
+                raw_img.to_string()
+            } else {
+                format!("https:{raw_img}_200.jpg")
+            }
+        });
+        let category = item
+            .get("category")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .map(|s| vec![s.to_string()])
+            .unwrap_or_default();
+
+        games.entry(gog_id.clone()).or_insert(UnifiedGame {
+            id: format!("gog:{gog_id}"),
+            platform_id: gog_id.clone(),
+            platform: Platform::Gog,
+            title: title.to_string(),
+            status: InstallStatus::Cloud,
+            install_path: None,
+            size_bytes: None,
+            playtime_minutes: 0,
+            last_played_epoch: None,
+            cover_path_or_url: img.clone(),
+            fallback_cover_url: img,
+            hero_path_or_url: None,
+            genres: category,
+            developer: None,
+            store_slug: item.get("slug").and_then(|v| v.as_str()).map(ToOwned::to_owned),
+            summary_hint: None,
+            is_favorite: false,
+            is_hidden: false,
+            collection_tag: None,
+            update_available: None,
+            launch: None,
+            install_uri: Some(format!("goggalaxy://openGameView/{gog_id}")),
+        });
+    }
+}
+
 pub fn scan_gog_all() -> Vec<UnifiedGame> {
     let mut games: HashMap<String, UnifiedGame> = HashMap::new();
     let heroic_roots = find_heroic_roots();
     let gogdb_cache = load_heroic_gogdb_cache(&heroic_roots);
+
+    scan_sonsus_direct_gog_cloud(&mut games);
 
     for hr in &heroic_roots {
         let lib_path = hr.join("store_cache/gog_library.json");
@@ -219,6 +295,10 @@ pub fn scan_gog_all() -> Vec<UnifiedGame> {
                             developer: g.developer,
                             store_slug: None,
                             summary_hint: cached_summary,
+                            is_favorite: false,
+                            is_hidden: false,
+                            collection_tag: None,
+                            update_available: None,
                             launch: None,
                             install_uri: Some(format!("heroic://launch/gog/{}", g.app_name)),
                         },
@@ -265,6 +345,10 @@ pub fn scan_gog_all() -> Vec<UnifiedGame> {
                             developer: None,
                             store_slug: None,
                             summary_hint: None,
+                            is_favorite: false,
+                            is_hidden: false,
+                            collection_tag: None,
+                            update_available: None,
                             launch: Some(launch_cfg),
                             install_uri: Some(format!("heroic://launch/gog/{}", inst.app_name)),
                         });
@@ -299,6 +383,10 @@ pub fn scan_gog_all() -> Vec<UnifiedGame> {
                             developer: None,
                             store_slug: None,
                             summary_hint: None,
+                            is_favorite: false,
+                            is_hidden: false,
+                            collection_tag: None,
+                            update_available: None,
                             launch: None,
                             install_uri: Some(format!("lutris:gog:{gog_id}")),
                         });
@@ -344,6 +432,10 @@ pub fn scan_gog_all() -> Vec<UnifiedGame> {
                             developer: None,
                             store_slug: None,
                             summary_hint: None,
+                            is_favorite: false,
+                            is_hidden: false,
+                            collection_tag: None,
+                            update_available: None,
                             launch: None,
                             install_uri: Some(format!("lutris:gog:{gog_id}")),
                         });
@@ -417,6 +509,10 @@ fn scan_native_gog_dir(dir: &Path, games: &mut HashMap<String, UnifiedGame>) {
                     developer: None,
                     store_slug: None,
                     summary_hint: None,
+                    is_favorite: false,
+                    is_hidden: false,
+                    collection_tag: None,
+                    update_available: None,
                     launch: Some(LaunchConfig {
                         command_uri_or_bin: start_sh.to_string_lossy().into_owned(),
                         args: vec![],
@@ -518,6 +614,10 @@ fn scan_gog_manifests_recursive(
                         developer: None,
                         store_slug: None,
                         summary_hint: None,
+                        is_favorite: false,
+                        is_hidden: false,
+                        collection_tag: None,
+                        update_available: None,
                         launch,
                         install_uri: None,
                     },

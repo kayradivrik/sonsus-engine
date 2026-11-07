@@ -1,10 +1,11 @@
-//! Oyun kurulum yöneticisi, çapraz platform disk boş alan sorgulayıcı ve mevcut oyun klasörü bağlayıcı.
+//! Oyun kurulum yöneticisi, kaldırma (uninstall), güncelleme kontrolü,
+//! çapraz platform disk boş alan sorgulayıcı ve özel oyun ekleyici.
 
 use crate::{
-    db::update_single_cached_game,
+    db::{delete_custom_game, save_custom_game, update_single_cached_game},
     models::{
-        InstallGamePayload, InstallLocationOption, InstallStatus, LaunchConfig, Platform,
-        UnifiedGame,
+        CustomGameInput, InstallGamePayload, InstallLocationOption, InstallStatus, LaunchConfig,
+        Platform, UnifiedGame,
     },
     parsers::{epic::find_legendary_binary_path, steam::find_steam_root_with_override},
     platform_os::{has_binary, open_path_in_explorer, open_uri_scheme, query_disk_space},
@@ -95,40 +96,202 @@ fn compute_dir_size_bounded(dir: &Path, depth: u8) -> u64 {
     total
 }
 
-#[cfg(unix)]
-fn spawn_in_terminal(shell_cmd: &str) -> Result<(), String> {
-    let terminals: &[(&str, &[&str])] = &[
-        ("konsole", &["--hold", "-e", "bash", "-c"]),
-        ("kitty", &["--hold", "bash", "-c"]),
-        ("alacritty", &["--hold", "-e", "bash", "-c"]),
-        ("xfce4-terminal", &["--hold", "-e"]),
-        ("gnome-terminal", &["--", "bash", "-c"]),
-        ("xterm", &["-hold", "-e", "bash", "-c"]),
-    ];
-
-    for (bin, args) in terminals {
-        if has_binary(bin) {
-            let mut cmd = Command::new(bin);
-            cmd.args(*args);
-            cmd.arg(shell_cmd);
-            cmd.spawn()
-                .map_err(|e| format!("Terminal başlatılamadı ({bin}): {e}"))?;
-            return Ok(());
-        }
+pub fn create_custom_game(input: CustomGameInput) -> Result<UnifiedGame, String> {
+    let title = input.title.trim().to_string();
+    if title.is_empty() {
+        return Err("Lütfen oyun için bir başlık girin.".into());
     }
-    Err(
-        "Sistemde desteklenen bir terminal öykünücüsü bulunamadı. Lütfen 'Uygulama İçinde Doğrudan İndir' seçeneğini kullanın."
-            .into(),
-    )
+    let exe_str = input.executable_path.trim().to_string();
+    let exe_pb = PathBuf::from(&exe_str);
+    if !exe_pb.exists() {
+        return Err(format!("Çalıştırılabilir dosya bulunamadı: {exe_str}"));
+    }
+
+    let parent_dir = input
+        .working_dir
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(PathBuf::from)
+        .or_else(|| exe_pb.parent().map(Path::to_path_buf));
+
+    let prefix_pb = input
+        .wine_prefix
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(PathBuf::from);
+
+    // Benzersiz deterministik kimlik üret
+    let mut hash: u64 = 14695981039346656037;
+    for b in exe_str.as_bytes() {
+        hash ^= *b as u64;
+        hash = hash.wrapping_mul(1099511628211);
+    }
+    let slug_id = format!("{hash:016x}");
+
+    let is_win_exe = exe_str.to_lowercase().ends_with(".exe");
+    let (cmd_bin, cmd_args) = {
+        #[cfg(not(windows))]
+        {
+            if is_win_exe {
+                let mut a = vec![exe_str.clone()];
+                a.extend(input.args);
+                ("wine".to_string(), a)
+            } else {
+                (exe_str.clone(), input.args)
+            }
+        }
+        #[cfg(windows)]
+        {
+            let _ = is_win_exe;
+            (exe_str.clone(), input.args)
+        }
+    };
+
+    let size_bytes = parent_dir
+        .as_deref()
+        .map(|d| compute_dir_size_bounded(d, 2))
+        .filter(|&s| s > 0);
+
+    let game = UnifiedGame {
+        id: format!("custom:{slug_id}"),
+        platform_id: slug_id,
+        platform: Platform::Custom,
+        title,
+        status: InstallStatus::Installed,
+        install_path: parent_dir.clone(),
+        size_bytes,
+        playtime_minutes: 0,
+        last_played_epoch: None,
+        cover_path_or_url: None,
+        fallback_cover_url: None,
+        hero_path_or_url: None,
+        genres: vec!["Özel Oyun".into()],
+        developer: Some("Yerel Kurulum".into()),
+        store_slug: None,
+        summary_hint: Some(format!("Yerel yürütülebilir oyun dosyası: {exe_str}")),
+        is_favorite: false,
+        is_hidden: false,
+        collection_tag: None,
+        update_available: None,
+        launch: Some(LaunchConfig {
+            command_uri_or_bin: cmd_bin,
+            args: cmd_args,
+            working_dir: parent_dir,
+            wine_prefix: prefix_pb,
+        }),
+        install_uri: None,
+    };
+
+    save_custom_game(&game)?;
+    update_single_cached_game(&game)?;
+    Ok(game)
 }
 
-#[cfg(windows)]
-fn spawn_in_terminal(shell_cmd: &str) -> Result<(), String> {
-    Command::new("cmd")
-        .args(["/C", "start", "cmd", "/K", shell_cmd])
-        .spawn()
-        .map_err(|e| format!("Komut istemi başlatılamadı: {e}"))?;
-    Ok(())
+pub fn uninstall_installed_game(mut game: UnifiedGame) -> Result<UnifiedGame, String> {
+    match game.platform {
+        Platform::Custom => {
+            delete_custom_game(&game.id)?;
+            game.status = InstallStatus::Cloud;
+            return Ok(game);
+        }
+        Platform::Steam => {
+            open_uri_scheme(&format!("steam://uninstall/{}", game.platform_id))?;
+            return Ok(game);
+        }
+        Platform::Epic => {
+            let bin = find_legendary_binary_path().ok_or_else(|| {
+                "Epic oyunu kaldırmak için sistemde Legendary motoru bulunamadı.".to_string()
+            })?;
+            let mut cmd = Command::new(&bin);
+            cmd.args(["-y", "uninstall", &game.platform_id]);
+            if let Some(cfg) = dirs::config_dir() {
+                let heroic_xdg = cfg.join("heroic/legendaryConfig");
+                if heroic_xdg.exists() && !cfg.join("legendary/user.json").exists() {
+                    cmd.env("XDG_CONFIG_HOME", &heroic_xdg);
+                    cmd.env("LEGENDARY_CONFIG_PATH", heroic_xdg.join("legendary"));
+                }
+            }
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt;
+                cmd.creation_flags(0x0800_0000);
+            }
+            let out = cmd
+                .output()
+                .map_err(|e| format!("Kaldırma komutu çalıştırılamadı: {e}"))?;
+            if !out.status.success() {
+                // Eğer Legendary veritabanında kayıtlı değil ama klasörü bağlıysa yine de temizle
+                if let Some(ref p) = game.install_path {
+                    if p.exists() && p.components().count() >= 4 {
+                        let _ = fs::remove_dir_all(p);
+                    }
+                }
+            }
+            game.status = InstallStatus::Cloud;
+            game.install_path = None;
+            game.launch = None;
+            update_single_cached_game(&game)?;
+            Ok(game)
+        }
+        Platform::Gog => {
+            if let Some(ref p) = game.install_path {
+                if p.exists() && p.components().count() >= 4 {
+                    fs::remove_dir_all(p)
+                        .map_err(|e| format!("Oyun klasörü silinemedi ({}): {e}", p.display()))?;
+                }
+            }
+            game.status = InstallStatus::Cloud;
+            game.install_path = None;
+            game.launch = None;
+            update_single_cached_game(&game)?;
+            Ok(game)
+        }
+    }
+}
+
+pub fn check_single_game_update(game: &UnifiedGame) -> Result<bool, String> {
+    if game.status != InstallStatus::Installed {
+        return Ok(false);
+    }
+    match game.platform {
+        Platform::Epic => {
+            let Some(bin) = find_legendary_binary_path() else {
+                return Ok(false);
+            };
+            let mut cmd = Command::new(bin);
+            cmd.args(["list-installed", "--check-updates", "--json"]);
+            if let Some(cfg) = dirs::config_dir() {
+                let heroic_xdg = cfg.join("heroic/legendaryConfig");
+                if heroic_xdg.exists() && !cfg.join("legendary/user.json").exists() {
+                    cmd.env("XDG_CONFIG_HOME", &heroic_xdg);
+                    cmd.env("LEGENDARY_CONFIG_PATH", heroic_xdg.join("legendary"));
+                }
+            }
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt;
+                cmd.creation_flags(0x0800_0000);
+            }
+            let out = cmd.output().map_err(|e| e.to_string())?;
+            if let Ok(arr) = serde_json::from_slice::<Vec<serde_json::Value>>(&out.stdout) {
+                for item in arr {
+                    if item.get("app_name").and_then(|v| v.as_str())
+                        == Some(game.platform_id.as_str())
+                    {
+                        let has_upd = item
+                            .get("has_update")
+                            .and_then(|v| v.as_bool())
+                            .unwrap_or(false);
+                        return Ok(has_upd);
+                    }
+                }
+            }
+            Ok(false)
+        }
+        _ => Ok(false),
+    }
 }
 
 pub fn execute_install_action(payload: InstallGamePayload) -> Result<UnifiedGame, String> {
@@ -187,49 +350,15 @@ pub fn execute_install_action(payload: InstallGamePayload) -> Result<UnifiedGame
                     working_dir: Some(pb),
                     wine_prefix: None,
                 },
+                Platform::Custom => game.launch.clone().unwrap_or(LaunchConfig {
+                    command_uri_or_bin: pb.to_string_lossy().into_owned(),
+                    args: vec![],
+                    working_dir: Some(pb),
+                    wine_prefix: None,
+                }),
             });
 
             update_single_cached_game(&game)?;
-            Ok(game)
-        }
-
-        "legendary_cli" => {
-            let bin = find_legendary_binary_path()
-                .ok_or_else(|| "Sistemde Legendary ikilisi bulunamadı.".to_string())?;
-            let target_dir = payload.target_dir.unwrap_or_else(|| {
-                dirs::home_dir()
-                    .unwrap_or_else(|| PathBuf::from("."))
-                    .join("Games")
-                    .to_string_lossy()
-                    .into_owned()
-            });
-            let _ = fs::create_dir_all(&target_dir);
-
-            #[cfg(unix)]
-            {
-                let mut env_prefix = String::new();
-                if let Some(cfg) = dirs::config_dir() {
-                    let heroic_xdg = cfg.join("heroic/legendaryConfig");
-                    if heroic_xdg.exists() && !cfg.join("legendary/user.json").exists() {
-                        env_prefix = format!("XDG_CONFIG_HOME='{}' ", heroic_xdg.to_string_lossy());
-                    }
-                }
-                let script = format!(
-                    "{env_prefix}'{bin}' install '{}' --base-path '{}' -y; echo ''; echo '[TAMAMLANDI] Pencereyi kapatıp kütüphaneyi yenileyebilirsiniz.'",
-                    game.platform_id, target_dir
-                );
-                spawn_in_terminal(&script)?;
-            }
-
-            #[cfg(windows)]
-            {
-                let script = format!(
-                    "\"{bin}\" install \"{}\" --base-path \"{}\" -y",
-                    game.platform_id, target_dir
-                );
-                spawn_in_terminal(&script)?;
-            }
-
             Ok(game)
         }
 
@@ -265,7 +394,8 @@ pub fn execute_install_action(payload: InstallGamePayload) -> Result<UnifiedGame
 
                     #[cfg(windows)]
                     {
-                        let mut win_heroic_paths = vec![PathBuf::from(r"C:\Program Files\Heroic\Heroic.exe")];
+                        let mut win_heroic_paths =
+                            vec![PathBuf::from(r"C:\Program Files\Heroic\Heroic.exe")];
                         if let Ok(local_app) = std::env::var("LOCALAPPDATA") {
                             win_heroic_paths.push(
                                 PathBuf::from(local_app).join(r"Programs\heroic\Heroic.exe"),
@@ -287,6 +417,7 @@ pub fn execute_install_action(payload: InstallGamePayload) -> Result<UnifiedGame
                         return Err("Heroic veya uyumlu mağaza istemcisi bulunamadı.".into());
                     }
                 }
+                Platform::Custom => {}
             }
             Ok(game)
         }

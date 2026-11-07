@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { tauriApi } from "./api/tauriClient";
+import { AddCustomGameModal } from "./components/AddCustomGameModal";
+import { CommandPaletteModal } from "./components/CommandPaletteModal";
 import { DownloadsModal } from "./components/DownloadsModal";
 import { FilterStrip } from "./components/FilterStrip";
 import { GameDetailView } from "./components/GameDetailView";
 import { GameTable } from "./components/GameTable";
+import { OnboardingScreen } from "./components/OnboardingScreen";
 import { PaginationBar } from "./components/PaginationBar";
+import { RecentShelf } from "./components/RecentShelf";
 import { SettingsModal } from "./components/SettingsModal";
+import { StatsModal } from "./components/StatsModal";
 import { TopStatusBar } from "./components/TopStatusBar";
 import { VirtualGameGrid } from "./components/VirtualGameGrid";
 import { useLibrary } from "./hooks/useLibrary";
@@ -28,6 +33,7 @@ export default function App() {
 
   const {
     games,
+    recentGames,
     filteredGames,
     paginatedGames,
     counts,
@@ -50,14 +56,22 @@ export default function App() {
     scanning,
     performScan,
     replaceSingleGame,
+    removeSingleGame,
   } = useLibrary(showToast);
 
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [selectedGame, setSelectedGame] = useState<UnifiedGame | null>(null);
   const [autoOpenInstall, setAutoOpenInstall] = useState(false);
   const [runningId, setRunningId] = useState<string | null>(null);
+
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [downloadsOpen, setDownloadsOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [addCustomOpen, setAddCustomOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [isFirstRunOnboarding, setIsFirstRunOnboarding] = useState(false);
+
   const [downloadsMap, setDownloadsMap] = useState<Map<string, DownloadTaskInfo>>(
     () => new Map()
   );
@@ -69,11 +83,17 @@ export default function App() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const mainScrollRef = useRef<HTMLElement>(null);
 
+  const anyOverlayOpen =
+    Boolean(selectedGame) ||
+    settingsOpen ||
+    downloadsOpen ||
+    paletteOpen ||
+    addCustomOpen ||
+    statsOpen ||
+    onboardingOpen;
+
   // Kütüphane görünümünde 144Hz/180Hz ivmeli yumuşak tekerlek kaydırması
-  useSmoothWheel(
-    mainScrollRef,
-    !selectedGame && !settingsOpen && !downloadsOpen
-  );
+  useSmoothWheel(mainScrollRef, !anyOverlayOpen);
 
   const gamesById = useMemo(() => {
     const map = new Map<string, UnifiedGame>();
@@ -105,6 +125,24 @@ export default function App() {
     [replaceSingleGame]
   );
 
+  const handleToggleFavorite = useCallback(
+    async (game: UnifiedGame) => {
+      try {
+        const nextFav = !game.is_favorite;
+        const updated = await tauriApi.setGamePreferences(
+          game,
+          nextFav,
+          Boolean(game.is_hidden),
+          game.collection_tag ?? null
+        );
+        handleGameUpdated(updated);
+      } catch (err) {
+        showToast(String(err));
+      }
+    },
+    [handleGameUpdated, showToast]
+  );
+
   useEffect(() => {
     if (!toastMsg) return;
     const t = setTimeout(() => setToastMsg(null), 3500);
@@ -112,7 +150,17 @@ export default function App() {
   }, [toastMsg]);
 
   useEffect(() => {
-    tauriApi.getAppSettings().then(setSettings).catch(() => {});
+    tauriApi
+      .getAppSettings()
+      .then((loaded) => {
+        setSettings(loaded);
+        if (!loaded.onboarding_completed) {
+          setIsFirstRunOnboarding(true);
+          setOnboardingOpen(true);
+        }
+      })
+      .catch(() => {});
+
     tauriApi.getSystemDiagnostics().then(setDiagnostics).catch(() => {});
     tauriApi
       .getActiveDownloads()
@@ -140,7 +188,7 @@ export default function App() {
       if (info.status === "completed" && info.updated_game) {
         handleGameUpdated(info.updated_game);
         showToast(
-          `${info.title} indirmesi tamamlandı ve Yüklü olarak işaretlendi!`
+          info.detail_text || `${info.title} işlemi başarıyla tamamlandı!`
         );
       }
     });
@@ -169,44 +217,61 @@ export default function App() {
     [setPage]
   );
 
-  // Kütüphane kısayolları (`/`, `ESC`, `R`)
+  // Kütüphane kısayolları (`Ctrl+K`, `/`, `ESC`, `R`)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        if (!onboardingOpen) {
+          setPaletteOpen((prev) => !prev);
+        }
+        return;
+      }
+
       const tag = (e.target as HTMLElement)?.tagName;
       const inInput = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
 
-      if (
-        e.key === "/" &&
-        !inInput &&
-        !selectedGame &&
-        !settingsOpen &&
-        !downloadsOpen
-      ) {
+      if (e.key === "/" && !inInput && !anyOverlayOpen) {
         e.preventDefault();
         searchInputRef.current?.focus();
       } else if (e.key === "Escape") {
-        if (downloadsOpen) {
+        if (paletteOpen) {
+          setPaletteOpen(false);
+        } else if (addCustomOpen) {
+          setAddCustomOpen(false);
+        } else if (statsOpen) {
+          setStatsOpen(false);
+        } else if (downloadsOpen) {
           setDownloadsOpen(false);
+        } else if (onboardingOpen && !isFirstRunOnboarding) {
+          setOnboardingOpen(false);
         } else if (settingsOpen) {
           setSettingsOpen(false);
         } else if (!selectedGame && inInput && query) {
           setQuery("");
           (e.target as HTMLElement).blur();
         }
-      } else if (
-        (e.key === "r" || e.key === "R") &&
-        !inInput &&
-        !settingsOpen &&
-        !downloadsOpen &&
-        !selectedGame
-      ) {
+      } else if ((e.key === "r" || e.key === "R") && !inInput && !anyOverlayOpen) {
         e.preventDefault();
         performScan();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [query, selectedGame, settingsOpen, downloadsOpen, performScan, setQuery]);
+  }, [
+    query,
+    anyOverlayOpen,
+    paletteOpen,
+    addCustomOpen,
+    statsOpen,
+    downloadsOpen,
+    onboardingOpen,
+    isFirstRunOnboarding,
+    settingsOpen,
+    selectedGame,
+    performScan,
+    setQuery,
+  ]);
 
   const handleOpenDetail = useCallback(
     (game: UnifiedGame, openInstallImmediately = false) => {
@@ -238,6 +303,27 @@ export default function App() {
     performScan();
   };
 
+  const handleCompleteOnboarding = async (
+    next: AppSettings,
+    shouldRescan: boolean
+  ) => {
+    await tauriApi.updateAppSettings(next);
+    setSettings(next);
+    setOnboardingOpen(false);
+    setIsFirstRunOnboarding(false);
+    if (shouldRescan) {
+      performScan();
+    }
+  };
+
+  const showRecentShelf =
+    statusFilter === "all" &&
+    platformFilter === "all" &&
+    !genreFilter &&
+    !query.trim() &&
+    page === 1 &&
+    recentGames.length > 0;
+
   return (
     <div className="h-screen w-screen bg-black text-zinc-100 flex flex-col overflow-hidden">
       {/* Kütüphane Görünümü (`hidden` ile kaydırma konumu ve çözülmüş poster önbelleği korunur) */}
@@ -253,6 +339,8 @@ export default function App() {
           onStatusFilterChange={setStatusFilter}
           installedCount={counts.installed}
           cloudCount={counts.cloud}
+          favoritesCount={counts.favorites}
+          playerName={settings.player_name}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
           scanning={scanning}
@@ -261,6 +349,13 @@ export default function App() {
           totalDownloadsCount={downloadList.length}
           averageDownloadPct={averageDownloadPct}
           onOpenDownloads={() => setDownloadsOpen(true)}
+          onOpenCommandPalette={() => setPaletteOpen(true)}
+          onOpenAddCustomGame={() => setAddCustomOpen(true)}
+          onOpenStats={() => setStatsOpen(true)}
+          onOpenOnboarding={() => {
+            setIsFirstRunOnboarding(false);
+            setOnboardingOpen(true);
+          }}
           onOpenSettings={() => setSettingsOpen(true)}
         />
 
@@ -269,6 +364,7 @@ export default function App() {
           onQueryChange={setQuery}
           searchInputRef={searchInputRef}
           statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
           platformFilter={platformFilter}
           onPlatformFilterChange={setPlatformFilter}
           genreFilter={genreFilter}
@@ -282,6 +378,15 @@ export default function App() {
 
         <main ref={mainScrollRef} className="flex-1 overflow-y-auto pb-14">
           <div className="max-w-[1480px] w-full mx-auto px-8 lg:px-12">
+            {showRecentShelf && (
+              <RecentShelf
+                games={recentGames}
+                runningId={runningId}
+                onOpenDetail={(g) => handleOpenDetail(g, false)}
+                onLaunch={handleLaunch}
+              />
+            )}
+
             {filteredGames.length === 0 ? (
               <div className="py-24 text-center text-sm text-zinc-500">
                 Arama veya filtreyle eşleşen oyun bulunamadı.
@@ -293,6 +398,7 @@ export default function App() {
                 downloadsById={downloadsMap}
                 onOpenDetail={handleOpenDetail}
                 onLaunch={handleLaunch}
+                onToggleFavorite={handleToggleFavorite}
               />
             ) : (
               <GameTable
@@ -300,6 +406,7 @@ export default function App() {
                 runningId={runningId}
                 onOpenDetail={handleOpenDetail}
                 onLaunch={handleLaunch}
+                onToggleFavorite={handleToggleFavorite}
               />
             )}
 
@@ -323,12 +430,14 @@ export default function App() {
           isRunning={runningId === selectedGame.id}
           downloadTask={downloadsMap.get(selectedGame.id)}
           displays={diagnostics?.displays ?? []}
+          runners={diagnostics?.runners ?? []}
           onBack={() => {
             setSelectedGame(null);
             setAutoOpenInstall(false);
           }}
           onLaunch={handleLaunch}
           onGameUpdated={handleGameUpdated}
+          onGameRemoved={removeSingleGame}
           onNotify={showToast}
         />
       )}
@@ -339,15 +448,58 @@ export default function App() {
         settings={settings}
         diagnostics={diagnostics}
         onClose={() => setSettingsOpen(false)}
+        onOpenOnboarding={() => {
+          setIsFirstRunOnboarding(false);
+          setOnboardingOpen(true);
+        }}
         onSave={handleSaveSettings}
       />
 
-      {/* Uygulama İçi İndirme Yöneticisi */}
+      {/* Uygulama İçi İndirme & Doğrulama Yöneticisi */}
       <DownloadsModal
         open={downloadsOpen}
         tasks={downloadList}
         gamesById={gamesById}
         onClose={() => setDownloadsOpen(false)}
+        onNotify={showToast}
+      />
+
+      {/* Ctrl+K Hızlı Başlatma Paleti */}
+      <CommandPaletteModal
+        open={paletteOpen}
+        games={games}
+        onClose={() => setPaletteOpen(false)}
+        onLaunch={handleLaunch}
+        onOpenDetail={handleOpenDetail}
+      />
+
+      {/* Harici / Özel Oyun Ekleme Penceresi */}
+      <AddCustomGameModal
+        open={addCustomOpen}
+        onClose={() => setAddCustomOpen(false)}
+        onGameAdded={(created) => {
+          replaceSingleGame(created);
+        }}
+        onNotify={showToast}
+      />
+
+      {/* Kütüphane İstatistik & Analiz Paneli */}
+      <StatsModal
+        open={statsOpen}
+        games={games}
+        playerName={settings.player_name}
+        onClose={() => setStatsOpen(false)}
+        onOpenDetail={(g) => handleOpenDetail(g, false)}
+      />
+
+      {/* Sinematik Giriş / Karşılama & Mağaza Hesapları Ekranı */}
+      <OnboardingScreen
+        open={onboardingOpen}
+        isFirstRun={isFirstRunOnboarding}
+        settings={settings}
+        totalGamesCount={counts.all}
+        onComplete={handleCompleteOnboarding}
+        onClose={() => setOnboardingOpen(false)}
         onNotify={showToast}
       />
 

@@ -1,12 +1,16 @@
-//! Oyun çalıştırma motoru, ekran çözünürlüğü hook'ları ve arka plan süreç yönetimi.
+//! Oyun çalıştırma motoru, Proton/GE-Proton/Wine seçici, MangoHud, FSR, ekran çözünürlüğü ve süreç hook'ları.
 
 use crate::{
-    models::{DisplayBackend, DisplayOutputInfo, HookProfile, Platform, UnifiedGame},
+    db::app_data_dir,
+    models::{
+        DisplayBackend, DisplayOutputInfo, HookProfile, Platform, RunnerInfo, UnifiedGame,
+    },
+    parsers::{epic::find_heroic_roots, steam::find_steam_root_with_override},
     platform_os::{has_binary, open_uri_scheme, run_shell_command},
 };
 use std::{
     fs,
-    path::Path,
+    path::{Path, PathBuf},
     process::Command,
     time::{Duration, Instant},
 };
@@ -89,6 +93,94 @@ impl Drop for SessionGuard {
             run_shell_command(cmd);
         }
     }
+}
+
+/// Sistemdeki kurulu Proton, GE-Proton ve Wine uyumluluk katmanlarını otomatik tarar.
+pub fn enumerate_runners(custom_steam_root: Option<&str>) -> Vec<RunnerInfo> {
+    let mut runners: Vec<RunnerInfo> = Vec::new();
+    let mut seen_paths = std::collections::HashSet::new();
+
+    let mut push_runner = |name: String, pb: PathBuf, kind: &str| {
+        let s = pb.to_string_lossy().into_owned();
+        if seen_paths.insert(s.clone()) {
+            runners.push(RunnerInfo {
+                name,
+                path: s,
+                kind: kind.to_string(),
+            });
+        }
+    };
+
+    #[cfg(unix)]
+    {
+        let mut compat_dirs: Vec<PathBuf> = Vec::new();
+        if let Some(home) = dirs::home_dir() {
+            compat_dirs.push(home.join(".steam/root/compatibilitytools.d"));
+            compat_dirs.push(home.join(".steam/steam/compatibilitytools.d"));
+            compat_dirs.push(home.join(".local/share/Steam/compatibilitytools.d"));
+        }
+        if let Some(sr) = find_steam_root_with_override(custom_steam_root) {
+            compat_dirs.push(sr.join("compatibilitytools.d"));
+            let common = sr.join("steamapps/common");
+            if let Ok(entries) = fs::read_dir(common) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    let fname = entry.file_name().to_string_lossy().into_owned();
+                    if fname.starts_with("Proton") && path.join("proton").exists() {
+                        push_runner(fname, path.join("proton"), "proton");
+                    }
+                }
+            }
+        }
+
+        for dir in compat_dirs {
+            if let Ok(entries) = fs::read_dir(dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    let proton_bin = path.join("proton");
+                    if proton_bin.exists() {
+                        let fname = entry.file_name().to_string_lossy().into_owned();
+                        push_runner(fname, proton_bin, "proton");
+                    }
+                }
+            }
+        }
+
+        for hr in find_heroic_roots() {
+            let proton_tools = hr.join("tools/proton");
+            if let Ok(entries) = fs::read_dir(proton_tools) {
+                for entry in entries.flatten() {
+                    let proton_bin = entry.path().join("proton");
+                    if proton_bin.exists() {
+                        let fname = entry.file_name().to_string_lossy().into_owned();
+                        push_runner(format!("{fname} (Heroic)"), proton_bin, "proton");
+                    }
+                }
+            }
+            let wine_tools = hr.join("tools/wine");
+            if let Ok(entries) = fs::read_dir(wine_tools) {
+                for entry in entries.flatten() {
+                    let wine_bin = entry.path().join("bin/wine");
+                    if wine_bin.exists() {
+                        let fname = entry.file_name().to_string_lossy().into_owned();
+                        push_runner(format!("{fname} (Wine)"), wine_bin, "wine");
+                    }
+                }
+            }
+        }
+
+        if has_binary("wine") {
+            push_runner("Sistem Wine (Varsayılan)".into(), PathBuf::from("wine"), "wine");
+        }
+    }
+
+    #[cfg(not(unix))]
+    {
+        let _ = (custom_steam_root, &mut push_runner);
+    }
+
+    runners.sort_by(|a, b| a.name.cmp(&b.name));
+    runners
 }
 
 pub fn enumerate_displays() -> Vec<DisplayOutputInfo> {
@@ -394,15 +486,100 @@ pub async fn launch_with_hooks(game: UnifiedGame, hook: HookProfile) -> Result<u
             sleep(Duration::from_secs(5)).await;
         }
     } else {
-        // Doğrudan çalıştırılan ikili komut (Gamescope ve Gamemode sarmalayıcılarını destekler)
         let mut program = target.clone();
         let mut full_args = launch_cfg.args.clone();
+        let mut extra_envs: Vec<(String, String)> = Vec::new();
 
+        // Özel Proton / GE-Proton / Wine uyumluluk katmanı seçimi (Linux)
+        #[cfg(unix)]
+        if let Some(runner) = hook
+            .runner_path
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            let is_proton = runner.ends_with("/proton") || runner.to_lowercase().contains("proton");
+            let is_legendary = program.ends_with("legendary");
+
+            let compat_prefix = launch_cfg.wine_prefix.clone().unwrap_or_else(|| {
+                app_data_dir()
+                    .unwrap_or_else(|_| PathBuf::from("/tmp"))
+                    .join("prefixes")
+                    .join(game.id.replace(':', "_"))
+            });
+            let _ = fs::create_dir_all(&compat_prefix);
+
+            if is_legendary {
+                if is_proton {
+                    full_args.push("--no-wine".into());
+                    full_args.push("--wrapper".into());
+                    full_args.push(format!("\"{runner}\" run"));
+                    extra_envs.push((
+                        "STEAM_COMPAT_DATA_PATH".into(),
+                        compat_prefix.to_string_lossy().into_owned(),
+                    ));
+                    if let Some(sr) = find_steam_root_with_override(None) {
+                        extra_envs.push((
+                            "STEAM_COMPAT_CLIENT_INSTALL_PATH".into(),
+                            sr.to_string_lossy().into_owned(),
+                        ));
+                    }
+                } else {
+                    full_args.push("--wine".into());
+                    full_args.push(runner.to_string());
+                }
+            } else if program == "wine" || program.to_lowercase().ends_with(".exe") {
+                let exe_target = if program == "wine" {
+                    full_args.first().cloned().unwrap_or_default()
+                } else {
+                    program.clone()
+                };
+                let rest_args: Vec<String> = if program == "wine" && !full_args.is_empty() {
+                    full_args[1..].to_vec()
+                } else {
+                    full_args.clone()
+                };
+
+                if is_proton {
+                    program = runner.to_string();
+                    let mut p_args = vec!["run".to_string(), exe_target];
+                    p_args.extend(rest_args);
+                    full_args = p_args;
+                    extra_envs.push((
+                        "STEAM_COMPAT_DATA_PATH".into(),
+                        compat_prefix.to_string_lossy().into_owned(),
+                    ));
+                    if let Some(sr) = find_steam_root_with_override(None) {
+                        extra_envs.push((
+                            "STEAM_COMPAT_CLIENT_INSTALL_PATH".into(),
+                            sr.to_string_lossy().into_owned(),
+                        ));
+                    }
+                } else {
+                    program = runner.to_string();
+                    let mut w_args = vec![exe_target];
+                    w_args.extend(rest_args);
+                    full_args = w_args;
+                }
+            }
+        }
+
+        // MangoHud FPS/Sıcaklık katmanı
+        if hook.enabled && hook.use_mangohud {
+            extra_envs.push(("MANGOHUD".into(), "1".into()));
+            if has_binary("mangohud") {
+                full_args.insert(0, program);
+                program = "mangohud".into();
+            }
+        }
+
+        // Feral GameMode sarmalayıcısı
         if hook.enabled && hook.use_gamemode && has_binary("gamemoderun") {
             full_args.insert(0, program);
             program = "gamemoderun".into();
         }
 
+        // Gamescope + FSR keskinleştirme sarmalayıcısı
         if hook.enabled
             && hook.display_backend == DisplayBackend::Gamescope
             && has_binary("gamescope")
@@ -416,6 +593,10 @@ pub async fn launch_with_hooks(game: UnifiedGame, hook: HookProfile) -> Result<u
                         h.trim().into(),
                         "-f".into(),
                     ];
+                    if hook.gamescope_fsr {
+                        gs_args.push("-F".into());
+                        gs_args.push("fsr".into());
+                    }
                     if let Some(hz) = hook
                         .target_refresh_hz
                         .as_deref()
@@ -442,6 +623,19 @@ pub async fn launch_with_hooks(game: UnifiedGame, hook: HookProfile) -> Result<u
         }
         if let Some(prefix) = &launch_cfg.wine_prefix {
             cmd.env("WINEPREFIX", prefix);
+        }
+        for (k, v) in extra_envs {
+            cmd.env(k, v);
+        }
+        if hook.enabled {
+            for item in &hook.custom_env {
+                if let Some((k, v)) = item.split_once('=') {
+                    let key = k.trim();
+                    if !key.is_empty() {
+                        cmd.env(key, v.trim());
+                    }
+                }
+            }
         }
 
         let mut child = tokio::process::Command::from(cmd)

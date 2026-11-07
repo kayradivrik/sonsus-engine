@@ -5,11 +5,13 @@
 import { invoke } from "@tauri-apps/api/core";
 import {
   AppSettings,
+  CustomGameInput,
   DownloadTaskInfo,
   HookProfile,
   InstallGamePayload,
   InstallLocationOption,
   OnlineGameDetails,
+  StoreAuthStatus,
   SystemDiagnostics,
   UnifiedGame,
 } from "../types/game";
@@ -43,8 +45,14 @@ export const tauriApi = {
   pickFolder: (initialDir?: string | null) =>
     invoke<string | null>("pick_folder", { initialDir: initialDir ?? null }),
 
+  pickExecutable: (initialDir?: string | null) =>
+    invoke<string | null>("pick_executable", { initialDir: initialDir ?? null }),
+
   openGameFolder: (path: string) =>
     invoke<void>("open_game_folder", { path }),
+
+  openExternalUrl: (url: string) =>
+    invoke<void>("open_external_url", { url }),
 
   getOnlineGameDetails: (game: UnifiedGame, forceRefresh = false) =>
     invoke<OnlineGameDetails>("get_online_game_details", {
@@ -68,4 +76,46 @@ export const tauriApi = {
 
   getSystemDiagnostics: () =>
     invoke<SystemDiagnostics>("get_system_diagnostics"),
+
+  getStoreAuthStatus: () => invoke<StoreAuthStatus>("get_store_auth_status"),
+
+  getOauthLoginUrls: () =>
+    invoke<[string, string]>("get_oauth_login_urls"),
+
+  connectEpicAccount: (code: string) =>
+    invoke<string>("connect_epic_account", { code }),
+
+  disconnectEpicAccount: () =>
+    invoke<void>("disconnect_epic_account"),
+
+  connectGogAccount: (code: string) =>
+    invoke<string>("connect_gog_account", { code }),
+
+  disconnectGogAccount: () =>
+    invoke<void>("disconnect_gog_account"),
+
+  setGamePreferences: (
+    game: UnifiedGame,
+    isFavorite: boolean,
+    isHidden: boolean,
+    collectionTag: string | null = null
+  ) =>
+    invoke<UnifiedGame>("set_game_preferences", {
+      game,
+      isFavorite,
+      isHidden,
+      collectionTag,
+    }),
+
+  addCustomGame: (input: CustomGameInput) =>
+    invoke<UnifiedGame>("add_custom_game", { input }),
+
+  uninstallGame: (game: UnifiedGame) =>
+    invoke<UnifiedGame>("uninstall_game", { game }),
+
+  verifyOrRepairGame: (game: UnifiedGame) =>
+    invoke<DownloadTaskInfo | null>("verify_or_repair_game", { game }),
+
+  checkGameUpdate: (game: UnifiedGame) =>
+    invoke<UnifiedGame>("check_game_update", { game }),
 };
