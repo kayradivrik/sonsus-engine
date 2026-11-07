@@ -12,6 +12,7 @@ interface GameCardProps {
   game: UnifiedGame;
   isRunning: boolean;
   downloadTask?: DownloadTaskInfo;
+  isGamepadFocused?: boolean;
   onOpenDetail: (game: UnifiedGame, autoOpenInstall?: boolean) => void;
   onLaunch: (game: UnifiedGame) => void;
   onToggleFavorite: (game: UnifiedGame) => void;
@@ -25,6 +26,7 @@ export const GameCard = memo(function GameCard({
   game,
   isRunning,
   downloadTask,
+  isGamepadFocused,
   onOpenDetail,
   onLaunch,
   onToggleFavorite,
@@ -67,7 +69,9 @@ export const GameCard = memo(function GameCard({
       {/* Yuvarlatılmış Dikey Poster */}
       <div
         className={`aspect-[2/3] w-full rounded-[11px] bg-[#0d0d12] relative overflow-hidden transition-transform duration-200 ease-out will-change-transform group-hover:-translate-y-1 ${
-          isRunning
+          isGamepadFocused
+            ? "ring-4 ring-emerald-400 scale-[1.04] shadow-[0_0_30px_rgba(52,211,153,0.4)] z-10"
+            : isRunning
             ? "ring-2 ring-amber-400"
             : isDownloading
             ? "ring-2 ring-blue-500/80"

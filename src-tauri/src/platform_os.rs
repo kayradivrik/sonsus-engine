@@ -1,5 +1,5 @@
 //! Linux ve Windows işletim sistemleri arasındaki dosya yöneticisi, URI şeması,
-//! disk boş alan (`statvfs` / `GetDiskFreeSpaceExW`), kabuk komutu ve yerel klasör/dosya seçme köprüsü.
+//! disk boş alan (`statvfs` / `GetDiskFreeSpaceExW`), masaüstü bildirimleri ve yerel klasör/dosya seçme köprüsü.
 
 use std::{path::Path, process::Command};
 
@@ -92,6 +92,29 @@ pub fn query_disk_space(path: &Path) -> (u64, u64) {
 #[cfg(not(any(unix, windows)))]
 pub fn query_disk_space(_path: &Path) -> (u64, u64) {
     (0, 0)
+}
+
+pub fn send_desktop_notification(title: &str, body: &str) {
+    #[cfg(not(windows))]
+    {
+        if has_binary("notify-send") {
+            let _ = Command::new("notify-send")
+                .args(["-a", "sonsus-engine", title, body])
+                .spawn();
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        let safe_t = title.replace('\'', "");
+        let safe_b = body.replace('\'', "");
+        let script = format!(
+            "Add-Type -AssemblyName System.Windows.Forms; $n = New-Object System.Windows.Forms.NotifyIcon; $n.Icon = [System.Drawing.SystemIcons]::Information; $n.Visible = $true; $n.ShowBalloonTip(4000, '{safe_t}', '{safe_b}', [System.Windows.Forms.ToolTipIcon]::Info)"
+        );
+        let _ = Command::new("powershell")
+            .args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", &script])
+            .spawn();
+    }
 }
 
 pub fn open_path_in_explorer(path: &Path) -> Result<(), String> {
@@ -279,8 +302,9 @@ pub fn detect_session_label() -> String {
     {
         return "windows".to_string();
     }
+
     #[cfg(not(windows))]
     {
-        std::env::var("XDG_SESSION_TYPE").unwrap_or_else(|_| "linux".to_string())
+        std::env::var("XDG_SESSION_TYPE").unwrap_or_else(|_| "unknown".into())
     }
 }

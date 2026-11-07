@@ -15,6 +15,9 @@ interface FilterStripProps {
   genreFilter: string | null;
   onGenreFilterChange: (g: string | null) => void;
   genreCounts: GenreCountItem[];
+  collectionFilter?: string | null;
+  onCollectionFilterChange?: (c: string | null) => void;
+  collectionCounts?: GenreCountItem[];
   sortMode: SortMode;
   onSortModeChange: (m: SortMode) => void;
   visibleCount: number;
@@ -40,6 +43,9 @@ export function FilterStrip({
   genreFilter,
   onGenreFilterChange,
   genreCounts,
+  collectionFilter,
+  onCollectionFilterChange,
+  collectionCounts = [],
   sortMode,
   onSortModeChange,
   visibleCount,
@@ -173,6 +179,26 @@ export function FilterStrip({
             ref={pillScrollRef}
             className="flex items-center gap-2 overflow-x-auto no-scrollbar pr-16"
           >
+            {collectionCounts.map((c) => {
+              const active = collectionFilter === c.name;
+              return (
+                <button
+                  key={`col-${c.name}`}
+                  onClick={() => onCollectionFilterChange?.(active ? null : c.name)}
+                  className={`h-9 px-4 rounded-full border text-xs whitespace-nowrap flex items-center gap-1.5 shrink-0 transition-all duration-150 cursor-pointer ${
+                    active
+                      ? "border-amber-400 bg-amber-400/20 text-amber-200 font-semibold"
+                      : "border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 text-amber-300/80"
+                  }`}
+                >
+                  <span>★ {c.name}</span>
+                  <span className={active ? "text-amber-200" : "text-amber-500/60"}>
+                    {c.count}
+                  </span>
+                </button>
+              );
+            })}
+
             {genreCounts.map((g) => {
               const active = genreFilter === g.name;
               return (

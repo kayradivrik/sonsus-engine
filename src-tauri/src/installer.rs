@@ -344,12 +344,9 @@ pub fn execute_install_action(payload: InstallGamePayload) -> Result<UnifiedGame
                         }
                     }
                 }
-                Platform::Gog => LaunchConfig {
-                    command_uri_or_bin: format!("heroic://launch/gog/{}", game.platform_id),
-                    args: vec![],
-                    working_dir: Some(pb),
-                    wine_prefix: None,
-                },
+                Platform::Gog => {
+                    crate::parsers::gog::resolve_gog_direct_launch_config(&pb, &game.platform_id)
+                }
                 Platform::Custom => game.launch.clone().unwrap_or(LaunchConfig {
                     command_uri_or_bin: pb.to_string_lossy().into_owned(),
                     args: vec![],

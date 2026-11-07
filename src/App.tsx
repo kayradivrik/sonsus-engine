@@ -7,13 +7,16 @@ import { DownloadsModal } from "./components/DownloadsModal";
 import { FilterStrip } from "./components/FilterStrip";
 import { GameDetailView } from "./components/GameDetailView";
 import { GameTable } from "./components/GameTable";
+import { LaunchLogsModal } from "./components/LaunchLogsModal";
 import { OnboardingScreen } from "./components/OnboardingScreen";
 import { PaginationBar } from "./components/PaginationBar";
 import { RecentShelf } from "./components/RecentShelf";
 import { SettingsModal } from "./components/SettingsModal";
 import { StatsModal } from "./components/StatsModal";
 import { TopStatusBar } from "./components/TopStatusBar";
+import { UltraFpsModal } from "./components/UltraFpsModal";
 import { VirtualGameGrid } from "./components/VirtualGameGrid";
+import { useGamepadNav } from "./hooks/useGamepadNav";
 import { useLibrary } from "./hooks/useLibrary";
 import { useSmoothWheel } from "./hooks/useSmoothWheel";
 import {
@@ -38,12 +41,15 @@ export default function App() {
     paginatedGames,
     counts,
     genreCounts,
+    collectionCounts,
     statusFilter,
     setStatusFilter,
     platformFilter,
     setPlatformFilter,
     genreFilter,
     setGenreFilter,
+    collectionFilter,
+    setCollectionFilter,
     sortMode,
     setSortMode,
     query,
@@ -71,6 +77,8 @@ export default function App() {
   const [statsOpen, setStatsOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [isFirstRunOnboarding, setIsFirstRunOnboarding] = useState(false);
+  const [ultraFpsOpen, setUltraFpsOpen] = useState(false);
+  const [launchLogsOpen, setLaunchLogsOpen] = useState(false);
 
   const [downloadsMap, setDownloadsMap] = useState<Map<string, DownloadTaskInfo>>(
     () => new Map()
@@ -90,7 +98,9 @@ export default function App() {
     paletteOpen ||
     addCustomOpen ||
     statsOpen ||
-    onboardingOpen;
+    onboardingOpen ||
+    ultraFpsOpen ||
+    launchLogsOpen;
 
   // Kütüphane görünümünde 144Hz/180Hz ivmeli yumuşak tekerlek kaydırması
   useSmoothWheel(mainScrollRef, !anyOverlayOpen);
@@ -316,6 +326,33 @@ export default function App() {
     }
   };
 
+  const handleNextStore = useCallback(() => {
+    const stores: ("all" | import("./types/game").Platform)[] = ["all", "steam", "epic", "gog"];
+    setPlatformFilter((prev) => {
+      const idx = stores.indexOf(prev);
+      return stores[(idx + 1) % stores.length];
+    });
+  }, [setPlatformFilter]);
+
+  const handlePrevStore = useCallback(() => {
+    const stores: ("all" | import("./types/game").Platform)[] = ["all", "steam", "epic", "gog"];
+    setPlatformFilter((prev) => {
+      const idx = stores.indexOf(prev);
+      return stores[(idx - 1 + stores.length) % stores.length];
+    });
+  }, [setPlatformFilter]);
+
+  // Gamepad / Oyun Kolu Navigasyonu Kancası
+  const { controllerName, selectedIndex } = useGamepadNav({
+    games: paginatedGames,
+    enabled: !anyOverlayOpen,
+    onSelectGame: (g) => handleOpenDetail(g, false),
+    onLaunchGame: (g) => handleLaunch(g),
+    onOpenCommandPalette: () => setPaletteOpen(true),
+    onNextStore: handleNextStore,
+    onPrevStore: handlePrevStore,
+  });
+
   const showRecentShelf =
     statusFilter === "all" &&
     platformFilter === "all" &&
@@ -348,6 +385,7 @@ export default function App() {
           activeDownloadsCount={activeDownloads.length}
           totalDownloadsCount={downloadList.length}
           averageDownloadPct={averageDownloadPct}
+          controllerName={controllerName}
           onOpenDownloads={() => setDownloadsOpen(true)}
           onOpenCommandPalette={() => setPaletteOpen(true)}
           onOpenAddCustomGame={() => setAddCustomOpen(true)}
@@ -357,6 +395,8 @@ export default function App() {
             setOnboardingOpen(true);
           }}
           onOpenSettings={() => setSettingsOpen(true)}
+          onOpenUltraFps={() => setUltraFpsOpen(true)}
+          onOpenLaunchLogs={() => setLaunchLogsOpen(true)}
         />
 
         <FilterStrip
@@ -370,6 +410,9 @@ export default function App() {
           genreFilter={genreFilter}
           onGenreFilterChange={setGenreFilter}
           genreCounts={genreCounts}
+          collectionFilter={collectionFilter}
+          onCollectionFilterChange={setCollectionFilter}
+          collectionCounts={collectionCounts}
           sortMode={sortMode}
           onSortModeChange={setSortMode}
           visibleCount={filteredGames.length}
@@ -396,6 +439,7 @@ export default function App() {
                 games={paginatedGames}
                 runningId={runningId}
                 downloadsById={downloadsMap}
+                focusedIndex={controllerName ? selectedIndex : undefined}
                 onOpenDetail={handleOpenDetail}
                 onLaunch={handleLaunch}
                 onToggleFavorite={handleToggleFavorite}
@@ -502,6 +546,16 @@ export default function App() {
         onClose={() => setOnboardingOpen(false)}
         onNotify={showToast}
       />
+
+      {/* ⚡ E-Spor & CS2 Ultra FPS Motoru Modal */}
+      {ultraFpsOpen && (
+        <UltraFpsModal onClose={() => setUltraFpsOpen(false)} />
+      )}
+
+      {/* 📋 Canlı Çalıştırma & Çökme Günlükleri Modal */}
+      {launchLogsOpen && (
+        <LaunchLogsModal onClose={() => setLaunchLogsOpen(false)} />
+      )}
 
       {/* Bildirim Balonu */}
       {toastMsg && (

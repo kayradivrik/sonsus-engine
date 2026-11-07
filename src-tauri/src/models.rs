@@ -70,6 +70,14 @@ pub struct HookProfile {
     #[serde(default)]
     pub gamescope_fsr: bool,
     #[serde(default)]
+    pub extreme_boost: bool,
+    #[serde(default = "default_true")]
+    pub pin_p_cores: bool,
+    #[serde(default = "default_true")]
+    pub force_dgpu: bool,
+    #[serde(default = "default_true")]
+    pub disable_steam_overlay_preload: bool,
+    #[serde(default)]
     pub runner_path: Option<String>,
     #[serde(default)]
     pub custom_env: Vec<String>,
@@ -90,6 +98,10 @@ impl Default for HookProfile {
             use_gamemode: false,
             use_mangohud: false,
             gamescope_fsr: false,
+            extreme_boost: false,
+            pin_p_cores: true,
+            force_dgpu: true,
+            disable_steam_overlay_preload: true,
             runner_path: None,
             custom_env: Vec::new(),
             suspend_processes: Vec::new(),
@@ -234,6 +246,88 @@ pub struct RunnerInfo {
     pub kind: String, // "proton" | "wine"
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemoteRunnerRelease {
+    pub tag_name: String,
+    pub name: String,
+    pub published_at: String,
+    pub download_url: String,
+    pub size_bytes: u64,
+    pub is_installed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RunnerInstallProgress {
+    pub tag_name: String,
+    pub percent: f32,
+    pub status_text: String,
+    pub done: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaveBackupInfo {
+    pub file_name: String,
+    pub full_path: String,
+    pub created_epoch: i64,
+    pub size_bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LaunchLogEntry {
+    pub id: u64,
+    pub game_id: String,
+    pub game_title: String,
+    pub timestamp_epoch: i64,
+    pub command_repr: String,
+    pub runner_used: Option<String>,
+    pub extreme_boost_active: bool,
+    pub exit_code: Option<i32>,
+    pub output_tail: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PerfBottleneckItem {
+    pub id: String,
+    pub severity: String, // "critical" | "warning" | "ok"
+    pub title: String,
+    pub detail: String,
+    pub can_auto_fix: bool,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct UltraPerfStatus {
+    pub cpu_model: String,
+    pub p_core_range: Option<String>,
+    pub e_core_range: Option<String>,
+    pub turbo_enabled: Option<bool>,
+    pub current_governor: String,
+    pub max_freq_mhz: u64,
+    pub dgpu_name: Option<String>,
+    pub has_hybrid_gpu: bool,
+    pub nvidia_powerd_active: bool,
+    pub split_lock_mitigate: Option<i32>,
+    pub ram_total_mb: u64,
+    pub ram_available_mb: u64,
+    pub swap_used_mb: u64,
+    pub passwordless_boost_installed: bool,
+    pub cs2_installed: bool,
+    pub cs2_current_launch_options: Option<String>,
+    pub bottlenecks: Vec<PerfBottleneckItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SteamEsportsPresetPayload {
+    pub appid: String,
+    pub mode: String, // "native_max_fps" | "gamescope_stretched"
+    pub internal_w: Option<u32>,
+    pub internal_h: Option<u32>,
+    pub output_w: Option<u32>,
+    pub output_h: Option<u32>,
+    pub refresh_hz: Option<u32>,
+    pub prefer_output: Option<String>,
+    pub restart_steam: bool,
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct StoreAuthStatus {
     pub steam_connected: bool,
@@ -262,6 +356,12 @@ pub struct AppSettings {
     pub custom_steam_root: Option<String>,
     #[serde(default = "default_true")]
     pub sync_epic_heroic: bool,
+    #[serde(default = "default_true")]
+    pub minimize_to_tray: bool,
+    #[serde(default = "default_true")]
+    pub desktop_notifications: bool,
+    #[serde(default = "default_true")]
+    pub auto_cloud_sync: bool,
     #[serde(default)]
     pub default_hook: HookProfile,
 }
@@ -278,6 +378,9 @@ impl Default for AppSettings {
             default_prefix_dir: None,
             custom_steam_root: None,
             sync_epic_heroic: true,
+            minimize_to_tray: true,
+            desktop_notifications: true,
+            auto_cloud_sync: true,
             default_hook: HookProfile::default(),
         }
     }

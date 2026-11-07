@@ -2,6 +2,7 @@ import {
   BarChart3,
   Command,
   Download,
+  Gamepad2,
   Heart,
   LayoutGrid,
   List,
@@ -9,6 +10,7 @@ import {
   RefreshCw,
   Sliders,
   User,
+  Zap,
 } from "lucide-react";
 import { LibraryQuickFilter, ViewMode } from "../types/game";
 
@@ -26,12 +28,15 @@ interface TopStatusBarProps {
   activeDownloadsCount: number;
   totalDownloadsCount: number;
   averageDownloadPct: number;
+  controllerName?: string | null;
   onOpenDownloads: () => void;
   onOpenCommandPalette: () => void;
   onOpenAddCustomGame: () => void;
   onOpenStats: () => void;
   onOpenOnboarding: () => void;
   onOpenSettings: () => void;
+  onOpenUltraFps: () => void;
+  onOpenLaunchLogs: () => void;
 }
 
 export function TopStatusBar({
@@ -48,12 +53,15 @@ export function TopStatusBar({
   activeDownloadsCount,
   totalDownloadsCount,
   averageDownloadPct,
+  controllerName,
   onOpenDownloads,
   onOpenCommandPalette,
   onOpenAddCustomGame,
   onOpenStats,
   onOpenOnboarding,
   onOpenSettings,
+  onOpenUltraFps,
+  onOpenLaunchLogs,
 }: TopStatusBarProps) {
   return (
     <header className="h-16 max-w-[1480px] w-full mx-auto px-8 lg:px-12 flex items-center justify-between gap-3 shrink-0">
@@ -167,6 +175,27 @@ export function TopStatusBar({
         </button>
 
         {/* İndirme Yöneticisi Kapsülü */}
+        {/* E-Spor Ultra FPS & Konsol Modu Pill Tuşları */}
+        {controllerName && (
+          <div
+            className="h-8 px-2.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-1.5 text-xs text-emerald-300 shrink-0"
+            title={`Oyun Kolu Bağlı: ${controllerName}`}
+          >
+            <Gamepad2 className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+            <span className="font-semibold text-[11px] hidden md:inline">Konsol Modu</span>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={onOpenUltraFps}
+          className="h-8 px-3 rounded-full bg-gradient-to-r from-emerald-600/20 to-teal-600/20 hover:from-emerald-600/30 hover:to-teal-600/30 border border-emerald-500/40 text-emerald-300 hover:text-white flex items-center gap-1.5 text-xs font-bold transition-all shadow-sm shadow-emerald-500/20 cursor-pointer shrink-0"
+          title="⚡ CS2 & Linux E-Spor Ultra FPS Motoru (Psikopat Mod)"
+        >
+          <Zap className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400 animate-pulse" />
+          <span className="tracking-wide">Ultra FPS</span>
+        </button>
+
         <button
           type="button"
           onClick={onOpenDownloads}
@@ -231,6 +260,14 @@ export function TopStatusBar({
           title="Sistem Hookları ve Kontrol Merkezi"
         >
           <Sliders className="w-3.5 h-3.5" />
+        </button>
+
+        <button
+          onClick={onOpenLaunchLogs}
+          className="w-8 h-8 rounded-full bg-[#121216] hover:bg-[#1c1c22] border border-white/[0.08] flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
+          title="Çalıştırma & Çökme Günlükleri"
+        >
+          <span className="text-xs">📋</span>
         </button>
       </div>
     </header>

@@ -15,10 +15,17 @@ use crate::{
         list_install_locations, open_in_file_manager, uninstall_installed_game,
     },
     launcher::{enumerate_displays, enumerate_runners, launch_with_hooks},
+    logs_store::{clear_all_launch_logs, list_launch_logs},
     metadata::fetch_online_game_details,
     models::{
         AppSettings, CustomGameInput, DownloadTaskInfo, HookProfile, InstallGamePayload,
-        InstallLocationOption, OnlineGameDetails, StoreAuthStatus, SystemDiagnostics, UnifiedGame,
+        InstallLocationOption, LaunchLogEntry, OnlineGameDetails, RemoteRunnerRelease, RunnerInfo,
+        SaveBackupInfo, SteamEsportsPresetPayload, StoreAuthStatus, SystemDiagnostics,
+        UltraPerfStatus, UnifiedGame,
+    },
+    optimizer::{
+        activate_extreme_boost, apply_steam_esports_preset, deactivate_extreme_boost,
+        inspect_ultra_perf_status, install_passwordless_boost_helper,
     },
     parsers::{
         epic::{find_heroic_roots, scan_epic_all},
@@ -29,6 +36,8 @@ use crate::{
         detect_session_label, has_binary, open_uri_scheme, pick_directory_dialog,
         pick_executable_dialog,
     },
+    runners_mgr::{fetch_ge_proton_releases, install_ge_proton_release},
+    saves::{backup_game_saves, list_game_backups, restore_game_backup, sync_cloud_saves},
 };
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, State};
@@ -369,4 +378,105 @@ pub async fn check_game_update(mut game: UnifiedGame) -> Result<UnifiedGame, Str
     game.update_available = Some(has_upd);
     let _ = update_single_cached_game(&game);
     Ok(game)
+}
+
+// --- E-Spor Ultra FPS & Sistem Optimizasyon Komutları ---
+
+#[tauri::command]
+pub fn get_ultra_perf_status() -> UltraPerfStatus {
+    inspect_ultra_perf_status()
+}
+
+#[tauri::command]
+pub async fn install_boost_helper() -> Result<String, String> {
+    tokio::task::spawn_blocking(install_passwordless_boost_helper)
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn trigger_extreme_boost_now() -> Result<String, String> {
+    tokio::task::spawn_blocking(|| activate_extreme_boost(true))
+        .await
+        .map_err(|e| e.to_string())??;
+    let _ = crate::platform_os::send_desktop_notification(
+        "sonsus-engine",
+        "⚡ Psikopat Ultra FPS Modu Devrede: 4.7 GHz Turbo Boost, RTX 4050 ve RAM temizlendi!",
+    );
+    Ok("Psikopat Ultra FPS Modu başarıyla aktive edildi!".into())
+}
+
+#[tauri::command]
+pub fn stop_extreme_boost_now() -> Result<String, String> {
+    deactivate_extreme_boost(&[]);
+    Ok("Sistem dengeli moda geri döndürüldü.".into())
+}
+
+#[tauri::command]
+pub async fn apply_steam_esports_preset_command(
+    payload: SteamEsportsPresetPayload,
+) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || apply_steam_esports_preset(payload))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+// --- GE-Proton Runner Manager Komutları ---
+
+#[tauri::command]
+pub async fn list_remote_ge_proton() -> Result<Vec<RemoteRunnerRelease>, String> {
+    fetch_ge_proton_releases().await
+}
+
+#[tauri::command]
+pub async fn install_ge_proton(
+    app: AppHandle,
+    tag_name: String,
+    download_url: String,
+) -> Result<RunnerInfo, String> {
+    install_ge_proton_release(app, tag_name, download_url).await
+}
+
+// --- Bulut Kayıt (Cloud Save) & Yedekleme Komutları ---
+
+#[tauri::command]
+pub async fn sync_game_cloud_saves(game: UnifiedGame) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || sync_cloud_saves(&game))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn create_game_save_backup(game: UnifiedGame) -> Result<SaveBackupInfo, String> {
+    tokio::task::spawn_blocking(move || backup_game_saves(&game))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub fn get_game_save_backups(game_id: String) -> Vec<SaveBackupInfo> {
+    list_game_backups(&game_id)
+}
+
+#[tauri::command]
+pub async fn restore_game_save_backup(
+    backup_path: String,
+    game: UnifiedGame,
+) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || restore_game_backup(&backup_path, &game))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+// --- Canlı Çalıştırma Günlükleri ---
+
+#[tauri::command]
+pub fn get_launch_logs(game_id: Option<String>) -> Vec<LaunchLogEntry> {
+    list_launch_logs(game_id.as_deref())
+}
+
+#[tauri::command]
+pub fn clear_launch_logs() -> Result<(), String> {
+    clear_all_launch_logs();
+    Ok(())
 }

@@ -34,6 +34,7 @@ export function useLibrary(onError: (msg: string) => void) {
   const [statusFilter, setStatusFilter] = useState<LibraryQuickFilter>("all");
   const [platformFilter, setPlatformFilter] = useState<"all" | Platform>("all");
   const [genreFilter, setGenreFilter] = useState<string | null>(null);
+  const [collectionFilter, setCollectionFilter] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>("status");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -161,6 +162,22 @@ export function useLibrary(onError: (msg: string) => void) {
       .sort((a, b) => b.count - a.count);
   }, [games, statusFilter, platformFilter]);
 
+  const collectionCounts = useMemo<GenreCountItem[]>(() => {
+    const map = new Map<string, number>();
+    for (const g of games) {
+      if (g.is_hidden) continue;
+      if (g.collection_tag) {
+        const tag = g.collection_tag.trim();
+        if (tag) {
+          map.set(tag, (map.get(tag) ?? 0) + 1);
+        }
+      }
+    }
+    return Array.from(map.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [games]);
+
   const filteredGames = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
     const list = games.filter((g) => {
@@ -179,6 +196,7 @@ export function useLibrary(onError: (msg: string) => void) {
 
       if (platformFilter !== "all" && g.platform !== platformFilter) return false;
       if (genreFilter && !(g.genres ?? []).includes(genreFilter)) return false;
+      if (collectionFilter && g.collection_tag !== collectionFilter) return false;
 
       if (q) {
         const inTitle = g.title.toLowerCase().includes(q);
@@ -219,7 +237,7 @@ export function useLibrary(onError: (msg: string) => void) {
   // Filtre, arama veya sayfa boyutu değiştiğinde 1. sayfaya dön
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, platformFilter, genreFilter, deferredQuery, sortMode, pageSize]);
+  }, [statusFilter, platformFilter, genreFilter, collectionFilter, deferredQuery, sortMode, pageSize]);
 
   const totalPages = Math.max(1, Math.ceil(filteredGames.length / pageSize));
   const currentPage = Math.min(Math.max(1, page), totalPages);
@@ -236,12 +254,15 @@ export function useLibrary(onError: (msg: string) => void) {
     paginatedGames,
     counts,
     genreCounts,
+    collectionCounts,
     statusFilter,
     setStatusFilter,
     platformFilter,
     setPlatformFilter,
     genreFilter,
     setGenreFilter,
+    collectionFilter,
+    setCollectionFilter,
     sortMode,
     setSortMode,
     query,

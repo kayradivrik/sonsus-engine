@@ -118,4 +118,50 @@ export const tauriApi = {
 
   checkGameUpdate: (game: UnifiedGame) =>
     invoke<UnifiedGame>("check_game_update", { game }),
+
+  // --- E-Spor Ultra FPS & Sistem Optimizasyonu ---
+  getUltraPerfStatus: () =>
+    invoke<import("../types/game").UltraPerfStatus>("get_ultra_perf_status"),
+
+  installBoostHelper: () =>
+    invoke<string>("install_boost_helper"),
+
+  triggerExtremeBoostNow: () =>
+    invoke<string>("trigger_extreme_boost_now"),
+
+  stopExtremeBoostNow: () =>
+    invoke<string>("stop_extreme_boost_now"),
+
+  applySteamEsportsPreset: (payload: import("../types/game").SteamEsportsPresetPayload) =>
+    invoke<string>("apply_steam_esports_preset_command", { payload }),
+
+  // --- Runner Manager (GE-Proton) ---
+  listRemoteGeProton: () =>
+    invoke<import("../types/game").RemoteRunnerRelease[]>("list_remote_ge_proton"),
+
+  installGeProton: (tagName: string, downloadUrl: string) =>
+    invoke<import("../types/game").RunnerInfo>("install_ge_proton", {
+      tagName,
+      downloadUrl,
+    }),
+
+  // --- Bulut Kayıt (Cloud Save) & Yedekler ---
+  syncGameCloudSaves: (game: UnifiedGame) =>
+    invoke<string>("sync_game_cloud_saves", { game }),
+
+  createGameSaveBackup: (game: UnifiedGame) =>
+    invoke<import("../types/game").SaveBackupInfo>("create_game_save_backup", { game }),
+
+  getGameSaveBackups: (gameId: string) =>
+    invoke<import("../types/game").SaveBackupInfo[]>("get_game_save_backups", { gameId }),
+
+  restoreGameSaveBackup: (backupPath: string, game: UnifiedGame) =>
+    invoke<void>("restore_game_save_backup", { backupPath, game }),
+
+  // --- Canlı Çalıştırma Günlükleri ---
+  getLaunchLogs: (gameId?: string) =>
+    invoke<import("../types/game").LaunchLogEntry[]>("get_launch_logs", { gameId }),
+
+  clearLaunchLogs: () =>
+    invoke<void>("clear_launch_logs"),
 };

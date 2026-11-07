@@ -5,6 +5,7 @@ interface VirtualGameGridProps {
   games: UnifiedGame[];
   runningId: string | null;
   downloadsById: Map<string, DownloadTaskInfo>;
+  focusedIndex?: number;
   onOpenDetail: (game: UnifiedGame, autoOpenInstall?: boolean) => void;
   onLaunch: (game: UnifiedGame) => void;
   onToggleFavorite: (game: UnifiedGame) => void;
@@ -17,18 +18,20 @@ export function VirtualGameGrid({
   games,
   runningId,
   downloadsById,
+  focusedIndex,
   onOpenDetail,
   onLaunch,
   onToggleFavorite,
 }: VirtualGameGridProps) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-x-5 gap-y-8">
-      {games.map((game) => (
+      {games.map((game, idx) => (
         <GameCard
           key={game.id}
           game={game}
           isRunning={runningId === game.id}
           downloadTask={downloadsById.get(game.id)}
+          isGamepadFocused={focusedIndex === idx}
           onOpenDetail={onOpenDetail}
           onLaunch={onLaunch}
           onToggleFavorite={onToggleFavorite}

@@ -458,30 +458,33 @@ impl DownloadManager {
                             finished_game.size_bytes = disk_sz;
                         }
                         if finished_game.launch.is_none() {
-                            finished_game.launch = Some(LaunchConfig {
-                                command_uri_or_bin: if let Some(leg) = find_legendary_binary_path()
-                                {
-                                    if game_clone.platform == Platform::Epic {
-                                        leg
-                                    } else {
-                                        format!("heroic://launch/gog/{}", game_clone.platform_id)
-                                    }
-                                } else {
-                                    format!(
+                            finished_game.launch = Some(if game_clone.platform == Platform::Gog {
+                                crate::parsers::gog::resolve_gog_direct_launch_config(&inst_pb, &game_clone.platform_id)
+                            } else if let Some(leg) = find_legendary_binary_path() {
+                                LaunchConfig {
+                                    command_uri_or_bin: leg,
+                                    args: vec!["launch".into(), game_clone.platform_id.clone()],
+                                    working_dir: Some(inst_pb),
+                                    wine_prefix: None,
+                                }
+                            } else {
+                                LaunchConfig {
+                                    command_uri_or_bin: format!(
                                         "heroic://launch/legendary/{}",
                                         game_clone.platform_id
-                                    )
-                                },
-                                args: if game_clone.platform == Platform::Epic {
-                                    vec!["launch".into(), game_clone.platform_id.clone()]
-                                } else {
-                                    vec![]
-                                },
-                                working_dir: Some(inst_pb),
-                                wine_prefix: None,
+                                    ),
+                                    args: vec![],
+                                    working_dir: Some(inst_pb),
+                                    wine_prefix: None,
+                                }
                             });
                         }
                         let _ = update_single_cached_game(&finished_game);
+
+                        let _ = crate::platform_os::send_desktop_notification(
+                            "sonsus-engine // İndirme Tamamlandı",
+                            &format!("{} oyunu başarıyla kuruldu ve oynamaya hazır!", game_clone.title),
+                        );
 
                         slot.info.status = "completed".into();
                         slot.info.progress_percent = 100.0;

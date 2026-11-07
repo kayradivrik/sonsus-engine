@@ -626,3 +626,56 @@ fn scan_gog_manifests_recursive(
         }
     }
 }
+
+/// GOG oyun klasöründe doğrudan `goggame-*.info` veya `start.sh` arayarak bağımsız LaunchConfig üretir.
+pub fn resolve_gog_direct_launch_config(install_dir: &Path, platform_id: &str) -> LaunchConfig {
+    let start_sh = install_dir.join("start.sh");
+    if start_sh.exists() {
+        return LaunchConfig {
+            command_uri_or_bin: start_sh.to_string_lossy().into_owned(),
+            args: vec![],
+            working_dir: Some(install_dir.to_path_buf()),
+            wine_prefix: None,
+        };
+    }
+
+    if let Ok(entries) = fs::read_dir(install_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if let Some(fname) = path.file_name().and_then(|s| s.to_str()) {
+                if fname.starts_with("goggame-") && fname.ends_with(".info") {
+                    if let Ok(raw) = fs::read_to_string(&path) {
+                        if let Ok(info) = serde_json::from_str::<GogGameInfoJson>(&raw) {
+                            if let Some(pt) = info.play_tasks.iter().find(|t| t.is_primary).or_else(|| info.play_tasks.first()) {
+                                if let Some(ref rel) = pt.path {
+                                    let exe = install_dir.join(rel.replace('\\', "/"));
+                                    #[cfg(windows)]
+                                    return LaunchConfig {
+                                        command_uri_or_bin: exe.to_string_lossy().into_owned(),
+                                        args: vec![],
+                                        working_dir: Some(install_dir.to_path_buf()),
+                                        wine_prefix: None,
+                                    };
+                                    #[cfg(not(windows))]
+                                    return LaunchConfig {
+                                        command_uri_or_bin: "wine".into(),
+                                        args: vec![exe.to_string_lossy().into_owned()],
+                                        working_dir: Some(install_dir.to_path_buf()),
+                                        wine_prefix: None,
+                                    };
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    LaunchConfig {
+        command_uri_or_bin: format!("heroic://launch/gog/{platform_id}"),
+        args: vec![],
+        working_dir: Some(install_dir.to_path_buf()),
+        wine_prefix: None,
+    }
+}

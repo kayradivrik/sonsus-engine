@@ -63,13 +63,18 @@ pub struct SessionGuard {
     pub original_display: Option<SavedDisplayState>,
     pub suspended_pids: Vec<i32>,
     pub post_exit_cmd: Option<String>,
+    pub extreme_boost_active: bool,
 }
 
 impl Drop for SessionGuard {
     fn drop(&mut self) {
-        #[cfg(unix)]
-        for &pid in &self.suspended_pids {
-            let _ = kill(Pid::from_raw(pid), Signal::SIGCONT);
+        if self.extreme_boost_active {
+            crate::optimizer::deactivate_extreme_boost(&self.suspended_pids);
+        } else {
+            #[cfg(unix)]
+            for &pid in &self.suspended_pids {
+                let _ = kill(Pid::from_raw(pid), Signal::SIGCONT);
+            }
         }
 
         if let Some(orig) = &self.original_display {
@@ -446,6 +451,7 @@ pub async fn launch_with_hooks(game: UnifiedGame, hook: HookProfile) -> Result<u
         } else {
             None
         },
+        extreme_boost_active: hook.enabled && hook.extreme_boost,
     };
 
     if hook.enabled {
@@ -453,11 +459,32 @@ pub async fn launch_with_hooks(game: UnifiedGame, hook: HookProfile) -> Result<u
             run_shell_command(pre_cmd);
         }
         guard.original_display = apply_display_hook(&hook);
-        guard.suspended_pids = suspend_processes_by_name(&hook.suspend_processes);
+
+        if hook.extreme_boost {
+            match crate::optimizer::activate_extreme_boost(false) {
+                Ok(frozen) => {
+                    guard.suspended_pids = frozen;
+                }
+                Err(_) => {
+                    guard.suspended_pids = suspend_processes_by_name(&hook.suspend_processes);
+                }
+            }
+        } else {
+            guard.suspended_pids = suspend_processes_by_name(&hook.suspend_processes);
+        }
     }
 
     let target = &launch_cfg.command_uri_or_bin;
     let is_uri = target.contains("://") || target.starts_with("lutris:");
+
+    // CS2 veya diğer Steam oyunları için Canlı PID Güçlendiriciyi tetikle
+    if game.platform_id == "730" || target.to_lowercase().contains("cs2") {
+        crate::optimizer::spawn_live_pid_booster("cs2".into(), Some("0-7".into()));
+    } else if let Some(ref p) = game.install_path {
+        if let Some(name) = p.file_name().and_then(|s| s.to_str()) {
+            crate::optimizer::spawn_live_pid_booster(name.into(), Some("0-7".into()));
+        }
+    }
 
     if is_uri {
         open_uri_scheme(target)?;

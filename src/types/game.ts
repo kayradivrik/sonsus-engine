@@ -29,6 +29,10 @@ export interface HookProfile {
   use_gamemode: boolean;
   use_mangohud: boolean;
   gamescope_fsr: boolean;
+  extreme_boost?: boolean;
+  pin_p_cores?: boolean;
+  force_dgpu?: boolean;
+  disable_steam_overlay_preload?: boolean;
   runner_path?: string | null;
   custom_env: string[];
   suspend_processes: string[];
@@ -159,7 +163,85 @@ export interface AppSettings {
   default_prefix_dir?: string | null;
   custom_steam_root?: string | null;
   sync_epic_heroic: boolean;
+  minimize_to_tray?: boolean;
+  desktop_notifications?: boolean;
+  auto_cloud_sync?: boolean;
   default_hook: HookProfile;
+}
+
+export interface RemoteRunnerRelease {
+  tag_name: string;
+  name: string;
+  published_at: string;
+  download_url: string;
+  size_bytes: number;
+  is_installed: boolean;
+}
+
+export interface RunnerInstallProgress {
+  tag_name: string;
+  percent: number;
+  status_text: string;
+  done: boolean;
+}
+
+export interface SaveBackupInfo {
+  file_name: string;
+  full_path: string;
+  created_epoch: number;
+  size_bytes: number;
+}
+
+export interface LaunchLogEntry {
+  id: number;
+  game_id: string;
+  game_title: string;
+  timestamp_epoch: number;
+  command_repr: string;
+  runner_used?: string | null;
+  extreme_boost_active: boolean;
+  exit_code?: number | null;
+  output_tail: string;
+}
+
+export interface PerfBottleneckItem {
+  id: string;
+  severity: "critical" | "warning" | "ok" | string;
+  title: string;
+  detail: string;
+  can_auto_fix: boolean;
+}
+
+export interface UltraPerfStatus {
+  cpu_model: string;
+  p_core_range?: string | null;
+  e_core_range?: string | null;
+  turbo_enabled?: boolean | null;
+  current_governor: string;
+  max_freq_mhz: number;
+  dgpu_name?: string | null;
+  has_hybrid_gpu: boolean;
+  nvidia_powerd_active: boolean;
+  split_lock_mitigate?: number | null;
+  ram_total_mb: number;
+  ram_available_mb: number;
+  swap_used_mb: number;
+  passwordless_boost_installed: boolean;
+  cs2_installed: boolean;
+  cs2_current_launch_options?: string | null;
+  bottlenecks: PerfBottleneckItem[];
+}
+
+export interface SteamEsportsPresetPayload {
+  appid: string;
+  mode: "native_max_fps" | "gamescope_stretched";
+  internal_w?: number | null;
+  internal_h?: number | null;
+  output_w?: number | null;
+  output_h?: number | null;
+  refresh_hz?: number | null;
+  prefer_output?: string | null;
+  restart_steam: boolean;
 }
 
 export interface DisplayOutputInfo {
