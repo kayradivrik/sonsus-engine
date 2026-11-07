@@ -343,15 +343,16 @@ pub fn install_passwordless_boost_helper() -> Result<String, String> {
     let current_user = std::env::var("USER").unwrap_or_else(|_| "fsociecty".into());
 
     let helper_script = r#"#!/usr/bin/env bash
-# sonsus-boost-helper - High Performance Linux Optimizer for sonsus-engine
+# sonsus-boost-helper - Extreme Aggressive Linux Kernel Esports Optimizer
 set -euo pipefail
 
 case "${1:-start}" in
   start)
-    # 1. Intel Turbo Boost / AMD Boost Kilidini Kaldır
+    # 1. Intel Turbo Boost / AMD Boost Kilidini Kaldır & %100 Kilitle
     if [ -f /sys/devices/system/cpu/intel_pstate/no_turbo ]; then
       echo 0 > /sys/devices/system/cpu/intel_pstate/no_turbo || true
       echo 100 > /sys/devices/system/cpu/intel_pstate/min_perf_pct || true
+      echo 100 > /sys/devices/system/cpu/intel_pstate/max_perf_pct || true
       if [ -f /sys/devices/system/cpu/intel_pstate/hwp_dynamic_boost ]; then
         echo 1 > /sys/devices/system/cpu/intel_pstate/hwp_dynamic_boost || true
       fi
@@ -368,31 +369,71 @@ case "${1:-start}" in
       [ -f "$epp" ] && echo performance > "$epp" || true
     done
 
-    # 3. Kernel split_lock ve autogroup optimizasyonları
+    # 3. Derin C-State Uyku Modlarını Geçici Olarak Kapat (Gecikmesiz CPU Yanıtı)
+    # C2 ve C3 gibi derin uyku durumları CPU'nun uyanma gecikmesini (wake latency) artırır
+    for cstate_disable in /sys/devices/system/cpu/cpu*/cpuidle/state[23456789]/disable; do
+      [ -f "$cstate_disable" ] && echo 1 > "$cstate_disable" || true
+    done
+
+    # 4. Agresif Kernel Zamanlayıcı & Gecikme Ayarları
     if [ -f /proc/sys/kernel/split_lock_mitigate ]; then
       sysctl -w kernel.split_lock_mitigate=0 >/dev/null 2>&1 || true
     fi
     if [ -f /proc/sys/kernel/sched_autogroup_enabled ]; then
       sysctl -w kernel.sched_autogroup_enabled=0 >/dev/null 2>&1 || true
     fi
-    if [ -f /proc/sys/vm/swappiness ]; then
-      sysctl -w vm.swappiness=10 >/dev/null 2>&1 || true
+    if [ -f /proc/sys/kernel/sched_cfs_bandwidth_slice_us ]; then
+      sysctl -w kernel.sched_cfs_bandwidth_slice_us=3000 >/dev/null 2>&1 || true
+    fi
+    if [ -f /proc/sys/kernel/nmi_watchdog ]; then
+      sysctl -w kernel.nmi_watchdog=0 >/dev/null 2>&1 || true
     fi
 
-    # 4. NVIDIA Mobil Dynamic Boost servisini başlat
+    # 5. Agresif Bellek & Takas Optimizasyonu (Sıfır Disk Takılması)
+    if [ -f /proc/sys/vm/swappiness ]; then
+      sysctl -w vm.swappiness=1 >/dev/null 2>&1 || true
+    fi
+    if [ -f /proc/sys/vm/vfs_cache_pressure ]; then
+      sysctl -w vm.vfs_cache_pressure=50 >/dev/null 2>&1 || true
+    fi
+    if [ -f /proc/sys/vm/dirty_ratio ]; then
+      sysctl -w vm.dirty_ratio=10 >/dev/null 2>&1 || true
+    fi
+    if [ -f /proc/sys/vm/dirty_background_ratio ]; then
+      sysctl -w vm.dirty_background_ratio=5 >/dev/null 2>&1 || true
+    fi
+    if [ -f /proc/sys/vm/compaction_proactiveness ]; then
+      sysctl -w vm.compaction_proactiveness=0 >/dev/null 2>&1 || true
+    fi
+    if [ -f /sys/kernel/mm/transparent_hugepage/enabled ]; then
+      echo madvise > /sys/kernel/mm/transparent_hugepage/enabled || true
+    fi
+
+    # 6. PCIe ASPM Güç Tasarrufunu Kapat (Tam Bant Genişliği)
+    if [ -f /sys/module/pcie_aspm/parameters/policy ]; then
+      echo performance > /sys/module/pcie_aspm/parameters/policy || true
+    fi
+
+    # 7. NVIDIA dGPU Maksimum Performans & Dynamic Boost
     systemctl start nvidia-powerd.service >/dev/null 2>&1 || true
     if command -v nvidia-smi >/dev/null 2>&1; then
       nvidia-smi -pm 1 >/dev/null 2>&1 || true
+      nvidia-smi --auto-boost-permission=1 >/dev/null 2>&1 || true
+      # GPU Güç Sınırını ve Saat Hızlarını Serbest Bırak
+      nvidia-smi -ac 8001,3105 >/dev/null 2>&1 || true
     fi
 
-    # 5. RAM Temizliği
+    # 8. Çekirdek Bellek Temizliği
     sync
-    echo 1 > /proc/sys/vm/drop_caches || true
-    echo "SONSUS_BOOST_STARTED_OK"
+    echo 3 > /proc/sys/vm/drop_caches || true
+    echo "SONSUS_AGGRESSIVE_BOOST_STARTED_OK"
     ;;
 
   stop)
-    # Güç tasarrufuna geri dön
+    # Güç tasarrufuna ve normal C-State'lere geri dön
+    for cstate_disable in /sys/devices/system/cpu/cpu*/cpuidle/state[23456789]/disable; do
+      [ -f "$cstate_disable" ] && echo 0 > "$cstate_disable" || true
+    done
     for g in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
       [ -f "$g" ] && echo powersave > "$g" || true
     done
@@ -407,6 +448,9 @@ case "${1:-start}" in
     fi
     if [ -f /proc/sys/vm/swappiness ]; then
       sysctl -w vm.swappiness=60 >/dev/null 2>&1 || true
+    fi
+    if [ -f /sys/module/pcie_aspm/parameters/policy ]; then
+      echo default > /sys/module/pcie_aspm/parameters/policy || true
     fi
     echo "SONSUS_BOOST_STOPPED_OK"
     ;;
@@ -565,7 +609,7 @@ set -e
 # 1. LD_PRELOAD Steam Overlay Bug Temizliği
 export LD_PRELOAD=""
 
-# 2. NVIDIA Prime Offload Enjeksiyonu (RTX 4050 Mobil GPU Zorlama)
+# 2. NVIDIA Prime Offload & Gelişmiş Vulkan / OpenGL Ayarları (RTX 4050 Mobil GPU Zorlama)
 export __NV_PRIME_RENDER_OFFLOAD=1
 export __GLX_VENDOR_LIBRARY_NAME=nvidia
 export __VK_LAYER_NV_optimus=NVIDIA_only
@@ -574,10 +618,13 @@ export __GL_THREADED_OPTIMIZATIONS=1
 export __GL_SHADER_DISK_CACHE=1
 export __GL_SHADER_DISK_CACHE_SKIP_CLEANUP=1
 export __GL_MaxFramesAllowed=1
+export __GL_YIELD="NOTHING"
 
-# 3. SDL Pencere ve Wayland İyileştirmeleri
+# 3. Source 2 / Vulkan & SDL Düşük Gecikme Optimizasyonları
 export SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS=0
 export MESA_VK_DEVICE_SELECT_FORCE_DEFAULT_DEVICE=1
+export RADV_PERFTEST=gpl
+export ENABLE_VKBASALT=0
 
 # 4. Donanım Boost Başlatıcı
 if [ -x /usr/local/bin/sonsus-boost-helper ]; then
@@ -593,8 +640,11 @@ cleanup() {{
 }}
 trap cleanup EXIT
 
-# 5. P-Core Sabitleme & GameMode ile Çalıştır
-if command -v gamemoderun >/dev/null 2>&1; then
+# 5. Gerçek Zamanlı Scheduler (SCHED_FIFO / SCHED_RR) & P-Core Sabitleme
+# chrt ile yüksek öncelikli döngü, gamemoderun ve taskset ile i5-13500H P-Core ({p_core_range})
+if command -v chrt >/dev/null 2>&1 && command -v gamemoderun >/dev/null 2>&1; then
+  exec chrt -r 20 taskset -c {p_core_range} gamemoderun "$@"
+elif command -v gamemoderun >/dev/null 2>&1; then
   exec taskset -c {p_core_range} gamemoderun "$@"
 else
   exec taskset -c {p_core_range} "$@"
@@ -620,9 +670,9 @@ pub fn apply_steam_esports_preset(payload: SteamEsportsPresetPayload) -> Result<
 
     let target_launch_opts = match payload.mode.as_str() {
         "native_max_fps" => {
-            // Doğrudan E-Spor: Gamescope olmadan saf RTX 4050 + Vulkan + High Priority
+            // Doğrudan E-Spor: Gamescope olmadan saf RTX 4050 + Vulkan + Agresif Çekirdek & Thread Önceliği
             format!(
-                "\"{wrap_str}\" %command% -vulkan -high -nojoy +fps_max 0 +engine_low_latency_sleep_after_client_tick 1"
+                "\"{wrap_str}\" %command% -vulkan -high -nojoy +fps_max 0 +engine_low_latency_sleep_after_client_tick 1 -threads 8 +r_dynamic 0 +mat_queue_mode 2 -novid"
             )
         }
         "gamescope_stretched" => {
@@ -635,13 +685,13 @@ pub fn apply_steam_esports_preset(payload: SteamEsportsPresetPayload) -> Result<
                 .prefer_output
                 .unwrap_or_else(|| "HDMI-A-1".into());
 
-            // Gamescope Stretched modunda da RTX 4050 kancasını ve sıfır gecikmeli flip'i uygula
+            // Gamescope Stretched modunda da RTX 4050 kancasını, sıfır gecikmeli flip'i ve agresif thread ayarını uygula
             format!(
-                "\"{wrap_str}\" gamescope -w {iw} -h {ih} -W {ow} -H {oh} -S stretch -f -r {hz} --immediate-flips --prefer-output {out_conn} --force-grab-cursor --expose-wayland -- %command% -vulkan -high -nojoy +fps_max 0 +engine_low_latency_sleep_after_client_tick 1"
+                "\"{wrap_str}\" gamescope -w {iw} -h {ih} -W {ow} -H {oh} -S stretch -f -r {hz} --immediate-flips --prefer-output {out_conn} --force-grab-cursor --expose-wayland -- %command% -vulkan -high -nojoy +fps_max 0 +engine_low_latency_sleep_after_client_tick 1 -threads 8 +r_dynamic 0 +mat_queue_mode 2 -novid"
             )
         }
         _ => {
-            format!("\"{wrap_str}\" %command% -vulkan -high +fps_max 0")
+            format!("\"{wrap_str}\" %command% -vulkan -high +fps_max 0 -threads 8")
         }
     };
 
@@ -749,20 +799,24 @@ pub fn spawn_live_pid_booster(process_hint: String, p_cores: Option<String>) {
         let target_name = process_hint.to_lowercase();
         let target_cores = p_cores.unwrap_or_else(|| "0-7".into());
 
-        for _ in 0..30 {
-            tokio::time::sleep(Duration::from_secs(1)).await;
+        for _ in 0..45 {
+            tokio::time::sleep(Duration::from_millis(500)).await;
             if let Some(pid) = find_pid_by_name(&target_name) {
-                // 1. P-Core sabitleme
+                // 1. P-Core sabitleme (i5-13500H P-Core'larına kilitle, E-Core'lardan tamamen yalıt)
                 let _ = Command::new("taskset")
                     .args(["-cp", &target_cores, &pid.to_string()])
                     .status();
-                // 2. İşlemci önceliği artırma (Renice)
+                // 2. İşlemci önceliği (Nice seviyesi -20: En agresif maksimum öncelik)
                 let _ = Command::new("renice")
-                    .args(["-n", "-15", "-p", &pid.to_string()])
+                    .args(["-n", "-20", "-p", &pid.to_string()])
                     .status();
-                // 3. Disk I/O önceliği
+                // 3. Gerçek Zamanlı Scheduler Politikası (SCHED_RR: Gerçek zamanlı render döngüsü)
+                let _ = Command::new("chrt")
+                    .args(["-r", "-p", "20", &pid.to_string()])
+                    .status();
+                // 4. Gerçek Zamanlı Disk I/O Önceliği (Sıfır doku takılması)
                 let _ = Command::new("ionice")
-                    .args(["-c", "2", "-n", "0", "-p", &pid.to_string()])
+                    .args(["-c", "1", "-n", "0", "-p", &pid.to_string()])
                     .status();
                 break;
             }
