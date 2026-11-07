@@ -13,6 +13,7 @@ import {
   ImageDown,
   Layers,
   MessageSquareQuote,
+  Pause,
   Play,
   RefreshCw,
   RotateCcw,
@@ -21,6 +22,7 @@ import {
   Sliders,
   ThumbsDown,
   ThumbsUp,
+  Trash2,
   X,
 } from "lucide-react";
 import { tauriApi } from "../api/tauriClient";
@@ -28,6 +30,7 @@ import { useSmoothWheel } from "../hooks/useSmoothWheel";
 import {
   DisplayBackend,
   DisplayOutputInfo,
+  DownloadTaskInfo,
   HookProfile,
   OnlineGameDetails,
   UnifiedGame,
@@ -45,6 +48,7 @@ interface GameDetailViewProps {
   game: UnifiedGame;
   autoOpenInstall: boolean;
   isRunning: boolean;
+  downloadTask?: DownloadTaskInfo;
   displays: DisplayOutputInfo[];
   onBack: () => void;
   onLaunch: (game: UnifiedGame) => void;
@@ -75,7 +79,7 @@ function parseRequirementLines(raw?: string | null): { key?: string; value: stri
     )
     .map((line) => {
       const idx = line.indexOf(":");
-      if (idx > 0 && idx < 28) {
+      if (idx > 0 && idx < 32) {
         return {
           key: line.slice(0, idx).trim(),
           value: line.slice(idx + 1).trim(),
@@ -104,13 +108,14 @@ function protonPillClass(tier?: string | null): string {
 }
 
 /**
- * Overdrive sinematik siyah tasarım diline (%100 özgün kapsül navigasyon + tam genişlikli sahne + Bento bilgi kartları)
- * sahip tam ekran oyun detay sayfası.
+ * `sonsus-engine` sinematik siyah tasarım diline (%100 özgün kapsül navigasyon + tam genişlikli sahne + Bento bilgi kartları)
+ * sahip tam ekran oyun detay sayfası. Steam, Epic Games Store ve GOG verilerini birleştirir.
  */
 export function GameDetailView({
   game,
   autoOpenInstall,
   isRunning,
+  downloadTask,
   displays,
   onBack,
   onLaunch,
@@ -163,7 +168,13 @@ export function GameDetailView({
     setLoadingDetails(true);
     tauriApi
       .getOnlineGameDetails(game, forceRefresh)
-      .then(setDetails)
+      .then((fetched) => {
+        setDetails(fetched);
+        // Çevrimiçi çekilen yeni kategori etiketlerini ana kütüphane nesnesine de senkronla
+        if (fetched.genres && fetched.genres.length > 0 && (!game.genres || game.genres.length === 0)) {
+          onGameUpdated({ ...game, genres: fetched.genres });
+        }
+      })
       .catch(() => {})
       .finally(() => setLoadingDetails(false));
   };
@@ -273,12 +284,29 @@ export function GameDetailView({
     [details?.linux_requirements]
   );
 
+  const effectiveGenres = useMemo(() => {
+    const merged = new Set<string>(game.genres ?? []);
+    for (const g of details?.genres ?? []) {
+      merged.add(g);
+    }
+    return Array.from(merged);
+  }, [game.genres, details?.genres]);
+
+  const effectiveDevelopers =
+    details && details.developers.length > 0
+      ? details.developers.join(", ")
+      : game.developer ?? null;
+
+  const effectiveDescription = details?.short_description || game.summary_hint || null;
   const effectiveInstallBytes = game.size_bytes ?? details?.install_size_bytes ?? null;
   const playtimeText = formatPlaytime(game.playtime_minutes);
 
+  const activeDl =
+    downloadTask && downloadTask.status !== "completed" ? downloadTask : null;
+
   return (
     <div className="flex-1 min-h-0 flex flex-col bg-black text-zinc-100 overflow-hidden animate-detail-enter">
-      {/* Üst Sabit Overdrive Kapsül Çubuğu */}
+      {/* Üst Sabit Kapsül Çubuğu */}
       <header className="h-16 border-b border-white/[0.06] bg-black/80 backdrop-blur-md z-20 shrink-0">
         <div className="h-full max-w-[1480px] w-full mx-auto px-8 lg:px-12 flex items-center justify-between gap-4">
           <button
@@ -294,7 +322,7 @@ export function GameDetailView({
           <div className="flex items-center gap-2 flex-wrap justify-end">
             {details?.metacritic_score && (
               <span className="h-8 px-3 rounded-full border border-emerald-500/35 bg-emerald-500/10 text-emerald-300 text-xs font-bold flex items-center gap-1.5">
-                <span>Metacritic</span>
+                <span>Puan</span>
                 <span>{details.metacritic_score}</span>
               </span>
             )}
@@ -345,7 +373,7 @@ export function GameDetailView({
         </div>
       </header>
 
-      {/* Ana Kaydırılabilir Overdrive Sinematik Sahne */}
+      {/* Ana Kaydırılabilir Sinematik Sahne */}
       <div ref={pageScrollRef} className="flex-1 min-h-0 overflow-y-auto pb-20">
         {/* Tam Genişlikli Widescreen Hero Sahnesi */}
         <section className="relative overflow-hidden border-b border-white/[0.06]">
@@ -393,7 +421,7 @@ export function GameDetailView({
                 >
                   {isInstalled ? "Bilgisayarda Yüklü" : "Bulut Kütüphanesinde"}
                 </span>
-                {(game.genres ?? []).map((genre) => (
+                {effectiveGenres.map((genre) => (
                   <span
                     key={genre}
                     className="px-3 py-0.5 rounded-full text-[11px] bg-white/[0.06] border border-white/10 text-zinc-300"
@@ -408,9 +436,9 @@ export function GameDetailView({
                   {game.title}
                 </h1>
                 <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-400">
-                  {details && details.developers.length > 0 && (
+                  {effectiveDevelopers && (
                     <span className="text-zinc-200 font-semibold">
-                      {details.developers.join(", ")}
+                      {effectiveDevelopers}
                     </span>
                   )}
                   {details?.release_date && <span>{details.release_date}</span>}
@@ -423,71 +451,154 @@ export function GameDetailView({
                 </div>
               </div>
 
-              {/* RENKLİ ANA AKSİYON KAPSÜLLERİ */}
-              <div className="pt-2 flex flex-wrap items-center gap-3">
-                {isInstalled ? (
-                  <>
-                    <button
-                      type="button"
-                      disabled={isRunning}
-                      onClick={() => onLaunch(game)}
-                      className={`h-12 px-8 rounded-full font-extrabold text-sm flex items-center gap-2.5 transition-all cursor-pointer ${
-                        isRunning
-                          ? "bg-amber-400 text-black animate-pulse"
-                          : "bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-black shadow-[0_10px_35px_rgba(16,185,129,0.38)]"
-                      }`}
-                    >
-                      <Play className="w-4 h-4 fill-black" />
-                      <span>{isRunning ? "Çalışıyor..." : "Oyna / Giriş Yap"}</span>
-                    </button>
+              {/* CANLI UYGULAMA İÇİ İNDİRME PANELİ VEYA RENKLİ ANA AKSİYON KAPSÜLLERİ */}
+              {activeDl && !isInstalled ? (
+                <div className="p-4 rounded-2xl bg-[#0e0e16]/95 border border-blue-500/35 max-w-2xl space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-xs font-bold text-white flex items-center gap-2">
+                      <Download className="w-4 h-4 text-blue-400" />
+                      <span>
+                        {activeDl.status === "downloading"
+                          ? "Uygulama İçinde İndiriliyor"
+                          : activeDl.status === "paused"
+                          ? "İndirme Duraklatıldı"
+                          : "İndirme Durdu"}
+                      </span>
+                      <span className="text-blue-300 tabular-nums">
+                        %{activeDl.progress_percent.toFixed(1)}
+                      </span>
+                    </div>
 
-                    {game.install_path && (
+                    <div className="flex items-center gap-1.5">
+                      {activeDl.status === "downloading" ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            tauriApi.pauseGameDownload(game.id).catch(() => {})
+                          }
+                          className="h-8 px-3 rounded-full bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Pause className="w-3.5 h-3.5" />
+                          <span>Duraklat</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            tauriApi
+                              .startGameDownload(game, activeDl.target_dir)
+                              .catch((e) => onNotify(String(e)))
+                          }
+                          className="h-8 px-3 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Play className="w-3.5 h-3.5 fill-white" />
+                          <span>Devam Et</span>
+                        </button>
+                      )}
+
                       <button
                         type="button"
-                        onClick={handleOpenFolder}
-                        title={game.install_path}
+                        onClick={() =>
+                          tauriApi.removeDownloadTask(game.id).catch(() => {})
+                        }
+                        className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-rose-500/20 flex items-center justify-center text-zinc-400 hover:text-rose-300 cursor-pointer"
+                        title="İndirmeyi iptal et"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        activeDl.status === "paused" ? "bg-amber-400" : "bg-blue-500"
+                      }`}
+                      style={{
+                        width: `${Math.max(
+                          2,
+                          Math.min(100, activeDl.progress_percent)
+                        )}%`,
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] text-zinc-400 tabular-nums">
+                    <span className="truncate font-mono">{activeDl.detail_text}</span>
+                    <div className="flex items-center gap-3 shrink-0">
+                      {activeDl.speed_text && <span>{activeDl.speed_text}</span>}
+                      {activeDl.eta_text && activeDl.status === "downloading" && (
+                        <span>ETA: {activeDl.eta_text}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="pt-2 flex flex-wrap items-center gap-3">
+                  {isInstalled ? (
+                    <>
+                      <button
+                        type="button"
+                        disabled={isRunning}
+                        onClick={() => onLaunch(game)}
+                        className={`h-12 px-8 rounded-full font-extrabold text-sm flex items-center gap-2.5 transition-all cursor-pointer ${
+                          isRunning
+                            ? "bg-amber-400 text-black animate-pulse"
+                            : "bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-black shadow-[0_10px_35px_rgba(16,185,129,0.38)]"
+                        }`}
+                      >
+                        <Play className="w-4 h-4 fill-black" />
+                        <span>{isRunning ? "Çalışıyor..." : "Oyna / Giriş Yap"}</span>
+                      </button>
+
+                      {game.install_path && (
+                        <button
+                          type="button"
+                          onClick={handleOpenFolder}
+                          title={game.install_path}
+                          className="h-12 px-5 rounded-full bg-[#121218] hover:bg-[#1b1b24] border border-white/15 text-xs font-semibold text-zinc-200 hover:text-white flex items-center gap-2 transition-colors cursor-pointer"
+                        >
+                          <FolderOpen className="w-4 h-4 text-emerald-400" />
+                          <span>Dosya Konumunu Aç</span>
+                        </button>
+                      )}
+
+                      {game.install_path && (
+                        <span className="text-[11px] text-zinc-400 font-mono truncate max-w-md px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.07]">
+                          {game.install_path}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setInstallModalTab("install")}
+                        className="h-12 px-8 rounded-full bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white font-extrabold text-sm flex items-center gap-2.5 shadow-[0_10px_35px_rgba(37,99,235,0.4)] transition-all cursor-pointer"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>İndir / Kurulum Başlat</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setInstallModalTab("locate")}
                         className="h-12 px-5 rounded-full bg-[#121218] hover:bg-[#1b1b24] border border-white/15 text-xs font-semibold text-zinc-200 hover:text-white flex items-center gap-2 transition-colors cursor-pointer"
                       >
-                        <FolderOpen className="w-4 h-4 text-emerald-400" />
-                        <span>Dosya Konumunu Aç</span>
+                        <FolderCheck className="w-4 h-4 text-blue-400" />
+                        <span>Mevcut Klasörü Bağla</span>
                       </button>
-                    )}
-
-                    {game.install_path && (
-                      <span className="text-[11px] text-zinc-400 font-mono truncate max-w-md px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.07]">
-                        {game.install_path}
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setInstallModalTab("install")}
-                      className="h-12 px-8 rounded-full bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white font-extrabold text-sm flex items-center gap-2.5 shadow-[0_10px_35px_rgba(37,99,235,0.4)] transition-all cursor-pointer"
-                    >
-                      <Download className="w-4 h-4" />
-                      <span>İndir / Kurulum Başlat</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setInstallModalTab("locate")}
-                      className="h-12 px-5 rounded-full bg-[#121218] hover:bg-[#1b1b24] border border-white/15 text-xs font-semibold text-zinc-200 hover:text-white flex items-center gap-2 transition-colors cursor-pointer"
-                    >
-                      <FolderCheck className="w-4 h-4 text-blue-400" />
-                      <span>Mevcut Klasörü Bağla</span>
-                    </button>
-                  </>
-                )}
-              </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </section>
 
         {/* Alt İçerik Konteyneri */}
         <div className="max-w-[1480px] w-full mx-auto px-8 lg:px-12 pt-7 space-y-8">
-          {/* KURULUM BİLGİSİ BENTO ŞERİDİ (Her zaman görünür net metrik kartları) */}
+          {/* KURULUM BİLGİSİ BENTO ŞERİDİ */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
             <div className="p-4 rounded-2xl bg-[#0a0a0f] border border-white/[0.08] flex items-start gap-3.5">
               <div className="w-9 h-9 rounded-xl bg-blue-500/12 border border-blue-500/25 flex items-center justify-center text-blue-400 shrink-0">
@@ -504,7 +615,7 @@ export function GameDetailView({
                     ? "Yerel Diskte Hazır"
                     : loadingDetails
                     ? "Hesaplanıyor..."
-                    : "İstemcide Belirlenir"}
+                    : "Kurulumda Belirlenir"}
                 </div>
               </div>
             </div>
@@ -562,7 +673,7 @@ export function GameDetailView({
             </div>
           </div>
 
-          {/* Overdrive Kapsül Sekme Çubuğu */}
+          {/* Kapsül Sekme Çubuğu */}
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
             <div className="h-10 rounded-full bg-[#0c0c10] border border-white/[0.09] p-1 inline-flex items-center gap-1">
               <button
@@ -639,19 +750,19 @@ export function GameDetailView({
               <div className="lg:col-span-7 space-y-7">
                 <div className="p-6 rounded-2xl bg-[#09090d] border border-white/[0.08] space-y-3">
                   <h2 className="text-sm font-bold text-white">Oyun Hakkında</h2>
-                  {loadingDetails && !details ? (
+                  {loadingDetails && !effectiveDescription ? (
                     <div className="space-y-2.5 animate-pulse">
                       <div className="h-3.5 bg-white/10 rounded w-11/12" />
                       <div className="h-3.5 bg-white/10 rounded w-full" />
                       <div className="h-3.5 bg-white/10 rounded w-3/4" />
                     </div>
-                  ) : details?.short_description ? (
-                    <p className="text-[13.5px] text-zinc-300 leading-relaxed">
-                      {details.short_description}
+                  ) : effectiveDescription ? (
+                    <p className="text-[13.5px] text-zinc-300 leading-relaxed whitespace-pre-line">
+                      {effectiveDescription}
                     </p>
                   ) : (
                     <p className="text-xs text-zinc-500">
-                      Bu oyun için çevrimiçi açıklama metni bulunamadı.
+                      Bu oyun için mağaza açıklama metni bulunamadı.
                     </p>
                   )}
                 </div>
@@ -784,6 +895,14 @@ export function GameDetailView({
                         {game.platform.toUpperCase()} / {game.platform_id}
                       </span>
                     </div>
+                    {effectiveDevelopers && (
+                      <div className="py-2.5 flex items-center justify-between gap-4">
+                        <span className="text-zinc-500">Geliştirici</span>
+                        <span className="text-zinc-200 truncate">
+                          {effectiveDevelopers}
+                        </span>
+                      </div>
+                    )}
                     {details && details.publishers.length > 0 && (
                       <div className="py-2.5 flex items-center justify-between gap-4">
                         <span className="text-zinc-500">Yayıncı</span>
@@ -868,7 +987,7 @@ export function GameDetailView({
                     </div>
                   ) : (
                     <p className="text-xs text-zinc-500">
-                      Bu oyun için minimum sistem gereksinimi bilgisi paylaşılmamış.
+                      Bu oyun için mağazada minimum sistem gereksinimi bilgisi paylaşılmamış.
                     </p>
                   )}
                 </div>

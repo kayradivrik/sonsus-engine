@@ -1,7 +1,5 @@
-//! Asenkron yerel medya protokolü (`krnlmedia://`).
-//!
-//! Görsel okumalarını GTK ana arayüz iş parçacığı (main thread) yerine Tokio arka plan
-//! havuzunda çalıştırarak 500+ poster kaydırılırken sıfır takılma (zero UI stall) sağlar.
+//! Asenkron çapraz platform yerel medya protokolü (`sonsusmedia://` & `krnlmedia://`).
+//! Hem Linux (`/home/...`) hem Windows (`C:/...` / `C:\...`) mutlak yollarını destekler.
 
 use tauri::{
     http::{Request, Response, StatusCode},
@@ -43,19 +41,28 @@ fn sniff_image_mime(bytes: &[u8]) -> &'static str {
     }
 }
 
-pub fn handle_krnlmedia_request(request: Request<Vec<u8>>, responder: UriSchemeResponder) {
+fn normalize_local_media_path(raw_uri_path: &str) -> String {
+    let clean_raw = raw_uri_path.split('?').next().unwrap_or(raw_uri_path);
+    let stripped = clean_raw.strip_prefix('/').unwrap_or(clean_raw);
+    let decoded = percent_decode_str(stripped);
+
+    // Windows sürücü harfi kontrolü (`C:/...` veya `C:\...`)
+    let bytes = decoded.as_bytes();
+    if bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' {
+        return decoded;
+    }
+    if decoded.starts_with('/') || decoded.starts_with('\\') {
+        decoded
+    } else {
+        format!("/{decoded}")
+    }
+}
+
+pub fn handle_local_media_request(request: Request<Vec<u8>>, responder: UriSchemeResponder) {
     let raw_path = request.uri().path().to_string();
 
     tauri::async_runtime::spawn(async move {
-        // Olası `?t=...` önbellek yenileme sorgu parametrelerini ayıkla
-        let clean_raw = raw_path.split('?').next().unwrap_or(&raw_path);
-        let stripped = clean_raw.strip_prefix('/').unwrap_or(clean_raw);
-        let decoded = percent_decode_str(stripped);
-        let file_path = if decoded.starts_with('/') || decoded.contains(':') {
-            decoded
-        } else {
-            format!("/{decoded}")
-        };
+        let file_path = normalize_local_media_path(&raw_path);
 
         if file_path.contains("..") {
             responder.respond(
@@ -94,3 +101,23 @@ pub fn handle_krnlmedia_request(request: Request<Vec<u8>>, responder: UriSchemeR
     });
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalizes_unix_and_windows_media_paths() {
+        assert_eq!(
+            normalize_local_media_path("/home/user/Masa%C3%BCst%C3%BC/cover.jpg?v=123"),
+            "/home/user/Masaüstü/cover.jpg"
+        );
+        assert_eq!(
+            normalize_local_media_path("/C%3A%5CGames%5CCover.png"),
+            r"C:\Games\Cover.png"
+        );
+        assert_eq!(
+            normalize_local_media_path("/D:/Games/Cover.jpg"),
+            "D:/Games/Cover.jpg"
+        );
+    }
+}

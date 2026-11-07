@@ -1,4 +1,9 @@
-use crate::models::{DisplayBackend, DisplayOutputInfo, HookProfile, Platform, UnifiedGame};
+//! Oyun çalıştırma motoru, ekran çözünürlüğü hook'ları ve arka plan süreç yönetimi.
+
+use crate::{
+    models::{DisplayBackend, DisplayOutputInfo, HookProfile, Platform, UnifiedGame},
+    platform_os::{has_binary, open_uri_scheme, run_shell_command},
+};
 use std::{
     fs,
     path::Path,
@@ -13,6 +18,7 @@ use nix::{
     unistd::Pid,
 };
 
+#[cfg(unix)]
 const PROTECTED_PROCESSES: &[&str] = &[
     "systemd",
     "init",
@@ -32,6 +38,7 @@ const PROTECTED_PROCESSES: &[&str] = &[
     "steam",
     "heroic",
     "lutris",
+    "sonsus-engine",
     "krnl-launcher",
 ];
 
@@ -79,77 +86,78 @@ impl Drop for SessionGuard {
         }
 
         if let Some(cmd) = &self.post_exit_cmd {
-            if !cmd.trim().is_empty() {
-                let _ = Command::new("sh").args(["-c", cmd]).status();
-            }
+            run_shell_command(cmd);
         }
     }
 }
 
-pub fn has_binary(name: &str) -> bool {
-    if Path::new(&format!("/usr/bin/{name}")).exists()
-        || Path::new(&format!("/usr/local/bin/{name}")).exists()
-    {
-        return true;
-    }
-    std::env::var_os("PATH")
-        .map(|paths| std::env::split_paths(&paths).any(|dir| dir.join(name).exists()))
-        .unwrap_or(false)
-}
-
 pub fn enumerate_displays() -> Vec<DisplayOutputInfo> {
     let mut outputs = Vec::new();
-    let Ok(out) = Command::new("xrandr").arg("--current").output() else {
+    #[cfg(not(unix))]
+    {
         return outputs;
-    };
-    let text = String::from_utf8_lossy(&out.stdout);
+    }
 
-    let mut current: Option<DisplayOutputInfo> = None;
-    for line in text.lines() {
-        if line.contains(" connected") {
-            if let Some(prev) = current.take() {
-                outputs.push(prev);
-            }
-            let name = line
-                .split_whitespace()
-                .next()
-                .unwrap_or("default")
-                .to_string();
-            let primary = line.contains(" primary ");
-            current = Some(DisplayOutputInfo::new(
-                name,
-                String::new(),
-                String::new(),
-                Vec::new(),
-                primary,
-            ));
-        } else if line.contains(" disconnected") {
-            if let Some(prev) = current.take() {
-                outputs.push(prev);
-            }
-        } else if line.starts_with("   ") {
-            if let Some(ref mut disp) = current {
-                let mut parts = line.split_whitespace();
-                if let Some(mode) = parts.next() {
-                    if mode.contains('x') && mode.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
-                        if !disp.available_modes.iter().any(|m| m == mode) {
-                            disp.available_modes.push(mode.to_string());
-                        }
-                        if let Some(active_rate) = parts.find(|p| p.contains('*')) {
-                            disp.current_mode = mode.to_string();
-                            disp.current_rate = active_rate
-                                .trim_matches(|c| c == '*' || c == '+')
-                                .to_string();
+    #[cfg(unix)]
+    {
+        let Ok(out) = Command::new("xrandr").arg("--current").output() else {
+            return outputs;
+        };
+        let text = String::from_utf8_lossy(&out.stdout);
+
+        let mut current: Option<DisplayOutputInfo> = None;
+        for line in text.lines() {
+            if line.contains(" connected") {
+                if let Some(prev) = current.take() {
+                    outputs.push(prev);
+                }
+                let name = line
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or("default")
+                    .to_string();
+                let primary = line.contains(" primary ");
+                current = Some(DisplayOutputInfo::new(
+                    name,
+                    String::new(),
+                    String::new(),
+                    Vec::new(),
+                    primary,
+                ));
+            } else if line.contains(" disconnected") {
+                if let Some(prev) = current.take() {
+                    outputs.push(prev);
+                }
+            } else if line.starts_with("   ") {
+                if let Some(ref mut disp) = current {
+                    let mut parts = line.split_whitespace();
+                    if let Some(mode) = parts.next() {
+                        if mode.contains('x')
+                            && mode
+                                .chars()
+                                .next()
+                                .map(|c| c.is_ascii_digit())
+                                .unwrap_or(false)
+                        {
+                            if !disp.available_modes.iter().any(|m| m == mode) {
+                                disp.available_modes.push(mode.to_string());
+                            }
+                            if let Some(active_rate) = parts.find(|p| p.contains('*')) {
+                                disp.current_mode = mode.to_string();
+                                disp.current_rate = active_rate
+                                    .trim_matches(|c| c == '*' || c == '+')
+                                    .to_string();
+                            }
                         }
                     }
                 }
             }
         }
+        if let Some(last) = current {
+            outputs.push(last);
+        }
+        outputs
     }
-    if let Some(last) = current {
-        outputs.push(last);
-    }
-    outputs
 }
 
 fn apply_display_hook(hook: &HookProfile) -> Option<SavedDisplayState> {
@@ -197,11 +205,7 @@ fn apply_display_hook(hook: &HookProfile) -> Option<SavedDisplayState> {
         }
         DisplayBackend::Kscreen => {
             let disp = chosen_disp?;
-            let cur_hz = disp
-                .current_rate
-                .split('.')
-                .next()
-                .unwrap_or("60");
+            let cur_hz = disp.current_rate.split('.').next().unwrap_or("60");
             let saved = SavedDisplayState::Kscreen {
                 output: disp.name.clone(),
                 mode_spec: format!("{}@{}", disp.current_mode, cur_hz),
@@ -266,6 +270,7 @@ fn suspend_processes_by_name(_names: &[String]) -> Vec<i32> {
     Vec::new()
 }
 
+#[cfg(unix)]
 fn is_steam_app_running(appid: &str) -> bool {
     let needle = format!("SteamAppId={appid}");
     let Ok(proc_dir) = fs::read_dir("/proc") else {
@@ -292,6 +297,12 @@ fn is_steam_app_running(appid: &str) -> bool {
     false
 }
 
+#[cfg(not(unix))]
+fn is_steam_app_running(_appid: &str) -> bool {
+    false
+}
+
+#[cfg(unix)]
 fn is_process_in_install_dir(install_dir: &Path) -> bool {
     let dir_str = install_dir.to_string_lossy();
     if dir_str.is_empty() {
@@ -324,11 +335,15 @@ fn is_process_in_install_dir(install_dir: &Path) -> bool {
     false
 }
 
+#[cfg(not(unix))]
+fn is_process_in_install_dir(_install_dir: &Path) -> bool {
+    false
+}
+
 pub async fn launch_with_hooks(game: UnifiedGame, hook: HookProfile) -> Result<u64, String> {
-    let launch_cfg = game
-        .launch
-        .clone()
-        .ok_or_else(|| "Bu oyun için çalıştırma yapılandırması bulunamadı (önce kurun).".to_string())?;
+    let launch_cfg = game.launch.clone().ok_or_else(|| {
+        "Bu oyun için çalıştırma yapılandırması bulunamadı (önce kurun).".to_string()
+    })?;
 
     let started_at = Instant::now();
     let mut guard = SessionGuard {
@@ -343,9 +358,7 @@ pub async fn launch_with_hooks(game: UnifiedGame, hook: HookProfile) -> Result<u
 
     if hook.enabled {
         if let Some(ref pre_cmd) = hook.pre_launch_cmd {
-            if !pre_cmd.trim().is_empty() {
-                let _ = Command::new("sh").args(["-c", pre_cmd]).status();
-            }
+            run_shell_command(pre_cmd);
         }
         guard.original_display = apply_display_hook(&hook);
         guard.suspended_pids = suspend_processes_by_name(&hook.suspend_processes);
@@ -355,10 +368,7 @@ pub async fn launch_with_hooks(game: UnifiedGame, hook: HookProfile) -> Result<u
     let is_uri = target.contains("://") || target.starts_with("lutris:");
 
     if is_uri {
-        Command::new("xdg-open")
-            .arg(target)
-            .spawn()
-            .map_err(|e| format!("xdg-open başlatılamadı: {e}"))?;
+        open_uri_scheme(target)?;
 
         if game.platform == Platform::Steam {
             for _ in 0..24 {
@@ -406,7 +416,10 @@ pub async fn launch_with_hooks(game: UnifiedGame, hook: HookProfile) -> Result<u
                         h.trim().into(),
                         "-f".into(),
                     ];
-                    if let Some(hz) = hook.target_refresh_hz.as_deref().filter(|s| !s.trim().is_empty())
+                    if let Some(hz) = hook
+                        .target_refresh_hz
+                        .as_deref()
+                        .filter(|s| !s.trim().is_empty())
                     {
                         gs_args.push("-r".into());
                         gs_args.push(hz.split('.').next().unwrap_or(hz).into());
@@ -437,8 +450,7 @@ pub async fn launch_with_hooks(game: UnifiedGame, hook: HookProfile) -> Result<u
         let _ = child.wait().await;
     }
 
-    let elapsed_mins = (started_at.elapsed().as_secs() / 60).max(0);
+    let elapsed_mins = started_at.elapsed().as_secs() / 60;
     drop(guard);
     Ok(elapsed_mins)
 }
-

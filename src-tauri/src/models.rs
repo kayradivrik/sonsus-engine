@@ -102,6 +102,12 @@ pub struct UnifiedGame {
     pub hero_path_or_url: Option<String>,
     #[serde(default)]
     pub genres: Vec<String>,
+    #[serde(default)]
+    pub developer: Option<String>,
+    #[serde(default)]
+    pub store_slug: Option<String>,
+    #[serde(default)]
+    pub summary_hint: Option<String>,
     pub launch: Option<LaunchConfig>,
     pub install_uri: Option<String>,
 }
@@ -128,6 +134,8 @@ pub struct OnlineGameDetails {
     pub protondb_total: Option<u32>,
     pub hero_url: Option<String>,
     pub screenshots: Vec<String>,
+    #[serde(default)]
+    pub genres: Vec<String>,
     #[serde(default)]
     pub download_size_bytes: Option<u64>,
     #[serde(default)]
@@ -159,8 +167,22 @@ pub struct InstallLocationOption {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InstallGamePayload {
     pub game: UnifiedGame,
-    pub mode: String, // "platform" | "legendary_cli" | "locate"
+    pub mode: String, // "direct" | "platform" | "locate"
     pub target_dir: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DownloadTaskInfo {
+    pub game_id: String,
+    pub title: String,
+    pub platform: Platform,
+    pub target_dir: String,
+    pub status: String, // "downloading" | "paused" | "completed" | "failed"
+    pub progress_percent: f32,
+    pub speed_text: String,
+    pub eta_text: String,
+    pub detail_text: String,
+    pub updated_game: Option<UnifiedGame>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

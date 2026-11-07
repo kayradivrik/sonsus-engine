@@ -4,24 +4,27 @@ use crate::{
         load_cached_games, load_game_hook, save_cached_games, save_game_hook, save_settings,
         update_single_cached_game,
     },
+    downloader::DownloadManager,
     installer::{execute_install_action, list_install_locations, open_in_file_manager},
-    launcher::{enumerate_displays, has_binary, launch_with_hooks},
+    launcher::{enumerate_displays, launch_with_hooks},
     metadata::fetch_online_game_details,
     models::{
-        AppSettings, HookProfile, InstallGamePayload, InstallLocationOption, OnlineGameDetails,
-        SystemDiagnostics, UnifiedGame,
+        AppSettings, DownloadTaskInfo, HookProfile, InstallGamePayload, InstallLocationOption,
+        OnlineGameDetails, SystemDiagnostics, UnifiedGame,
     },
     parsers::{
         epic::{find_heroic_roots, scan_epic_all},
         gog::{find_lutris_db, scan_gog_all},
-        steam::{detect_steam_id64, find_steam_root, scan_steam_all},
+        steam::{detect_steam_id64, find_steam_root_with_override, scan_steam_all},
     },
+    platform_os::{detect_session_label, has_binary, pick_directory_dialog},
 };
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, State};
 
 pub struct AppState {
     pub settings: Mutex<AppSettings>,
+    pub downloads: Arc<DownloadManager>,
 }
 
 #[tauri::command]
@@ -38,6 +41,7 @@ pub async fn scan_all_libraries(state: State<'_, AppState>) -> Result<Vec<Unifie
         scan_steam_all(
             settings.steam_api_key.as_deref(),
             settings.steam_id64_override.as_deref(),
+            settings.custom_steam_root.as_deref(),
         ),
         async move {
             if sync_epic {
@@ -95,13 +99,61 @@ pub async fn launch_game(
 
 #[tauri::command]
 pub fn get_install_locations(state: State<'_, AppState>) -> Vec<InstallLocationOption> {
-    let custom_dir = state.settings.lock().unwrap().default_install_dir.clone();
-    list_install_locations(custom_dir.as_deref())
+    let (custom_dir, custom_steam) = {
+        let guard = state.settings.lock().unwrap();
+        (
+            guard.default_install_dir.clone(),
+            guard.custom_steam_root.clone(),
+        )
+    };
+    list_install_locations(custom_dir.as_deref(), custom_steam.as_deref())
 }
 
 #[tauri::command]
 pub fn install_game(payload: InstallGamePayload) -> Result<UnifiedGame, String> {
     execute_install_action(payload)
+}
+
+#[tauri::command]
+pub fn start_game_download(
+    app: AppHandle,
+    game: UnifiedGame,
+    target_dir: String,
+    state: State<'_, AppState>,
+) -> Result<DownloadTaskInfo, String> {
+    state.downloads.start_download(app, game, target_dir)
+}
+
+#[tauri::command]
+pub fn pause_game_download(
+    app: AppHandle,
+    game_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state.downloads.pause_task(&app, &game_id)
+}
+
+#[tauri::command]
+pub fn remove_download_task(
+    app: AppHandle,
+    game_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state.downloads.remove_task(&app, &game_id);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_active_downloads(state: State<'_, AppState>) -> Vec<DownloadTaskInfo> {
+    state.downloads.list_tasks()
+}
+
+#[tauri::command]
+pub async fn pick_folder(initial_dir: Option<String>) -> Option<String> {
+    tokio::task::spawn_blocking(move || pick_directory_dialog(initial_dir.as_deref()))
+        .await
+        .ok()
+        .flatten()
 }
 
 #[tauri::command]
@@ -167,8 +219,9 @@ pub fn set_game_hook_profile(game_id: String, profile: Option<HookProfile>) -> R
 }
 
 #[tauri::command]
-pub fn get_system_diagnostics() -> SystemDiagnostics {
-    let steam_root = find_steam_root();
+pub fn get_system_diagnostics(state: State<'_, AppState>) -> SystemDiagnostics {
+    let custom_steam = state.settings.lock().unwrap().custom_steam_root.clone();
+    let steam_root = find_steam_root_with_override(custom_steam.as_deref());
     let steam_id64 = steam_root.as_deref().and_then(detect_steam_id64);
     let heroic_cfg = find_heroic_roots()
         .into_iter()
@@ -177,8 +230,7 @@ pub fn get_system_diagnostics() -> SystemDiagnostics {
     let lutris_db = find_lutris_db().map(|p| p.to_string_lossy().into_owned());
 
     SystemDiagnostics {
-        session_type: std::env::var("XDG_SESSION_TYPE")
-            .unwrap_or_else(|_| "unknown".to_string()),
+        session_type: detect_session_label(),
         detected_steam_root: steam_root.map(|p| p.to_string_lossy().into_owned()),
         detected_steam_id64: steam_id64,
         detected_heroic_config: heroic_cfg,

@@ -5,6 +5,7 @@ export type InstallStatus = "installed" | "cloud";
 export type DisplayBackend = "auto" | "xrandr" | "gamescope" | "kscreen";
 export type SortMode = "status" | "title" | "playtime" | "recent" | "size";
 export type ViewMode = "grid" | "table";
+export type PageSizeOption = 24 | 48 | 96;
 
 export interface LaunchConfig {
   command_uri_or_bin: string;
@@ -39,6 +40,9 @@ export interface UnifiedGame {
   fallback_cover_url?: string | null;
   hero_path_or_url?: string | null;
   genres?: string[];
+  developer?: string | null;
+  store_slug?: string | null;
+  summary_hint?: string | null;
   launch?: LaunchConfig | null;
   install_uri?: string | null;
 }
@@ -57,6 +61,7 @@ export interface OnlineGameDetails {
   short_description?: string | null;
   developers: string[];
   publishers: string[];
+  genres?: string[];
   release_date?: string | null;
   metacritic_score?: number | null;
   protondb_tier?: string | null;
@@ -73,6 +78,19 @@ export interface OnlineGameDetails {
   recommended_requirements?: string | null;
   linux_requirements?: string | null;
   reviews: PlayerReview[];
+}
+
+export interface DownloadTaskInfo {
+  game_id: string;
+  title: string;
+  platform: Platform;
+  target_dir: string;
+  status: "downloading" | "paused" | "completed" | "failed";
+  progress_percent: number;
+  speed_text: string;
+  eta_text: string;
+  detail_text: string;
+  updated_game?: UnifiedGame | null;
 }
 
 export interface InstallLocationOption {
@@ -147,13 +165,17 @@ export function createDefaultAppSettings(): AppSettings {
   };
 }
 
+export function isLocalFilePath(pathOrUrl: string): boolean {
+  return pathOrUrl.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(pathOrUrl);
+}
+
 export function resolveMediaSrc(pathOrUrl?: string | null): string | null {
   if (!pathOrUrl) return null;
   if (pathOrUrl.startsWith("http://") || pathOrUrl.startsWith("https://")) {
     return pathOrUrl;
   }
-  if (pathOrUrl.startsWith("/")) {
-    return convertFileSrc(pathOrUrl, "krnlmedia");
+  if (isLocalFilePath(pathOrUrl)) {
+    return convertFileSrc(pathOrUrl, "sonsusmedia");
   }
   return pathOrUrl;
 }
@@ -169,8 +191,8 @@ export function buildCoverCandidates(game: UnifiedGame, bustCacheKey?: number): 
   };
 
   if (game.cover_path_or_url) {
-    if (game.cover_path_or_url.startsWith("/")) {
-      pushUnique(`${convertFileSrc(game.cover_path_or_url, "krnlmedia")}${suffix}`);
+    if (isLocalFilePath(game.cover_path_or_url)) {
+      pushUnique(`${convertFileSrc(game.cover_path_or_url, "sonsusmedia")}${suffix}`);
       pushUnique(convertFileSrc(game.cover_path_or_url, "asset"));
     } else {
       pushUnique(game.cover_path_or_url);

@@ -1,12 +1,12 @@
 [package]
-name = "krnl-launcher"
-version = "0.1.0"
-description = "Minimalist multi-platform Game Library Manager for Linux (Steam, Epic, GOG)"
-authors = ["fsociecty"]
+name = "sonsus-engine"
+version = "0.2.0"
+description = "Cross-platform (Linux & Windows) multi-store Game Library Manager (Steam, Epic Games, GOG)"
+authors = ["Kayra Divrik"]
 edition = "2021"
 
 [lib]
-name = "krnl_launcher_lib"
+name = "sonsus_engine_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -19,7 +19,7 @@ serde_json = "1"
 keyvalues-serde = "0.2"
 rusqlite = { version = "0.32", features = ["bundled"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
-tokio = { version = "1", features = ["process", "time", "fs", "sync", "rt-multi-thread", "macros"] }
+tokio = { version = "1", features = ["process", "time", "fs", "sync", "rt-multi-thread", "macros", "io-util"] }
 dirs = "5"
 sha2 = "0.10"
 hex = "0.4"
@@ -27,9 +27,11 @@ hex = "0.4"
 [target.'cfg(unix)'.dependencies]
 nix = { version = "0.29", features = ["signal", "fs"] }
 
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Storage_FileSystem"] }
+
 [profile.release]
 opt-level = 3
 lto = "thin"
 codegen-units = 1
 strip = true
-

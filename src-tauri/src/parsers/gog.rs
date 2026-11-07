@@ -1,6 +1,9 @@
+//! GOG kütüphane tarayıcısı (Linux + Windows).
+//! Heroic GOG, Lutris SQLite, Windows GOG Galaxy 2.0 SQLite (`galaxy-2.0.db`) ve yerel GOG kurulumlarını okur.
+
 use crate::{
     models::{InstallStatus, LaunchConfig, Platform, UnifiedGame},
-    parsers::epic::find_heroic_roots,
+    parsers::epic::{find_heroic_roots, load_heroic_gogdb_cache},
 };
 use rusqlite::Connection;
 use serde::Deserialize;
@@ -20,6 +23,7 @@ struct HeroicGogLibrary {
 struct HeroicGogGame {
     app_name: String,
     title: String,
+    developer: Option<String>,
     art_square: Option<String>,
     art_cover: Option<String>,
     #[serde(default)]
@@ -71,15 +75,131 @@ pub fn find_lutris_db() -> Option<PathBuf> {
     None
 }
 
+/// Windows GOG Galaxy 2.0 veritabanını (`C:\ProgramData\GOG.com\Galaxy\storage\galaxy-2.0.db`) okur
+fn scan_windows_gog_galaxy_db(games: &mut HashMap<String, UnifiedGame>) {
+    let mut candidates = vec![PathBuf::from(
+        r"C:\ProgramData\GOG.com\Galaxy\storage\galaxy-2.0.db",
+    )];
+    if let Ok(pd) = std::env::var("PROGRAMDATA") {
+        let p = PathBuf::from(pd).join(r"GOG.com\Galaxy\storage\galaxy-2.0.db");
+        if !candidates.contains(&p) {
+            candidates.push(p);
+        }
+    }
+
+    let Some(db_file) = candidates.into_iter().find(|p| p.exists()) else {
+        return;
+    };
+    let Ok(conn) = Connection::open(&db_file) else {
+        return;
+    };
+
+    // Sahip olunan GOG oyun başlıkları (`GamePieces` içindeki `gog_<id>` kayıtları)
+    if let Ok(mut stmt) = conn.prepare(
+        "SELECT releaseKey, value FROM GamePieces WHERE releaseKey LIKE 'gog_%' AND value LIKE '%\"title\"%'",
+    ) {
+        if let Ok(rows) = stmt.query_map([], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+        }) {
+            for (rel_key, val_json) in rows.flatten() {
+                let Some(gog_id) = rel_key.strip_prefix("gog_") else {
+                    continue;
+                };
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&val_json) {
+                    if let Some(title) = v.get("title").and_then(|t| t.as_str()).filter(|s| !s.is_empty()) {
+                        games.entry(gog_id.to_string()).or_insert(UnifiedGame {
+                            id: format!("gog:{gog_id}"),
+                            platform_id: gog_id.to_string(),
+                            platform: Platform::Gog,
+                            title: title.to_string(),
+                            status: InstallStatus::Cloud,
+                            install_path: None,
+                            size_bytes: None,
+                            playtime_minutes: 0,
+                            last_played_epoch: None,
+                            cover_path_or_url: None,
+                            fallback_cover_url: None,
+                            hero_path_or_url: None,
+                            genres: Vec::new(),
+                            developer: None,
+                            store_slug: None,
+                            summary_hint: None,
+                            launch: None,
+                            install_uri: Some(format!("goggalaxy://openGameView/{gog_id}")),
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    // Yüklü GOG oyunları (`InstalledBaseProducts`)
+    if let Ok(mut stmt) =
+        conn.prepare("SELECT productId, installationPath FROM InstalledBaseProducts")
+    {
+        if let Ok(rows) = stmt.query_map([], |r| {
+            Ok((r.get::<_, i64>(0)?.to_string(), r.get::<_, String>(1)?))
+        }) {
+            for (gog_id, inst_dir) in rows.flatten() {
+                let pb = PathBuf::from(&inst_dir);
+                let launch = LaunchConfig {
+                    command_uri_or_bin: format!("goggalaxy://openGameView/{gog_id}"),
+                    args: vec![],
+                    working_dir: Some(pb.clone()),
+                    wine_prefix: None,
+                };
+                games
+                    .entry(gog_id.clone())
+                    .and_modify(|g| {
+                        g.status = InstallStatus::Installed;
+                        g.install_path = Some(pb.clone());
+                        g.launch = Some(launch.clone());
+                    })
+                    .or_insert(UnifiedGame {
+                        id: format!("gog:{gog_id}"),
+                        platform_id: gog_id.clone(),
+                        platform: Platform::Gog,
+                        title: pb
+                            .file_name()
+                            .map(|s| s.to_string_lossy().into_owned())
+                            .unwrap_or_else(|| gog_id.clone()),
+                        status: InstallStatus::Installed,
+                        install_path: Some(pb),
+                        size_bytes: None,
+                        playtime_minutes: 0,
+                        last_played_epoch: None,
+                        cover_path_or_url: None,
+                        fallback_cover_url: None,
+                        hero_path_or_url: None,
+                        genres: Vec::new(),
+                        developer: None,
+                        store_slug: None,
+                        summary_hint: None,
+                        launch: Some(launch),
+                        install_uri: Some(format!("goggalaxy://openGameView/{gog_id}")),
+                    });
+            }
+        }
+    };
+}
+
 pub fn scan_gog_all() -> Vec<UnifiedGame> {
     let mut games: HashMap<String, UnifiedGame> = HashMap::new();
+    let heroic_roots = find_heroic_roots();
+    let gogdb_cache = load_heroic_gogdb_cache(&heroic_roots);
 
-    for hr in find_heroic_roots() {
+    for hr in &heroic_roots {
         let lib_path = hr.join("store_cache/gog_library.json");
         if let Ok(raw) = fs::read_to_string(&lib_path) {
             if let Ok(lib) = serde_json::from_str::<HeroicGogLibrary>(&raw) {
                 for g in lib.games.into_iter().filter(|x| !x.is_dlc) {
                     let cover = g.art_square.clone().or_else(|| g.art_cover.clone());
+                    let cache_key = format!("gog_{}", g.app_name);
+                    let (cached_genres, cached_summary) = gogdb_cache
+                        .get(&cache_key)
+                        .cloned()
+                        .unwrap_or_else(|| (Vec::new(), None));
+
                     games.insert(
                         g.app_name.clone(),
                         UnifiedGame {
@@ -95,7 +215,10 @@ pub fn scan_gog_all() -> Vec<UnifiedGame> {
                             cover_path_or_url: cover.clone(),
                             fallback_cover_url: cover,
                             hero_path_or_url: g.art_cover,
-                            genres: Vec::new(),
+                            genres: cached_genres,
+                            developer: g.developer,
+                            store_slug: None,
+                            summary_hint: cached_summary,
                             launch: None,
                             install_uri: Some(format!("heroic://launch/gog/{}", g.app_name)),
                         },
@@ -139,6 +262,9 @@ pub fn scan_gog_all() -> Vec<UnifiedGame> {
                             fallback_cover_url: None,
                             hero_path_or_url: None,
                             genres: Vec::new(),
+                            developer: None,
+                            store_slug: None,
+                            summary_hint: None,
                             launch: Some(launch_cfg),
                             install_uri: Some(format!("heroic://launch/gog/{}", inst.app_name)),
                         });
@@ -170,6 +296,9 @@ pub fn scan_gog_all() -> Vec<UnifiedGame> {
                             fallback_cover_url: None,
                             hero_path_or_url: None,
                             genres: Vec::new(),
+                            developer: None,
+                            store_slug: None,
+                            summary_hint: None,
                             launch: None,
                             install_uri: Some(format!("lutris:gog:{gog_id}")),
                         });
@@ -212,6 +341,9 @@ pub fn scan_gog_all() -> Vec<UnifiedGame> {
                             fallback_cover_url: None,
                             hero_path_or_url: None,
                             genres: Vec::new(),
+                            developer: None,
+                            store_slug: None,
+                            summary_hint: None,
                             launch: None,
                             install_uri: Some(format!("lutris:gog:{gog_id}")),
                         });
@@ -232,9 +364,20 @@ pub fn scan_gog_all() -> Vec<UnifiedGame> {
         }
     }
 
+    scan_windows_gog_galaxy_db(&mut games);
+
     if let Some(home) = dirs::home_dir() {
         scan_native_gog_dir(&home.join("GOG Games"), &mut games);
         scan_gog_manifests_recursive(&home.join("Games"), 3, &mut games);
+    }
+    for win_gog in [
+        Path::new(r"C:\GOG Games"),
+        Path::new(r"D:\GOG Games"),
+        Path::new(r"C:\Program Files (x86)\GOG Galaxy\Games"),
+    ] {
+        if win_gog.exists() {
+            scan_gog_manifests_recursive(win_gog, 2, &mut games);
+        }
     }
 
     games.into_values().collect()
@@ -271,6 +414,9 @@ fn scan_native_gog_dir(dir: &Path, games: &mut HashMap<String, UnifiedGame>) {
                     fallback_cover_url: None,
                     hero_path_or_url: None,
                     genres: Vec::new(),
+                    developer: None,
+                    store_slug: None,
+                    summary_hint: None,
                     launch: Some(LaunchConfig {
                         command_uri_or_bin: start_sh.to_string_lossy().into_owned(),
                         args: vec![],
@@ -333,11 +479,23 @@ fn scan_gog_manifests_recursive(
 
                 let launch = exe_rel.map(|rel| {
                     let exe_full = parent.join(rel.replace('\\', "/"));
-                    LaunchConfig {
-                        command_uri_or_bin: "wine".into(),
-                        args: vec![exe_full.to_string_lossy().into_owned()],
-                        working_dir: Some(parent.clone()),
-                        wine_prefix: None,
+                    #[cfg(windows)]
+                    {
+                        LaunchConfig {
+                            command_uri_or_bin: exe_full.to_string_lossy().into_owned(),
+                            args: vec![],
+                            working_dir: Some(parent.clone()),
+                            wine_prefix: None,
+                        }
+                    }
+                    #[cfg(not(windows))]
+                    {
+                        LaunchConfig {
+                            command_uri_or_bin: "wine".into(),
+                            args: vec![exe_full.to_string_lossy().into_owned()],
+                            working_dir: Some(parent.clone()),
+                            wine_prefix: None,
+                        }
                     }
                 });
 
@@ -357,6 +515,9 @@ fn scan_gog_manifests_recursive(
                         fallback_cover_url: None,
                         hero_path_or_url: None,
                         genres: Vec::new(),
+                        developer: None,
+                        store_slug: None,
+                        summary_hint: None,
                         launch,
                         install_uri: None,
                     },

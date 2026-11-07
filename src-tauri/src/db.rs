@@ -3,12 +3,23 @@ use rusqlite::{params, Connection};
 use std::{fs, path::PathBuf};
 
 pub fn db_path() -> Result<PathBuf, String> {
-    let base = dirs::data_local_dir()
+    let root = dirs::data_local_dir()
         .or_else(dirs::config_dir)
-        .ok_or_else(|| "XDG veri dizini bulunamadı".to_string())?
-        .join("krnl-launcher");
+        .ok_or_else(|| "Veri dizini bulunamadı".to_string())?;
+
+    let base = root.join("sonsus-engine");
     fs::create_dir_all(&base).map_err(|e| e.to_string())?;
-    Ok(base.join("library.db"))
+    let db_file = base.join("library.db");
+
+    // Eski `krnl-launcher` veritabanı varsa ayarları ve önbelleği kaybetmemek için tek seferlik taşı
+    if !db_file.exists() {
+        let legacy = root.join("krnl-launcher/library.db");
+        if legacy.exists() {
+            let _ = fs::copy(&legacy, &db_file);
+        }
+    }
+
+    Ok(db_file)
 }
 
 pub fn open_db() -> Result<Connection, String> {

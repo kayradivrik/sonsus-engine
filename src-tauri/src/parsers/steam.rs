@@ -81,13 +81,45 @@ fn steam_cdn_cover(appid: &str) -> String {
     format!("https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/{appid}/library_600x900.jpg")
 }
 
+pub fn find_steam_root_with_override(custom_root: Option<&str>) -> Option<PathBuf> {
+    if let Some(c) = custom_root.map(str::trim).filter(|s| !s.is_empty()) {
+        let pb = PathBuf::from(c);
+        if pb.join("steamapps/libraryfolders.vdf").exists() || pb.exists() {
+            return Some(pb);
+        }
+    }
+    find_steam_root()
+}
+
 pub fn find_steam_root() -> Option<PathBuf> {
-    let home = dirs::home_dir()?;
-    let candidates = [
-        home.join(".local/share/Steam"),
-        home.join(".steam/steam"),
-        home.join(".var/app/com.valvesoftware.Steam/.local/share/Steam"),
-    ];
+    let mut candidates: Vec<PathBuf> = Vec::new();
+
+    #[cfg(windows)]
+    {
+        if let Ok(out) = std::process::Command::new("reg")
+            .args(["query", r"HKCU\Software\Valve\Steam", "/v", "SteamPath"])
+            .output()
+        {
+            let text = String::from_utf8_lossy(&out.stdout);
+            for line in text.lines() {
+                if line.contains("SteamPath") {
+                    if let Some(path_part) = line.split("REG_SZ").nth(1) {
+                        candidates.push(PathBuf::from(path_part.trim()));
+                    }
+                }
+            }
+        }
+        candidates.push(PathBuf::from(r"C:\Program Files (x86)\Steam"));
+        candidates.push(PathBuf::from(r"C:\Program Files\Steam"));
+        candidates.push(PathBuf::from(r"D:\Steam"));
+    }
+
+    if let Some(home) = dirs::home_dir() {
+        candidates.push(home.join(".local/share/Steam"));
+        candidates.push(home.join(".steam/steam"));
+        candidates.push(home.join(".var/app/com.valvesoftware.Steam/.local/share/Steam"));
+    }
+
     candidates
         .into_iter()
         .find(|p| p.join("steamapps/libraryfolders.vdf").exists())
@@ -573,6 +605,9 @@ pub fn scan_steam_installed(steam_root: &Path) -> HashMap<String, UnifiedGame> {
                     fallback_cover_url: cdn_fallback,
                     hero_path_or_url: hero,
                     genres: Vec::new(),
+                    developer: None,
+                    store_slug: None,
+                    summary_hint: None,
                     launch: Some(LaunchConfig {
                         command_uri_or_bin: format!("steam://rungameid/{}", manifest.appid),
                         args: vec![],
@@ -590,8 +625,9 @@ pub fn scan_steam_installed(steam_root: &Path) -> HashMap<String, UnifiedGame> {
 pub async fn scan_steam_all(
     api_key: Option<&str>,
     steam_id_override: Option<&str>,
+    custom_root: Option<&str>,
 ) -> Vec<UnifiedGame> {
-    let Some(steam_root) = find_steam_root() else {
+    let Some(steam_root) = find_steam_root_with_override(custom_root) else {
         return vec![];
     };
 
@@ -662,6 +698,9 @@ pub async fn scan_steam_all(
                     fallback_cover_url: cdn_fallback,
                     hero_path_or_url: hero,
                     genres: info.genres.clone(),
+                    developer: None,
+                    store_slug: None,
+                    summary_hint: None,
                     launch: None,
                     install_uri: Some(format!("steam://install/{appid_str}")),
                 },
@@ -720,6 +759,9 @@ pub async fn scan_steam_all(
                             fallback_cover_url: cdn_fallback,
                             hero_path_or_url: hero,
                             genres: Vec::new(),
+                            developer: None,
+                            store_slug: None,
+                            summary_hint: None,
                             launch: None,
                             install_uri: Some(format!("steam://install/{appid_str}")),
                         });

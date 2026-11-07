@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "KRNL Launcher",
-  "version": "0.1.0",
-  "identifier": "dev.krnl.launcher",
+  "productName": "sonsus-engine",
+  "version": "0.2.0",
+  "identifier": "com.kayradivrik.sonsusengine",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "overdrive // library",
+        "title": "sonsus-engine",
         "width": 1440,
         "height": 900,
         "minWidth": 960,

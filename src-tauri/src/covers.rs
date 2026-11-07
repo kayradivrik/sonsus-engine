@@ -4,7 +4,7 @@ use std::{
 };
 
 pub fn covers_cache_dir() -> Option<PathBuf> {
-    let dir = dirs::cache_dir()?.join("krnl-launcher/covers");
+    let dir = dirs::cache_dir()?.join("sonsus-engine/covers");
     let _ = fs::create_dir_all(&dir);
     Some(dir)
 }
@@ -20,7 +20,13 @@ pub async fn resolve_or_fetch_cover(
     let cache_dir = covers_cache_dir().ok_or("Önbellek dizini oluşturulamadı")?;
     let safe_id: String = platform_id
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect();
     let cached_file = cache_dir.join(format!("{platform}_{safe_id}.jpg"));
 
@@ -30,7 +36,7 @@ pub async fn resolve_or_fetch_cover(
 
     if !force_sgdb {
         if let Some(hint) = existing_hint {
-            if hint.starts_with('/') && Path::new(hint).exists() {
+            if !hint.starts_with("http://") && !hint.starts_with("https://") && Path::new(hint).exists() {
                 return Ok(Some(hint.to_string()));
             }
             if hint.starts_with("http://") || hint.starts_with("https://") {
@@ -48,7 +54,7 @@ pub async fn resolve_or_fetch_cover(
 
     let Some(api_key) = sgdb_api_key.map(str::trim).filter(|k| !k.is_empty()) else {
         return if force_sgdb {
-            Err("SteamGridDB API anahtarı ayarlanmamış. CONFIG // HOOKS menüsünden ekleyin.".into())
+            Err("SteamGridDB API anahtarı ayarlanmamış. Ayarlar > Mağaza ve API menüsünden ekleyin.".into())
         } else {
             Ok(existing_hint.map(ToOwned::to_owned))
         };
@@ -56,9 +62,7 @@ pub async fn resolve_or_fetch_cover(
 
     let client = reqwest::Client::new();
     let grid_endpoint = if platform == "steam" {
-        format!(
-            "https://www.steamgriddb.com/api/v2/grids/steam/{platform_id}?dimensions=600x900"
-        )
+        format!("https://www.steamgriddb.com/api/v2/grids/steam/{platform_id}?dimensions=600x900")
     } else {
         let search_url = format!(
             "https://www.steamgriddb.com/api/v2/search/autocomplete/{}",
@@ -114,4 +118,3 @@ fn url_encode(s: &str) -> String {
         })
         .collect()
 }
-

@@ -1,11 +1,11 @@
 /**
- * Tauri Rust Backend ile iletişim kuran merkezi ve tip güvenli (type-safe) API katmanı.
- * Tüm `invoke` çağrıları tek bir noktadan yönetilerek kod okunabilirliği ve bakım kolaylığı sağlanır.
+ * `sonsus-engine` Tauri Rust Backend ile iletişim kuran merkezi ve tip güvenli API katmanı.
  */
 
 import { invoke } from "@tauri-apps/api/core";
 import {
   AppSettings,
+  DownloadTaskInfo,
   HookProfile,
   InstallGamePayload,
   InstallLocationOption,
@@ -27,6 +27,21 @@ export const tauriApi = {
 
   installGame: (payload: InstallGamePayload) =>
     invoke<UnifiedGame>("install_game", { payload }),
+
+  startGameDownload: (game: UnifiedGame, targetDir: string) =>
+    invoke<DownloadTaskInfo>("start_game_download", { game, targetDir }),
+
+  pauseGameDownload: (gameId: string) =>
+    invoke<void>("pause_game_download", { gameId }),
+
+  removeDownloadTask: (gameId: string) =>
+    invoke<void>("remove_download_task", { gameId }),
+
+  getActiveDownloads: () =>
+    invoke<DownloadTaskInfo[]>("get_active_downloads"),
+
+  pickFolder: (initialDir?: string | null) =>
+    invoke<string | null>("pick_folder", { initialDir: initialDir ?? null }),
 
   openGameFolder: (path: string) =>
     invoke<void>("open_game_folder", { path }),
@@ -54,4 +69,3 @@ export const tauriApi = {
   getSystemDiagnostics: () =>
     invoke<SystemDiagnostics>("get_system_diagnostics"),
 };
-

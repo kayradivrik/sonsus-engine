@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import { Download, Play } from "lucide-react";
 import {
+  DownloadTaskInfo,
   UnifiedGame,
   buildCoverCandidates,
   formatPlaytime,
@@ -9,17 +10,19 @@ import {
 interface GameCardProps {
   game: UnifiedGame;
   isRunning: boolean;
+  downloadTask?: DownloadTaskInfo;
   onOpenDetail: (game: UnifiedGame, autoOpenInstall?: boolean) => void;
   onLaunch: (game: UnifiedGame) => void;
 }
 
 /**
  * `React.memo` ve CSS `content-visibility: auto` ile optimize edilmiş poster kartı.
- * Yüklü oyunlarda yeşil "Oyna", yüklü olmayanlarda mavi "İndir" aksiyonunu vurgular.
+ * Yüklü oyunlarda yeşil "Oyna", indirilenlerde canlı ilerleme çubuğu, buluttakilerde mavi "İndir" aksiyonunu vurgular.
  */
 export const GameCard = memo(function GameCard({
   game,
   isRunning,
+  downloadTask,
   onOpenDetail,
   onLaunch,
 }: GameCardProps) {
@@ -33,10 +36,14 @@ export const GameCard = memo(function GameCard({
   const activeCover =
     candidateIdx < candidates.length ? candidates[candidateIdx] : null;
   const isInstalled = game.status === "installed";
+  const isDownloading = downloadTask?.status === "downloading";
+  const isPaused = downloadTask?.status === "paused";
 
   const primaryGenre =
     game.genres && game.genres.length > 0
       ? game.genres[0]
+      : game.developer
+      ? game.developer
       : game.platform === "steam"
       ? "Steam"
       : game.platform === "epic"
@@ -57,6 +64,8 @@ export const GameCard = memo(function GameCard({
         className={`aspect-[2/3] w-full rounded-[11px] bg-[#0d0d12] relative overflow-hidden transition-transform duration-200 ease-out will-change-transform group-hover:-translate-y-1 ${
           isRunning
             ? "ring-2 ring-amber-400"
+            : isDownloading
+            ? "ring-2 ring-blue-500/80"
             : isInstalled
             ? "ring-1 ring-emerald-500/35 group-hover:ring-emerald-400/80"
             : "ring-1 ring-white/[0.09] group-hover:ring-white/30"
@@ -91,6 +100,14 @@ export const GameCard = memo(function GameCard({
             <span className="bg-amber-400 text-black text-[9px] font-extrabold uppercase px-1.5 py-[2px] rounded-[3px] animate-pulse">
               ÇALIŞIYOR
             </span>
+          ) : isDownloading ? (
+            <span className="bg-blue-500 text-white text-[9px] font-extrabold uppercase px-1.5 py-[2px] rounded-[3px]">
+              %{Math.round(downloadTask.progress_percent)}
+            </span>
+          ) : isPaused ? (
+            <span className="bg-amber-500 text-black text-[9px] font-extrabold uppercase px-1.5 py-[2px] rounded-[3px]">
+              DURAKLATILDI
+            </span>
           ) : isInstalled ? (
             <span className="bg-emerald-500 text-black text-[9px] font-extrabold uppercase px-1.5 py-[2px] rounded-[3px]">
               YÜKLÜ
@@ -98,7 +115,21 @@ export const GameCard = memo(function GameCard({
           ) : null}
         </div>
 
-        {/* Hover Hızlı Eylem Katmanı: Yüklüyse Yeşil Oyna, Değilse Mavi İndir */}
+        {/* Aktif İndirme İnce İlerleme Çizgisi */}
+        {(isDownloading || isPaused) && downloadTask && (
+          <div className="absolute inset-x-0 bottom-0 h-1 bg-black/70 z-10">
+            <div
+              className={`h-full transition-all duration-300 ${
+                isPaused ? "bg-amber-400" : "bg-blue-500"
+              }`}
+              style={{
+                width: `${Math.max(2, Math.min(100, downloadTask.progress_percent))}%`,
+              }}
+            />
+          </div>
+        )}
+
+        {/* Hover Hızlı Eylem Katmanı */}
         <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center justify-center p-3">
           {isInstalled ? (
             <button
@@ -118,12 +149,12 @@ export const GameCard = memo(function GameCard({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onOpenDetail(game, true);
+                onOpenDetail(game, !isDownloading && !isPaused);
               }}
               className="px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs flex items-center gap-1.5 shadow-lg transition-transform active:scale-95 cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>İndir</span>
+              <span>{isDownloading ? "İndiriliyor" : "İndir"}</span>
             </button>
           )}
         </div>

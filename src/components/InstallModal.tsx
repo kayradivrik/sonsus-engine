@@ -4,8 +4,8 @@ import {
   ExternalLink,
   FolderCheck,
   FolderOpen,
+  FolderSearch,
   HardDrive,
-  Terminal,
   X,
 } from "lucide-react";
 import { tauriApi } from "../api/tauriClient";
@@ -30,6 +30,11 @@ function sanitizeFolderName(title: string): string {
     .trim();
 }
 
+function joinChildPath(base: string, child: string): string {
+  const sep = base.includes("\\") ? "\\" : "/";
+  return `${base.replace(/[\\/]+$/, "")}${sep}${child}`;
+}
+
 export function InstallModal({
   game,
   initialTab = "install",
@@ -43,13 +48,15 @@ export function InstallModal({
   const [locateDir, setLocateDir] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const supportsDirectBackgroundDownload =
+    game.platform === "epic" || game.platform === "gog";
+
   useEffect(() => {
     tauriApi
       .getInstallLocations()
       .then((list) => {
         setLocations(list);
         if (list.length > 0) {
-          // Platforma uygun varsayılan dizini seç
           const preferred =
             game.platform === "epic"
               ? list.find((l) => l.path.includes("Heroic")) ?? list[0]
@@ -57,15 +64,45 @@ export function InstallModal({
               ? list.find((l) => l.path.includes("steamapps")) ?? list[0]
               : list[0];
           setSelectedBaseDir(preferred.path);
-          setLocateDir(`${preferred.path}/${sanitizeFolderName(game.title)}`);
+          setLocateDir(joinChildPath(preferred.path, sanitizeFolderName(game.title)));
         }
       })
       .catch(() => {});
   }, [game]);
 
   const previewInstallPath = selectedBaseDir
-    ? `${selectedBaseDir.replace(/\/+$/, "")}/${sanitizeFolderName(game.title)}`
+    ? joinChildPath(selectedBaseDir, sanitizeFolderName(game.title))
     : "";
+
+  const handleBrowseInstallDir = async () => {
+    const chosen = await tauriApi.pickFolder(selectedBaseDir || null);
+    if (chosen) {
+      setSelectedBaseDir(chosen);
+    }
+  };
+
+  const handleBrowseLocateDir = async () => {
+    const chosen = await tauriApi.pickFolder(locateDir || selectedBaseDir || null);
+    if (chosen) {
+      setLocateDir(chosen);
+    }
+  };
+
+  const handleDirectDownload = async () => {
+    if (!selectedBaseDir.trim()) return;
+    setBusy(true);
+    try {
+      await tauriApi.startGameDownload(game, selectedBaseDir.trim());
+      onNotify(
+        `${game.title} arka planda indirilmeye başlandı! Üst çubuktan ilerlemeyi takip edebilirsiniz.`
+      );
+      onClose();
+    } catch (err) {
+      onNotify(`Doğrudan indirme başlatılamadı: ${String(err)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const runInstall = async (mode: "platform" | "legendary_cli" | "locate") => {
     setBusy(true);
@@ -79,10 +116,8 @@ export function InstallModal({
       onGameUpdated(updated);
       if (mode === "locate") {
         onNotify(`${game.title} klasörü doğrulandı ve Yüklü olarak işaretlendi.`);
-      } else if (mode === "legendary_cli") {
-        onNotify(`${game.title} için terminal üzerinden kurulum başlatıldı.`);
       } else {
-        onNotify(`${game.title} kurulum istemcisi başlatıldı.`);
+        onNotify(`${game.title} mağaza kurulum istemcisi başlatıldı.`);
       }
       onClose();
     } catch (err) {
@@ -106,7 +141,7 @@ export function InstallModal({
           <div>
             <h3 className="text-sm font-bold text-white">{game.title}</h3>
             <p className="text-[11px] text-zinc-400 mt-0.5">
-              Kurulum dizinini seçin veya diskteki mevcut oyun klasörünü bağlayın
+              Harici istemci açmadan doğrudan indirin veya mevcut klasörü bağlayın
             </p>
           </div>
           <button
@@ -206,7 +241,7 @@ export function InstallModal({
               </div>
             </div>
 
-            {/* Özel Dizin Girişi */}
+            {/* Özel Dizin Girişi + Yerel Klasör Seçici */}
             <div>
               <label className="block text-[11px] text-zinc-400 mb-1">
                 Kurulum Ana Dizini (Düzenlenebilir)
@@ -216,9 +251,18 @@ export function InstallModal({
                   type="text"
                   value={selectedBaseDir}
                   onChange={(e) => setSelectedBaseDir(e.target.value)}
-                  placeholder="/home/kullanici/Games"
+                  placeholder="/home/kullanici/Games veya D:\Games"
                   className="flex-1 h-10 rounded-lg bg-[#14141c] border border-white/12 focus:border-blue-500 px-3 text-xs font-mono text-zinc-100 outline-none"
                 />
+                <button
+                  type="button"
+                  onClick={handleBrowseInstallDir}
+                  title="Klasör seç"
+                  className="h-10 px-3 rounded-lg bg-[#181822] hover:bg-[#222230] border border-white/12 text-zinc-200 hover:text-white flex items-center gap-1.5 cursor-pointer"
+                >
+                  <FolderSearch className="w-4 h-4 text-blue-400" />
+                  <span>Gözat</span>
+                </button>
                 {selectedBaseDir && (
                   <button
                     type="button"
@@ -242,34 +286,33 @@ export function InstallModal({
 
             {/* Aksiyon Butonları */}
             <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
-              {game.platform === "epic" && (
+              {supportsDirectBackgroundDownload && (
                 <button
                   type="button"
                   disabled={busy || !selectedBaseDir.trim()}
-                  onClick={() => runInstall("legendary_cli")}
-                  className="flex-1 h-10 px-4 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 cursor-pointer disabled:opacity-50"
+                  onClick={handleDirectDownload}
+                  className="flex-1 h-10 px-4 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-600/25 cursor-pointer disabled:opacity-50"
                 >
-                  <Terminal className="w-4 h-4" />
-                  <span>Seçili Klasöre Doğrudan İndir</span>
+                  <Download className="w-4 h-4" />
+                  <span>Uygulama İçinde Doğrudan İndir</span>
                 </button>
               )}
+
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => runInstall("platform")}
-                className={`flex-1 h-10 px-4 rounded-lg font-bold text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 ${
-                  game.platform === "epic"
-                    ? "bg-[#1a1a24] hover:bg-[#232330] text-zinc-100 border border-white/15"
-                    : "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20"
+                className={`h-10 px-4 rounded-lg font-bold text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 ${
+                  supportsDirectBackgroundDownload
+                    ? "bg-[#1a1a24] hover:bg-[#232330] text-zinc-200 border border-white/15"
+                    : "flex-1 bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20"
                 }`}
               >
                 <ExternalLink className="w-4 h-4" />
                 <span>
                   {game.platform === "steam"
                     ? "Steam İstemcisi ile İndir"
-                    : game.platform === "epic"
-                    ? "Heroic İstemcisinde Aç"
-                    : "Mağaza İstemcisi ile İndir"}
+                    : "Mağaza İstemcisi ile Aç"}
                 </span>
               </button>
             </div>
@@ -277,8 +320,8 @@ export function InstallModal({
         ) : (
           <div className="p-6 space-y-4 text-xs">
             <p className="text-zinc-400 leading-relaxed">
-              Oyun diskinizde zaten yüklüyse (örneğin başka bir diskte veya Heroic/Steam
-              klasöründe), oyunun tam klasör yolunu girerek doğrudan{" "}
+              Oyun diskinizde zaten yüklüyse (örneğin başka bir diskte veya Heroic/Steam/Epic
+              klasöründe), oyunun tam klasör yolunu seçerek doğrudan{" "}
               <span className="text-emerald-400 font-semibold">Yüklü</span> durumuna
               geçirebilirsiniz.
             </p>
@@ -287,13 +330,23 @@ export function InstallModal({
               <label className="block text-[11px] text-zinc-300 font-semibold mb-1.5">
                 Mevcut Oyun Klasörünün Tam Yolu
               </label>
-              <input
-                type="text"
-                value={locateDir}
-                onChange={(e) => setLocateDir(e.target.value)}
-                placeholder="/home/kullanici/Games/OyunAdi"
-                className="w-full h-10 rounded-lg bg-[#14141c] border border-white/15 focus:border-emerald-500 px-3 text-xs font-mono text-zinc-100 outline-none"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={locateDir}
+                  onChange={(e) => setLocateDir(e.target.value)}
+                  placeholder="/home/kullanici/Games/OyunAdi veya D:\Games\OyunAdi"
+                  className="flex-1 h-10 rounded-lg bg-[#14141c] border border-white/15 focus:border-emerald-500 px-3 text-xs font-mono text-zinc-100 outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={handleBrowseLocateDir}
+                  className="h-10 px-3.5 rounded-lg bg-[#181822] hover:bg-[#222230] border border-white/15 text-zinc-200 hover:text-white flex items-center gap-1.5 cursor-pointer"
+                >
+                  <FolderSearch className="w-4 h-4 text-emerald-400" />
+                  <span>Gözat</span>
+                </button>
+              </div>
             </div>
 
             <div className="pt-2 flex justify-end gap-2.5">
@@ -320,4 +373,3 @@ export function InstallModal({
     </div>
   );
 }
-

@@ -1,4 +1,4 @@
-import { LayoutGrid, List, RefreshCw, Sliders } from "lucide-react";
+import { Download, LayoutGrid, List, RefreshCw, Sliders } from "lucide-react";
 import { InstallStatus, ViewMode } from "../types/game";
 
 interface TopStatusBarProps {
@@ -10,6 +10,10 @@ interface TopStatusBarProps {
   onViewModeChange: (mode: ViewMode) => void;
   scanning: boolean;
   onRescan: () => void;
+  activeDownloadsCount: number;
+  totalDownloadsCount: number;
+  averageDownloadPct: number;
+  onOpenDownloads: () => void;
   onOpenSettings: () => void;
 }
 
@@ -22,11 +26,15 @@ export function TopStatusBar({
   onViewModeChange,
   scanning,
   onRescan,
+  activeDownloadsCount,
+  totalDownloadsCount,
+  averageDownloadPct,
+  onOpenDownloads,
   onOpenSettings,
 }: TopStatusBarProps) {
   return (
     <header className="h-16 max-w-[1480px] w-full mx-auto px-8 lg:px-12 flex items-center justify-between shrink-0">
-      {/* Sol: Overdrive tarzı minimalist amblem + marka */}
+      {/* Sol: `sonsus-engine` minimalist amblem + marka */}
       <div
         onClick={() => onStatusFilterChange("all")}
         className="flex items-center gap-2.5 cursor-pointer select-none group"
@@ -35,11 +43,11 @@ export function TopStatusBar({
           <div className="w-2.5 h-2.5 rounded-full bg-white group-hover:scale-110 transition-transform" />
         </div>
         <span className="text-[16px] font-bold tracking-tight text-white">
-          overdrive
+          sonsus-engine
         </span>
       </div>
 
-      {/* Sağ: Pill navigasyon + Yenile + Ayarlar */}
+      {/* Sağ: Pill navigasyon + İndirmeler + Yenile + Ayarlar */}
       <div className="flex items-center gap-1.5 text-[13px]">
         <button
           onClick={() => onStatusFilterChange("all")}
@@ -79,6 +87,31 @@ export function TopStatusBar({
         </button>
 
         <div className="w-px h-4 bg-zinc-800 mx-1.5" />
+
+        {/* İndirme Yöneticisi Kapsülü */}
+        <button
+          type="button"
+          onClick={onOpenDownloads}
+          className={`h-8 px-3 rounded-full border flex items-center gap-1.5 text-xs font-semibold transition-all cursor-pointer ${
+            activeDownloadsCount > 0
+              ? "bg-blue-600/20 border-blue-500/50 text-blue-200 shadow-[0_0_20px_rgba(37,99,235,0.25)]"
+              : "bg-[#121216] hover:bg-[#1c1c22] border-white/[0.08] text-zinc-400 hover:text-white"
+          }`}
+          title="Uygulama İçi İndirme Yöneticisi"
+        >
+          <Download
+            className={`w-3.5 h-3.5 ${
+              activeDownloadsCount > 0 ? "text-blue-400 animate-bounce" : ""
+            }`}
+          />
+          {activeDownloadsCount > 0 ? (
+            <span className="tabular-nums">
+              {activeDownloadsCount} İndiriliyor • %{Math.round(averageDownloadPct)}
+            </span>
+          ) : totalDownloadsCount > 0 ? (
+            <span className="tabular-nums">{totalDownloadsCount}</span>
+          ) : null}
+        </button>
 
         <button
           onClick={() => onViewModeChange(viewMode === "grid" ? "table" : "grid")}

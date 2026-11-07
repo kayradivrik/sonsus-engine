@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   FolderOpen,
+  FolderSearch,
   HardDrive,
   KeyRound,
   MonitorCog,
@@ -36,7 +37,7 @@ const BACKEND_OPTIONS: SelectOption<DisplayBackend>[] = [
 ];
 
 /**
- * Overdrive `#000000` tasarım dilinde iki sütunlu (Sol kapsül menü + Sağ Bento ayar kartları)
+ * `sonsus-engine` `#000000` tasarım dilinde iki sütunlu (Sol kapsül menü + Sağ Bento ayar kartları)
  * özgün Kontrol Merkezi sayfası.
  */
 export function SettingsModal({
@@ -88,6 +89,14 @@ export function SettingsModal({
     locations[0]?.path ??
     "";
 
+  const pickIntoField = async (
+    current: string | null | undefined,
+    apply: (picked: string) => void
+  ) => {
+    const chosen = await tauriApi.pickFolder(current || null);
+    if (chosen) apply(chosen);
+  };
+
   const handleSubmit = async () => {
     setSaving(true);
     try {
@@ -110,7 +119,7 @@ export function SettingsModal({
 
   return (
     <div className="fixed inset-0 z-40 bg-black text-zinc-100 flex flex-col overflow-hidden animate-detail-enter">
-      {/* Overdrive Üst Başlık Çubuğu */}
+      {/* Üst Başlık Çubuğu */}
       <header className="h-16 border-b border-white/[0.06] shrink-0">
         <div className="h-full max-w-[1360px] w-full mx-auto px-8 lg:px-12 flex items-center justify-between">
           <div className="flex items-center gap-3.5">
@@ -123,7 +132,7 @@ export function SettingsModal({
               <span>Kütüphaneye Dön</span>
             </button>
             <span className="text-sm font-bold text-zinc-400">
-              overdrive / kontrol merkezi
+              sonsus-engine / kontrol merkezi
             </span>
           </div>
 
@@ -195,11 +204,11 @@ export function SettingsModal({
                 <section className="p-6 rounded-2xl bg-[#09090d] border border-white/[0.08] space-y-5">
                   <div>
                     <h2 className="text-base font-bold text-white">
-                      Kurulum, Wine Prefix ve Kütüphane Dizinleri
+                      Kurulum, Wine Prefix ve Mağaza Kök Dizinleri
                     </h2>
                     <p className="text-[11px] text-zinc-400 mt-0.5">
-                      Yeni oyun indirmelerinde ve uyumluluk katmanlarında kullanılacak
-                      öntanımlı klasörler.
+                      Linux ve Windows ortamlarında yeni oyun indirmelerinde ve kütüphane
+                      taramalarında kullanılacak klasörler.
                     </p>
                   </div>
 
@@ -221,6 +230,20 @@ export function SettingsModal({
                           }
                           className="flex-1 h-10 rounded-xl bg-black border border-white/12 focus:border-white/35 px-3.5 text-xs font-mono text-zinc-100 outline-none"
                         />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            pickIntoField(
+                              draft.default_install_dir || fallbackInstallDir,
+                              (picked) =>
+                                setDraft({ ...draft, default_install_dir: picked })
+                            )
+                          }
+                          className="h-10 px-3 rounded-xl bg-[#14141c] hover:bg-[#1d1d28] border border-white/12 text-zinc-300 hover:text-white cursor-pointer"
+                          title="Klasör seç"
+                        >
+                          <FolderSearch className="w-4 h-4 text-blue-400" />
+                        </button>
                         {(draft.default_install_dir || fallbackInstallDir) && (
                           <button
                             type="button"
@@ -242,44 +265,81 @@ export function SettingsModal({
 
                     <div>
                       <label className="block text-[11px] text-zinc-400 mb-1.5">
-                        Wine / Proton Prefix Klasörü
+                        Wine / Proton Prefix Klasörü (Linux)
                       </label>
-                      <input
-                        type="text"
-                        placeholder="/home/kullanici/Games/Prefixes"
-                        value={draft.default_prefix_dir ?? ""}
-                        onChange={(e) =>
-                          setDraft({
-                            ...draft,
-                            default_prefix_dir: e.target.value || null,
-                          })
-                        }
-                        className="w-full h-10 rounded-xl bg-black border border-white/12 focus:border-white/35 px-3.5 text-xs font-mono text-zinc-100 outline-none"
-                      />
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="/home/kullanici/Games/Prefixes"
+                          value={draft.default_prefix_dir ?? ""}
+                          onChange={(e) =>
+                            setDraft({
+                              ...draft,
+                              default_prefix_dir: e.target.value || null,
+                            })
+                          }
+                          className="flex-1 h-10 rounded-xl bg-black border border-white/12 focus:border-white/35 px-3.5 text-xs font-mono text-zinc-100 outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            pickIntoField(draft.default_prefix_dir, (picked) =>
+                              setDraft({ ...draft, default_prefix_dir: picked })
+                            )
+                          }
+                          className="h-10 px-3 rounded-xl bg-[#14141c] hover:bg-[#1d1d28] border border-white/12 text-zinc-300 hover:text-white cursor-pointer"
+                          title="Klasör seç"
+                        >
+                          <FolderSearch className="w-4 h-4 text-blue-400" />
+                        </button>
+                      </div>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[11px] text-zinc-400 mb-1.5">
-                        Algılanan Steam Kök Dizini
+                        Steam Kök Dizini (Boş bırakılırsa otomatik algılanır)
                       </label>
                       <div className="flex gap-2">
                         <input
                           type="text"
-                          readOnly
-                          value={diagnostics?.detected_steam_root ?? "Algılanmadı"}
-                          className="flex-1 h-10 rounded-xl bg-black/60 border border-white/[0.08] px-3.5 text-xs font-mono text-zinc-400 outline-none"
+                          placeholder={
+                            diagnostics?.detected_steam_root ??
+                            "Otomatik (örn: ~/.steam/steam veya C:\\Program Files (x86)\\Steam)"
+                          }
+                          value={draft.custom_steam_root ?? ""}
+                          onChange={(e) =>
+                            setDraft({
+                              ...draft,
+                              custom_steam_root: e.target.value || null,
+                            })
+                          }
+                          className="flex-1 h-10 rounded-xl bg-black border border-white/12 focus:border-white/35 px-3.5 text-xs font-mono text-zinc-100 outline-none"
                         />
-                        {diagnostics?.detected_steam_root && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            pickIntoField(
+                              draft.custom_steam_root || diagnostics?.detected_steam_root,
+                              (picked) =>
+                                setDraft({ ...draft, custom_steam_root: picked })
+                            )
+                          }
+                          className="h-10 px-3 rounded-xl bg-[#14141c] hover:bg-[#1d1d28] border border-white/12 text-zinc-300 hover:text-white cursor-pointer"
+                          title="Özel Steam kök klasörü seç"
+                        >
+                          <FolderSearch className="w-4 h-4 text-blue-400" />
+                        </button>
+                        {(draft.custom_steam_root || diagnostics?.detected_steam_root) && (
                           <button
                             type="button"
-                            onClick={() =>
-                              diagnostics.detected_steam_root &&
-                              tauriApi
-                                .openGameFolder(diagnostics.detected_steam_root)
-                                .catch(() => {})
-                            }
+                            onClick={() => {
+                              const p =
+                                draft.custom_steam_root ||
+                                diagnostics?.detected_steam_root;
+                              if (p) tauriApi.openGameFolder(p).catch(() => {});
+                            }}
                             className="h-10 px-3 rounded-xl bg-[#14141c] hover:bg-[#1d1d28] border border-white/12 text-zinc-300 hover:text-white cursor-pointer"
                             title="Steam dizinini aç"
                           >
@@ -292,7 +352,7 @@ export function SettingsModal({
                     <div className="flex items-end pb-1">
                       <label className="w-full h-10 px-4 rounded-xl bg-black border border-white/[0.08] flex items-center justify-between cursor-pointer">
                         <span className="text-zinc-200 font-medium">
-                          Heroic / Epic Kütüphanesini Eşitle
+                          Epic Games & Heroic Kütüphanesini Eşitle
                         </span>
                         <input
                           type="checkbox"

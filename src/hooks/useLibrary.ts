@@ -1,6 +1,12 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { tauriApi } from "../api/tauriClient";
-import { InstallStatus, Platform, SortMode, UnifiedGame } from "../types/game";
+import {
+  InstallStatus,
+  PageSizeOption,
+  Platform,
+  SortMode,
+  UnifiedGame,
+} from "../types/game";
 
 export interface GenreCountItem {
   name: string;
@@ -8,8 +14,8 @@ export interface GenreCountItem {
 }
 
 /**
- * Kütüphane verisini, filtreleri, gecikmesiz (`useDeferredValue`) aramayı
- * ve hesaplanmış istatistikleri tek bir temiz kancada (hook) yönetir.
+ * Kütüphane verisini, filtreleri, gecikmesiz (`useDeferredValue`) aramayı,
+ * istatistikleri ve gerçek Sayfalama (Pagination) durumunu tek bir kancada yönetir.
  */
 export function useLibrary(onError: (msg: string) => void) {
   const [games, setGames] = useState<UnifiedGame[]>([]);
@@ -18,9 +24,10 @@ export function useLibrary(onError: (msg: string) => void) {
   const [genreFilter, setGenreFilter] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>("status");
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<PageSizeOption>(24);
   const [scanning, setScanning] = useState(false);
 
-  // Yazarken arayüzün kilitlenmemesi için arama metnini düşük öncelikli güncelle
   const deferredQuery = useDeferredValue(query);
 
   const performScan = useCallback(async () => {
@@ -88,7 +95,11 @@ export function useLibrary(onError: (msg: string) => void) {
       if (statusFilter !== "all" && g.status !== statusFilter) return false;
       if (platformFilter !== "all" && g.platform !== platformFilter) return false;
       if (genreFilter && !(g.genres ?? []).includes(genreFilter)) return false;
-      if (q && !g.title.toLowerCase().includes(q)) return false;
+      if (q) {
+        const inTitle = g.title.toLowerCase().includes(q);
+        const inDev = (g.developer ?? "").toLowerCase().includes(q);
+        if (!inTitle && !inDev) return false;
+      }
       return true;
     });
 
@@ -112,9 +123,23 @@ export function useLibrary(onError: (msg: string) => void) {
     return list;
   }, [games, statusFilter, platformFilter, genreFilter, deferredQuery, sortMode]);
 
+  // Filtre, arama veya sayfa boyutu değiştiğinde 1. sayfaya dön
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, platformFilter, genreFilter, deferredQuery, sortMode, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredGames.length / pageSize));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+
+  const paginatedGames = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredGames.slice(start, start + pageSize);
+  }, [filteredGames, currentPage, pageSize]);
+
   return {
     games,
     filteredGames,
+    paginatedGames,
     counts,
     genreCounts,
     statusFilter,
@@ -127,9 +152,13 @@ export function useLibrary(onError: (msg: string) => void) {
     setSortMode,
     query,
     setQuery,
+    page: currentPage,
+    setPage,
+    pageSize,
+    setPageSize,
+    totalPages,
     scanning,
     performScan,
     replaceSingleGame,
   };
 }
-
