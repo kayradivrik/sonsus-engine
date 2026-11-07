@@ -1,0 +1,444 @@
+use crate::models::{DisplayBackend, DisplayOutputInfo, HookProfile, Platform, UnifiedGame};
+use std::{
+    fs,
+    path::Path,
+    process::Command,
+    time::{Duration, Instant},
+};
+use tokio::time::sleep;
+
+#[cfg(unix)]
+use nix::{
+    sys::signal::{kill, Signal},
+    unistd::Pid,
+};
+
+const PROTECTED_PROCESSES: &[&str] = &[
+    "systemd",
+    "init",
+    "xorg",
+    "xwayland",
+    "kwin_wayland",
+    "kwin_x11",
+    "plasmashell",
+    "hyprland",
+    "sway",
+    "mutter",
+    "gnome-shell",
+    "pipewire",
+    "pipewire-pulse",
+    "wireplumber",
+    "dbus-daemon",
+    "steam",
+    "heroic",
+    "lutris",
+    "krnl-launcher",
+];
+
+#[derive(Debug, Clone)]
+pub enum SavedDisplayState {
+    Xrandr {
+        output: String,
+        mode: String,
+        rate: String,
+    },
+    Kscreen {
+        output: String,
+        mode_spec: String,
+    },
+}
+
+pub struct SessionGuard {
+    pub original_display: Option<SavedDisplayState>,
+    pub suspended_pids: Vec<i32>,
+    pub post_exit_cmd: Option<String>,
+}
+
+impl Drop for SessionGuard {
+    fn drop(&mut self) {
+        #[cfg(unix)]
+        for &pid in &self.suspended_pids {
+            let _ = kill(Pid::from_raw(pid), Signal::SIGCONT);
+        }
+
+        if let Some(orig) = &self.original_display {
+            match orig {
+                SavedDisplayState::Xrandr { output, mode, rate } => {
+                    let mut cmd = Command::new("xrandr");
+                    cmd.args(["--output", output, "--mode", mode]);
+                    if !rate.is_empty() {
+                        cmd.args(["--rate", rate]);
+                    }
+                    let _ = cmd.status();
+                }
+                SavedDisplayState::Kscreen { output, mode_spec } => {
+                    let arg = format!("output.{output}.mode.{mode_spec}");
+                    let _ = Command::new("kscreen-doctor").arg(arg).status();
+                }
+            }
+        }
+
+        if let Some(cmd) = &self.post_exit_cmd {
+            if !cmd.trim().is_empty() {
+                let _ = Command::new("sh").args(["-c", cmd]).status();
+            }
+        }
+    }
+}
+
+pub fn has_binary(name: &str) -> bool {
+    if Path::new(&format!("/usr/bin/{name}")).exists()
+        || Path::new(&format!("/usr/local/bin/{name}")).exists()
+    {
+        return true;
+    }
+    std::env::var_os("PATH")
+        .map(|paths| std::env::split_paths(&paths).any(|dir| dir.join(name).exists()))
+        .unwrap_or(false)
+}
+
+pub fn enumerate_displays() -> Vec<DisplayOutputInfo> {
+    let mut outputs = Vec::new();
+    let Ok(out) = Command::new("xrandr").arg("--current").output() else {
+        return outputs;
+    };
+    let text = String::from_utf8_lossy(&out.stdout);
+
+    let mut current: Option<DisplayOutputInfo> = None;
+    for line in text.lines() {
+        if line.contains(" connected") {
+            if let Some(prev) = current.take() {
+                outputs.push(prev);
+            }
+            let name = line
+                .split_whitespace()
+                .next()
+                .unwrap_or("default")
+                .to_string();
+            let primary = line.contains(" primary ");
+            current = Some(DisplayOutputInfo::new(
+                name,
+                String::new(),
+                String::new(),
+                Vec::new(),
+                primary,
+            ));
+        } else if line.contains(" disconnected") {
+            if let Some(prev) = current.take() {
+                outputs.push(prev);
+            }
+        } else if line.starts_with("   ") {
+            if let Some(ref mut disp) = current {
+                let mut parts = line.split_whitespace();
+                if let Some(mode) = parts.next() {
+                    if mode.contains('x') && mode.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+                        if !disp.available_modes.iter().any(|m| m == mode) {
+                            disp.available_modes.push(mode.to_string());
+                        }
+                        if let Some(active_rate) = parts.find(|p| p.contains('*')) {
+                            disp.current_mode = mode.to_string();
+                            disp.current_rate = active_rate
+                                .trim_matches(|c| c == '*' || c == '+')
+                                .to_string();
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if let Some(last) = current {
+        outputs.push(last);
+    }
+    outputs
+}
+
+fn apply_display_hook(hook: &HookProfile) -> Option<SavedDisplayState> {
+    let res = hook.target_resolution.as_deref()?.trim();
+    if res.is_empty() {
+        return None;
+    }
+
+    let session = std::env::var("XDG_SESSION_TYPE").unwrap_or_default();
+    let displays = enumerate_displays();
+    let chosen_disp = hook
+        .target_output
+        .as_deref()
+        .filter(|s| !s.trim().is_empty())
+        .and_then(|name| displays.iter().find(|d| d.name == name))
+        .or_else(|| displays.iter().find(|d| d.is_primary()))
+        .or_else(|| displays.first());
+
+    let backend = match hook.display_backend {
+        DisplayBackend::Auto => {
+            if session == "wayland" && has_binary("kscreen-doctor") {
+                DisplayBackend::Kscreen
+            } else {
+                DisplayBackend::Xrandr
+            }
+        }
+        other => other,
+    };
+
+    match backend {
+        DisplayBackend::Xrandr => {
+            let disp = chosen_disp?;
+            let saved = SavedDisplayState::Xrandr {
+                output: disp.name.clone(),
+                mode: disp.current_mode.clone(),
+                rate: disp.current_rate.clone(),
+            };
+            let mut cmd = Command::new("xrandr");
+            cmd.args(["--output", &disp.name, "--mode", res]);
+            if let Some(hz) = hook.target_refresh_hz.as_deref().filter(|s| !s.trim().is_empty()) {
+                cmd.args(["--rate", hz]);
+            }
+            let _ = cmd.status();
+            Some(saved)
+        }
+        DisplayBackend::Kscreen => {
+            let disp = chosen_disp?;
+            let cur_hz = disp
+                .current_rate
+                .split('.')
+                .next()
+                .unwrap_or("60");
+            let saved = SavedDisplayState::Kscreen {
+                output: disp.name.clone(),
+                mode_spec: format!("{}@{}", disp.current_mode, cur_hz),
+            };
+            let target_hz = hook
+                .target_refresh_hz
+                .as_deref()
+                .filter(|s| !s.trim().is_empty())
+                .and_then(|h| h.split('.').next())
+                .unwrap_or(cur_hz);
+            let spec = format!("output.{}.mode.{res}@{target_hz}", disp.name);
+            let _ = Command::new("kscreen-doctor").arg(spec).status();
+            Some(saved)
+        }
+        DisplayBackend::Gamescope | DisplayBackend::Auto => None,
+    }
+}
+
+#[cfg(unix)]
+fn suspend_processes_by_name(names: &[String]) -> Vec<i32> {
+    let mut pids = Vec::new();
+    let clean_names: Vec<String> = names
+        .iter()
+        .map(|n| n.trim().to_lowercase())
+        .filter(|n| !n.is_empty() && !PROTECTED_PROCESSES.contains(&n.as_str()))
+        .collect();
+
+    if clean_names.is_empty() {
+        return pids;
+    }
+
+    let self_pid = std::process::id() as i32;
+    let Ok(proc_dir) = fs::read_dir("/proc") else {
+        return pids;
+    };
+
+    for entry in proc_dir.flatten() {
+        let Ok(pid) = entry.file_name().to_string_lossy().parse::<i32>() else {
+            continue;
+        };
+        if pid <= 1 || pid == self_pid {
+            continue;
+        }
+        let Ok(comm) = fs::read_to_string(entry.path().join("comm")) else {
+            continue;
+        };
+        let comm_lower = comm.trim().to_lowercase();
+        if PROTECTED_PROCESSES.contains(&comm_lower.as_str()) {
+            continue;
+        }
+        if clean_names.iter().any(|target| target == &comm_lower) {
+            if kill(Pid::from_raw(pid), Signal::SIGSTOP).is_ok() {
+                pids.push(pid);
+            }
+        }
+    }
+    pids
+}
+
+#[cfg(not(unix))]
+fn suspend_processes_by_name(_names: &[String]) -> Vec<i32> {
+    Vec::new()
+}
+
+fn is_steam_app_running(appid: &str) -> bool {
+    let needle = format!("SteamAppId={appid}");
+    let Ok(proc_dir) = fs::read_dir("/proc") else {
+        return false;
+    };
+    for entry in proc_dir.flatten() {
+        if !entry
+            .file_name()
+            .to_string_lossy()
+            .chars()
+            .all(|c| c.is_ascii_digit())
+        {
+            continue;
+        }
+        if let Ok(env_bytes) = fs::read(entry.path().join("environ")) {
+            if env_bytes
+                .split(|&b| b == 0)
+                .any(|kv| kv == needle.as_bytes())
+            {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn is_process_in_install_dir(install_dir: &Path) -> bool {
+    let dir_str = install_dir.to_string_lossy();
+    if dir_str.is_empty() {
+        return false;
+    }
+    let Ok(proc_dir) = fs::read_dir("/proc") else {
+        return false;
+    };
+    for entry in proc_dir.flatten() {
+        if !entry
+            .file_name()
+            .to_string_lossy()
+            .chars()
+            .all(|c| c.is_ascii_digit())
+        {
+            continue;
+        }
+        if let Ok(cwd) = fs::read_link(entry.path().join("cwd")) {
+            if cwd.starts_with(install_dir) {
+                return true;
+            }
+        }
+        if let Ok(cmd) = fs::read(entry.path().join("cmdline")) {
+            let text = String::from_utf8_lossy(&cmd);
+            if text.contains(dir_str.as_ref()) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+pub async fn launch_with_hooks(game: UnifiedGame, hook: HookProfile) -> Result<u64, String> {
+    let launch_cfg = game
+        .launch
+        .clone()
+        .ok_or_else(|| "Bu oyun için çalıştırma yapılandırması bulunamadı (önce kurun).".to_string())?;
+
+    let started_at = Instant::now();
+    let mut guard = SessionGuard {
+        original_display: None,
+        suspended_pids: Vec::new(),
+        post_exit_cmd: if hook.enabled {
+            hook.post_exit_cmd.clone()
+        } else {
+            None
+        },
+    };
+
+    if hook.enabled {
+        if let Some(ref pre_cmd) = hook.pre_launch_cmd {
+            if !pre_cmd.trim().is_empty() {
+                let _ = Command::new("sh").args(["-c", pre_cmd]).status();
+            }
+        }
+        guard.original_display = apply_display_hook(&hook);
+        guard.suspended_pids = suspend_processes_by_name(&hook.suspend_processes);
+    }
+
+    let target = &launch_cfg.command_uri_or_bin;
+    let is_uri = target.contains("://") || target.starts_with("lutris:");
+
+    if is_uri {
+        Command::new("xdg-open")
+            .arg(target)
+            .spawn()
+            .map_err(|e| format!("xdg-open başlatılamadı: {e}"))?;
+
+        if game.platform == Platform::Steam {
+            for _ in 0..24 {
+                sleep(Duration::from_secs(2)).await;
+                if is_steam_app_running(&game.platform_id) {
+                    break;
+                }
+            }
+            while is_steam_app_running(&game.platform_id) {
+                sleep(Duration::from_secs(2)).await;
+            }
+        } else if let Some(ref inst_dir) = game.install_path {
+            for _ in 0..20 {
+                sleep(Duration::from_secs(2)).await;
+                if is_process_in_install_dir(inst_dir) {
+                    break;
+                }
+            }
+            while is_process_in_install_dir(inst_dir) {
+                sleep(Duration::from_secs(2)).await;
+            }
+        } else {
+            sleep(Duration::from_secs(5)).await;
+        }
+    } else {
+        // Doğrudan çalıştırılan ikili komut (Gamescope ve Gamemode sarmalayıcılarını destekler)
+        let mut program = target.clone();
+        let mut full_args = launch_cfg.args.clone();
+
+        if hook.enabled && hook.use_gamemode && has_binary("gamemoderun") {
+            full_args.insert(0, program);
+            program = "gamemoderun".into();
+        }
+
+        if hook.enabled
+            && hook.display_backend == DisplayBackend::Gamescope
+            && has_binary("gamescope")
+        {
+            if let Some(res) = hook.target_resolution.as_deref() {
+                if let Some((w, h)) = res.split_once('x') {
+                    let mut gs_args = vec![
+                        "-W".into(),
+                        w.trim().into(),
+                        "-H".into(),
+                        h.trim().into(),
+                        "-f".into(),
+                    ];
+                    if let Some(hz) = hook.target_refresh_hz.as_deref().filter(|s| !s.trim().is_empty())
+                    {
+                        gs_args.push("-r".into());
+                        gs_args.push(hz.split('.').next().unwrap_or(hz).into());
+                    }
+                    gs_args.push("--".into());
+                    gs_args.push(program);
+                    gs_args.extend(full_args);
+                    program = "gamescope".into();
+                    full_args = gs_args;
+                }
+            }
+        }
+
+        let mut cmd = Command::new(&program);
+        cmd.args(&full_args);
+        if let Some(dir) = &launch_cfg.working_dir {
+            if dir.exists() {
+                cmd.current_dir(dir);
+            }
+        }
+        if let Some(prefix) = &launch_cfg.wine_prefix {
+            cmd.env("WINEPREFIX", prefix);
+        }
+
+        let mut child = tokio::process::Command::from(cmd)
+            .spawn()
+            .map_err(|e| format!("Süreç başlatılamadı ({program}): {e}"))?;
+        let _ = child.wait().await;
+    }
+
+    let elapsed_mins = (started_at.elapsed().as_secs() / 60).max(0);
+    drop(guard);
+    Ok(elapsed_mins)
+}
+

@@ -1,0 +1,15 @@
+# Bağımlılıklar ve Derleme Çıktıları
+node_modules/
+dist/
+dist-ssr/
+src-tauri/target/
+src-tauri/WixTools/
+
+# Ortam ve Editör Dosyaları
+.env
+.env.*
+*.local
+.DS_Store
+.vscode/
+.idea/
+*.log
