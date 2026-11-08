@@ -185,4 +185,11 @@ export const tauriApi = {
 
   cleanStorageItem: (categoryId: string) =>
     invoke<number>("clean_storage_item", { categoryId }),
+
+  // --- HP Victus & Donanım Güç / Fan Kontrolü ---
+  getHardwareThermalStatus: () =>
+    invoke<import("../types/game").HardwareThermalStatus>("get_hardware_thermal_status"),
+
+  setHardwareThermalProfile: (profile: string) =>
+    invoke<string>("set_hardware_thermal_profile", { profile }),
 };

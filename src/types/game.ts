@@ -463,6 +463,20 @@ export interface StorageAnalysisResult {
   categories: CleanableCategory[];
 }
 
+export interface HardwareFanStatus {
+  name: string;
+  rpm: number;
+}
+
+export interface HardwareThermalStatus {
+  cpu_temp_celsius: number | null;
+  battery_watts: number | null;
+  fans: HardwareFanStatus[];
+  active_profile: string;
+  available_profiles: string[];
+  is_hp_victus: boolean;
+}
+
 export function formatBytes(bytes?: number | null): string {
   if (!bytes || bytes <= 0) return "—";
   const gb = bytes / (1024 * 1024 * 1024);

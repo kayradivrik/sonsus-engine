@@ -620,3 +620,15 @@ pub fn analyze_disk_storage() -> crate::cleaner::StorageAnalysisResult {
 pub fn clean_storage_item(category_id: String) -> Result<u64, String> {
     crate::cleaner::clean_storage_category(&category_id)
 }
+
+// --- HP Victus & Donanım Güç / Fan Kontrolü ---
+
+#[tauri::command]
+pub fn get_hardware_thermal_status() -> crate::hardware::HardwareThermalStatus {
+    crate::hardware::read_hp_hardware_status()
+}
+
+#[tauri::command]
+pub fn set_hardware_thermal_profile(profile: String) -> Result<String, String> {
+    crate::hardware::set_hardware_profile(&profile)
+}

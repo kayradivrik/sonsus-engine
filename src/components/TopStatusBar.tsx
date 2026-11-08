@@ -4,6 +4,7 @@ import {
   Download,
   Gamepad2,
   HardDrive,
+  Laptop,
   LayoutGrid,
   Library,
   List,
@@ -37,6 +38,7 @@ interface TopStatusBarProps {
   onOpenSettings: () => void;
   onOpenUltraFps: () => void;
   onOpenStorageCleaner: () => void;
+  onOpenVictusControl: () => void;
 }
 
 export function TopStatusBar({
@@ -59,6 +61,7 @@ export function TopStatusBar({
   onOpenSettings,
   onOpenUltraFps,
   onOpenStorageCleaner,
+  onOpenVictusControl,
 }: TopStatusBarProps) {
   return (
     <header className="h-16 w-full max-w-[1880px] mx-auto px-6 sm:px-8 xl:px-12 2xl:px-16 flex items-center justify-between gap-4 shrink-0">
@@ -206,6 +209,16 @@ export function TopStatusBar({
           title="Disk Alanı & Shader Temizleyici"
         >
           <HardDrive className="w-3.5 h-3.5" />
+        </button>
+
+        {/* HP Victus Donanım & Fan Kontrolü */}
+        <button
+          type="button"
+          onClick={onOpenVictusControl}
+          className="w-9 h-9 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 hover:border-white/20 flex items-center justify-center text-zinc-300 hover:text-white transition-colors cursor-pointer outline-none"
+          title="HP Victus Fan & Güç Kontrolü"
+        >
+          <Laptop className="w-3.5 h-3.5" />
         </button>
 
         {/* İstatistikler */}

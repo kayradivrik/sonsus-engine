@@ -20,6 +20,7 @@ import { StatsModal } from "./components/StatsModal";
 import { StorageCleanerModal } from "./components/StorageCleanerModal";
 import { TopStatusBar } from "./components/TopStatusBar";
 import { UltraFpsModal } from "./components/UltraFpsModal";
+import { VictusControlModal } from "./components/VictusControlModal";
 import { VirtualGameGrid } from "./components/VirtualGameGrid";
 import { useGamepadNav } from "./hooks/useGamepadNav";
 import { useLibrary } from "./hooks/useLibrary";
@@ -86,6 +87,7 @@ export default function App() {
   const [isFirstRunOnboarding, setIsFirstRunOnboarding] = useState(false);
   const [ultraFpsOpen, setUltraFpsOpen] = useState(false);
   const [storageCleanerOpen, setStorageCleanerOpen] = useState(false);
+  const [victusControlOpen, setVictusControlOpen] = useState(false);
   const [launchLogsOpen, setLaunchLogsOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
   const [quickAccessOpen, setQuickAccessOpen] = useState(false);
@@ -109,6 +111,7 @@ export default function App() {
     addCustomOpen ||
     statsOpen ||
     storageCleanerOpen ||
+    victusControlOpen ||
     onboardingOpen ||
     ultraFpsOpen ||
     launchLogsOpen;
@@ -293,6 +296,8 @@ export default function App() {
           setStatsOpen(false);
         } else if (storageCleanerOpen) {
           setStorageCleanerOpen(false);
+        } else if (victusControlOpen) {
+          setVictusControlOpen(false);
         } else if (downloadsOpen) {
           setDownloadsOpen(false);
         } else if (onboardingOpen && !isFirstRunOnboarding) {
@@ -476,6 +481,7 @@ export default function App() {
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenUltraFps={() => setUltraFpsOpen(true)}
           onOpenStorageCleaner={() => setStorageCleanerOpen(true)}
+          onOpenVictusControl={() => setVictusControlOpen(true)}
         />
 
         {/* Filtre Şeridi (Kütüphane sekmesinde veya Arama yapıldığında görünür) */}
@@ -726,6 +732,14 @@ export default function App() {
       {storageCleanerOpen && (
         <StorageCleanerModal
           onClose={() => setStorageCleanerOpen(false)}
+          showToast={showToast}
+        />
+      )}
+
+      {/* 💻 HP Victus Fan & Donanım Güç Kontrolü Modal */}
+      {victusControlOpen && (
+        <VictusControlModal
+          onClose={() => setVictusControlOpen(false)}
           showToast={showToast}
         />
       )}

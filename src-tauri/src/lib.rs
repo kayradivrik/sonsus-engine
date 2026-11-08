@@ -5,6 +5,7 @@ pub mod covers;
 pub mod db;
 pub mod deals;
 pub mod downloader;
+pub mod hardware;
 pub mod installer;
 pub mod launcher;
 pub mod logs_store;
@@ -24,12 +25,12 @@ use commands::{
     create_desktop_shortcut, create_game_save_backup, disconnect_epic_account,
     disconnect_gog_account, fetch_game_cover, get_active_downloads, get_app_settings,
     get_cached_library, get_curated_deals, get_game_hook_profile, get_game_save_backups,
-    get_install_locations, get_launch_logs, get_oauth_login_urls, get_online_game_details,
+    get_hardware_thermal_status, get_install_locations, get_launch_logs, get_oauth_login_urls, get_online_game_details,
     get_store_auth_status, get_system_diagnostics, get_ultra_perf_status, install_boost_helper,
     install_game, install_ge_proton, launch_game, list_remote_ge_proton, open_external_url,
     open_game_folder, open_game_install_dir, pause_game_download, pick_executable, pick_folder,
     remove_download_task, restore_game_save_backup, scan_all_libraries, set_game_hook_profile,
-    set_game_preferences, start_game_download, stop_extreme_boost_now, sync_game_cloud_saves,
+    set_game_preferences, set_hardware_thermal_profile, start_game_download, stop_extreme_boost_now, sync_game_cloud_saves,
     trigger_extreme_boost_now, uninstall_game, update_app_settings, verify_or_repair_game,
     AppState,
 };
@@ -127,6 +128,8 @@ pub fn run() {
             clean_game_prefix,
             analyze_disk_storage,
             clean_storage_item,
+            get_hardware_thermal_status,
+            set_hardware_thermal_profile,
         ])
         .run(tauri::generate_context!())
         .expect("sonsus-engine başlatılırken hata oluştu");
