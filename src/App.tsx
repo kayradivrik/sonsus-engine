@@ -338,6 +338,13 @@ export default function App() {
     []
   );
 
+  const handleOpenDetailDefault = useCallback(
+    (game: UnifiedGame) => {
+      handleOpenDetail(game, false);
+    },
+    [handleOpenDetail]
+  );
+
   const handleContextMenu = useCallback((game: UnifiedGame, x: number, y: number) => {
     setContextMenu({ x, y, game });
   }, []);
@@ -514,7 +521,7 @@ export default function App() {
                 {/* 1. Büyük Sinematik Öne Çıkanlar Slider'ı */}
                 <HomeHeroSlider
                   games={games}
-                  onOpenDetail={(g) => handleOpenDetail(g, false)}
+                  onOpenDetail={handleOpenDetailDefault}
                   onLaunch={handleLaunch}
                 />
 
@@ -528,7 +535,7 @@ export default function App() {
                     badgeIcon="⚡"
                     games={recentGames}
                     runningId={runningId}
-                    onOpenDetail={(g) => handleOpenDetail(g, false)}
+                    onOpenDetail={handleOpenDetailDefault}
                     onLaunch={handleLaunch}
                     onToggleFavorite={handleToggleFavorite}
                     onContextMenu={handleContextMenu}
@@ -547,7 +554,7 @@ export default function App() {
                     )
                   )}
                   runningId={runningId}
-                  onOpenDetail={(g) => handleOpenDetail(g, false)}
+                  onOpenDetail={handleOpenDetailDefault}
                   onLaunch={handleLaunch}
                   onToggleFavorite={handleToggleFavorite}
                   onContextMenu={handleContextMenu}
@@ -569,7 +576,7 @@ export default function App() {
                     )
                   )}
                   runningId={runningId}
-                  onOpenDetail={(g) => handleOpenDetail(g, false)}
+                  onOpenDetail={handleOpenDetailDefault}
                   onLaunch={handleLaunch}
                   onToggleFavorite={handleToggleFavorite}
                   onContextMenu={handleContextMenu}
@@ -591,7 +598,7 @@ export default function App() {
                     )
                   )}
                   runningId={runningId}
-                  onOpenDetail={(g) => handleOpenDetail(g, false)}
+                  onOpenDetail={handleOpenDetailDefault}
                   onLaunch={handleLaunch}
                   onToggleFavorite={handleToggleFavorite}
                   onContextMenu={handleContextMenu}

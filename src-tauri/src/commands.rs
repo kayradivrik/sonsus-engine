@@ -54,14 +54,21 @@ pub fn get_cached_library() -> Result<Vec<UnifiedGame>, String> {
 
 #[tauri::command]
 pub async fn scan_all_libraries(state: State<'_, AppState>) -> Result<Vec<UnifiedGame>, String> {
-    let settings = state.settings.lock().unwrap().clone();
-    let sync_epic = settings.sync_epic_heroic;
+    let (sync_epic, steam_api_key, steam_id64_override, custom_steam_root) = {
+        let s = state.settings.lock().unwrap();
+        (
+            s.sync_epic_heroic,
+            s.steam_api_key.clone(),
+            s.steam_id64_override.clone(),
+            s.custom_steam_root.clone(),
+        )
+    };
 
     let (steam_games, epic_games, gog_games) = tokio::join!(
         scan_steam_all(
-            settings.steam_api_key.as_deref(),
-            settings.steam_id64_override.as_deref(),
-            settings.custom_steam_root.as_deref(),
+            steam_api_key.as_deref(),
+            steam_id64_override.as_deref(),
+            custom_steam_root.as_deref(),
         ),
         async move {
             if sync_epic {
@@ -612,23 +619,31 @@ pub fn clean_game_prefix(game_id: String) -> Result<String, String> {
 // --- Disk Alanı Analizi & Shader / Çöp Temizleyici ---
 
 #[tauri::command]
-pub fn analyze_disk_storage() -> crate::cleaner::StorageAnalysisResult {
-    crate::cleaner::analyze_storage()
+pub async fn analyze_disk_storage() -> Result<crate::cleaner::StorageAnalysisResult, String> {
+    tokio::task::spawn_blocking(crate::cleaner::analyze_storage)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn clean_storage_item(category_id: String) -> Result<u64, String> {
-    crate::cleaner::clean_storage_category(&category_id)
+pub async fn clean_storage_item(category_id: String) -> Result<u64, String> {
+    tokio::task::spawn_blocking(move || crate::cleaner::clean_storage_category(&category_id))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 // --- HP Victus & Donanım Güç / Fan Kontrolü ---
 
 #[tauri::command]
-pub fn get_hardware_thermal_status() -> crate::hardware::HardwareThermalStatus {
-    crate::hardware::read_hp_hardware_status()
+pub async fn get_hardware_thermal_status() -> Result<crate::hardware::HardwareThermalStatus, String> {
+    tokio::task::spawn_blocking(crate::hardware::read_hp_hardware_status)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn set_hardware_thermal_profile(profile: String) -> Result<String, String> {
-    crate::hardware::set_hardware_profile(&profile)
+pub async fn set_hardware_thermal_profile(profile: String) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || crate::hardware::set_hardware_profile(&profile))
+        .await
+        .map_err(|e| e.to_string())?
 }
