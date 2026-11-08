@@ -12,8 +12,8 @@ export const UltraFpsModal: React.FC<UltraFpsModalProps> = ({ onClose }) => {
   const [actionMsg, setActionMsg] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
 
-  // CS2 Preset formu
-  const [cs2Mode, setCs2Mode] = useState<"native_max_fps" | "gamescope_stretched">("native_max_fps");
+  // CS2 Preset formu: Varsayılan olarak 1000x1000 Stretched modunda gelsin
+  const [cs2Mode, setCs2Mode] = useState<"native_max_fps" | "gamescope_stretched">("gamescope_stretched");
   const [internalW, setInternalW] = useState(1000);
   const [internalH, setInternalH] = useState(1000);
   const [refreshHz, setRefreshHz] = useState(180);
