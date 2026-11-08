@@ -52,8 +52,13 @@ pub fn setup_system_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Erro
 
     let menu = menu_builder.build()?;
 
-    let _tray = TrayIconBuilder::new()
-        .tooltip("sonsus-engine // E-Spor & Game Hub")
+    let tray_icon = app.default_window_icon().cloned();
+    let mut builder = TrayIconBuilder::new()
+        .tooltip("sonsus-engine // E-Spor & Game Hub");
+    if let Some(icon) = tray_icon {
+        builder = builder.icon(icon);
+    }
+    let _tray = builder
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| {
