@@ -42,6 +42,9 @@ export const tauriApi = {
   getActiveDownloads: () =>
     invoke<DownloadTaskInfo[]>("get_active_downloads"),
 
+  syncSingleGameStatus: (gameId: string) =>
+    invoke<UnifiedGame | null>("sync_single_game_status", { gameId }),
+
   pickFolder: (initialDir?: string | null) =>
     invoke<string | null>("pick_folder", { initialDir: initialDir ?? null }),
 

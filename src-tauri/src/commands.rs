@@ -199,12 +199,36 @@ pub fn remove_download_task(
 }
 
 #[tauri::command]
-pub fn get_active_downloads(state: State<'_, AppState>) -> Vec<DownloadTaskInfo> {
+pub fn get_active_downloads(app: AppHandle, state: State<'_, AppState>) -> Vec<DownloadTaskInfo> {
     let mut tasks = state.downloads.list_tasks();
     let custom_steam = state.settings.lock().ok().and_then(|s| s.custom_steam_root.clone());
-    let mut steam_tasks = crate::steam_downloads::get_steam_active_downloads(custom_steam.as_deref());
+    let mut steam_tasks = crate::steam_downloads::get_steam_active_downloads(
+        Some(&app),
+        custom_steam.as_deref(),
+    );
     tasks.append(&mut steam_tasks);
     tasks
+}
+
+#[tauri::command]
+pub fn sync_single_game_status(
+    game_id: String,
+    state: State<'_, AppState>,
+) -> Result<Option<UnifiedGame>, String> {
+    if let Some(appid) = game_id.strip_prefix("steam:") {
+        let custom_steam = state
+            .settings
+            .lock()
+            .ok()
+            .and_then(|s| s.custom_steam_root.clone());
+        if let Some(game) =
+            crate::parsers::steam::find_and_parse_single_steam_game(custom_steam.as_deref(), appid)
+        {
+            let _ = crate::db::update_single_cached_game(&game);
+            return Ok(Some(game));
+        }
+    }
+    Ok(None)
 }
 
 #[tauri::command]

@@ -220,12 +220,29 @@ export default function App() {
             // Güncel steam veya dahili indirmeleri eşitle
             for (const item of list) {
               next.set(item.game_id, item);
+              if (item.status === "completed" && item.updated_game) {
+                handleGameUpdated(item.updated_game);
+                showToast(
+                  item.detail_text || `${item.title} indirmesi tamamlandı ve kütüphaneye eklendi!`
+                );
+              }
             }
-            // Artık var olmayan steam indirmelerini temizle
+            // Artık var olmayan steam indirmelerini temizle ve biten oyunun durumunu hemen senkronize et
             const currentIds = new Set(list.map((l) => l.game_id));
             for (const [k, v] of next.entries()) {
               if (v.platform === "steam" && !currentIds.has(k)) {
                 next.delete(k);
+                tauriApi
+                  .syncSingleGameStatus(k)
+                  .then((updated) => {
+                    if (updated && updated.status === "installed") {
+                      handleGameUpdated(updated);
+                      showToast(
+                        `${updated.title} Steam üzerinden başarıyla kuruldu!`
+                      );
+                    }
+                  })
+                  .catch(() => {});
               }
             }
             return next;

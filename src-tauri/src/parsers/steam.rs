@@ -534,6 +534,92 @@ fn extract_common_details(
     Some((found_name?, found_type?, map_genre_ids(&genre_ids, &tag_ids)))
 }
 
+pub fn parse_single_steam_app(
+    steam_root: &Path,
+    steamapps: &Path,
+    appid: &str,
+) -> Option<UnifiedGame> {
+    let acf_path = steamapps.join(format!("appmanifest_{appid}.acf"));
+    let acf_raw = fs::read_to_string(&acf_path).ok()?;
+    let manifest = keyvalues_serde::from_str::<AppManifest>(&acf_raw).ok()?;
+
+    if is_ignored_runtime(&manifest.appid, &manifest.name) {
+        return None;
+    }
+
+    let flags: u32 = manifest.state_flags.parse().unwrap_or(0);
+    let is_ready = (flags & 4) != 0;
+    let (cover, hero) = resolve_local_steam_media(steam_root, &manifest.appid);
+    let install_path = steamapps.join("common").join(&manifest.installdir);
+    let cdn_fallback = Some(steam_cdn_cover(&manifest.appid));
+
+    Some(UnifiedGame {
+        id: format!("steam:{}", manifest.appid),
+        platform_id: manifest.appid.clone(),
+        platform: Platform::Steam,
+        title: manifest.name,
+        status: if is_ready {
+            InstallStatus::Installed
+        } else {
+            InstallStatus::Cloud
+        },
+        install_path: Some(install_path),
+        size_bytes: manifest.size_on_disk.and_then(|s| s.parse().ok()),
+        playtime_minutes: 0,
+        last_played_epoch: manifest
+            .last_played
+            .and_then(|s| s.parse::<i64>().ok())
+            .filter(|&ts| ts > 0),
+        cover_path_or_url: cover.or_else(|| cdn_fallback.clone()),
+        fallback_cover_url: cdn_fallback,
+        hero_path_or_url: hero,
+        genres: Vec::new(),
+        developer: None,
+        store_slug: None,
+        summary_hint: None,
+        is_favorite: false,
+        is_hidden: false,
+        collection_tag: None,
+        update_available: None,
+        launch: Some(LaunchConfig {
+            command_uri_or_bin: format!("steam://rungameid/{}", manifest.appid),
+            args: vec![],
+            working_dir: None,
+            wine_prefix: None,
+        }),
+        install_uri: Some(format!("steam://install/{}", manifest.appid)),
+    })
+}
+
+pub fn find_and_parse_single_steam_game(
+    custom_root: Option<&str>,
+    appid: &str,
+) -> Option<UnifiedGame> {
+    let steam_root = find_steam_root_with_override(custom_root)?;
+    let mut library_paths: Vec<PathBuf> = vec![steam_root.clone()];
+    let vdf_path = steam_root.join("steamapps/libraryfolders.vdf");
+    if let Ok(vdf_raw) = fs::read_to_string(&vdf_path) {
+        if let Ok(parsed) = keyvalues_serde::from_str::<LibraryFoldersRoot>(&vdf_raw) {
+            for val in parsed.folders.values() {
+                if let Some(p) = val.get("path").and_then(|v| v.as_str()) {
+                    let pb = PathBuf::from(p);
+                    if !library_paths.contains(&pb) {
+                        library_paths.push(pb);
+                    }
+                }
+            }
+        }
+    }
+
+    for lib_root in library_paths {
+        let steamapps = lib_root.join("steamapps");
+        if let Some(game) = parse_single_steam_app(&steam_root, &steamapps, appid) {
+            return Some(game);
+        }
+    }
+    None
+}
+
 pub fn scan_steam_installed(steam_root: &Path) -> HashMap<String, UnifiedGame> {
     let mut installed = HashMap::new();
     let vdf_path = steam_root.join("steamapps/libraryfolders.vdf");
@@ -565,62 +651,16 @@ pub fn scan_steam_installed(steam_root: &Path) -> HashMap<String, UnifiedGame> {
             if !fname_str.starts_with("appmanifest_") || !fname_str.ends_with(".acf") {
                 continue;
             }
-            let Ok(acf_raw) = fs::read_to_string(file.path()) else {
-                continue;
-            };
-            let Ok(manifest) = keyvalues_serde::from_str::<AppManifest>(&acf_raw) else {
+            let Some(appid) = fname_str
+                .strip_prefix("appmanifest_")
+                .and_then(|s| s.strip_suffix(".acf"))
+            else {
                 continue;
             };
 
-            if is_ignored_runtime(&manifest.appid, &manifest.name) {
-                continue;
+            if let Some(game) = parse_single_steam_app(steam_root, &steamapps, appid) {
+                installed.insert(appid.to_string(), game);
             }
-
-            let flags: u32 = manifest.state_flags.parse().unwrap_or(0);
-            let is_ready = (flags & 4) != 0;
-            let (cover, hero) = resolve_local_steam_media(steam_root, &manifest.appid);
-            let install_path = steamapps.join("common").join(&manifest.installdir);
-            let cdn_fallback = Some(steam_cdn_cover(&manifest.appid));
-
-            installed.insert(
-                manifest.appid.clone(),
-                UnifiedGame {
-                    id: format!("steam:{}", manifest.appid),
-                    platform_id: manifest.appid.clone(),
-                    platform: Platform::Steam,
-                    title: manifest.name,
-                    status: if is_ready {
-                        InstallStatus::Installed
-                    } else {
-                        InstallStatus::Cloud
-                    },
-                    install_path: Some(install_path),
-                    size_bytes: manifest.size_on_disk.and_then(|s| s.parse().ok()),
-                    playtime_minutes: 0,
-                    last_played_epoch: manifest
-                        .last_played
-                        .and_then(|s| s.parse::<i64>().ok())
-                        .filter(|&ts| ts > 0),
-                    cover_path_or_url: cover.or_else(|| cdn_fallback.clone()),
-                    fallback_cover_url: cdn_fallback,
-                    hero_path_or_url: hero,
-                    genres: Vec::new(),
-                    developer: None,
-                    store_slug: None,
-                    summary_hint: None,
-                    is_favorite: false,
-                    is_hidden: false,
-                    collection_tag: None,
-                    update_available: None,
-                    launch: Some(LaunchConfig {
-                        command_uri_or_bin: format!("steam://rungameid/{}", manifest.appid),
-                        args: vec![],
-                        working_dir: None,
-                        wine_prefix: None,
-                    }),
-                    install_uri: Some(format!("steam://install/{}", manifest.appid)),
-                },
-            );
         }
     }
     installed

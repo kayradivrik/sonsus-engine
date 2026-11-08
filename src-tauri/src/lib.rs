@@ -32,7 +32,7 @@ use commands::{
     open_game_folder, open_game_install_dir, pause_game_download, pick_executable, pick_folder,
     remove_download_task, restore_game_save_backup, scan_all_libraries, set_game_hook_profile,
     set_game_preferences, set_hardware_thermal_profile, start_game_download, stop_extreme_boost_now, sync_game_cloud_saves,
-    trigger_extreme_boost_now, uninstall_game, update_app_settings, verify_or_repair_game,
+    sync_single_game_status, trigger_extreme_boost_now, uninstall_game, update_app_settings, verify_or_repair_game,
     AppState,
 };
 use db::load_settings;
@@ -106,6 +106,7 @@ pub fn run() {
             pause_game_download,
             remove_download_task,
             get_active_downloads,
+            sync_single_game_status,
             pick_folder,
             pick_executable,
             open_game_folder,
