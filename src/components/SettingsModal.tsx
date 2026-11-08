@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
+  Bell,
   FolderOpen,
   FolderSearch,
   HardDrive,
   KeyRound,
   MonitorCog,
+  RefreshCw,
   Save,
+  Terminal,
+  Trash2,
   UserCheck,
 } from "lucide-react";
 import { tauriApi } from "../api/tauriClient";
@@ -15,6 +19,7 @@ import {
   AppSettings,
   DisplayBackend,
   InstallLocationOption,
+  LaunchLogEntry,
   SystemDiagnostics,
   formatBytes,
 } from "../types/game";
@@ -29,7 +34,7 @@ interface SettingsModalProps {
   onSave: (next: AppSettings) => Promise<void>;
 }
 
-type SettingsSection = "storage" | "hooks" | "integrations";
+type SettingsSection = "storage" | "hooks" | "integrations" | "diagnostics";
 
 const BACKEND_OPTIONS: SelectOption<DisplayBackend>[] = [
   { value: "auto", label: "Otomatik Algıla" },
@@ -59,6 +64,35 @@ export function SettingsModal({
   );
   const [locations, setLocations] = useState<InstallLocationOption[]>([]);
   const [saving, setSaving] = useState(false);
+  const [logs, setLogs] = useState<LaunchLogEntry[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+
+  const fetchLogs = async () => {
+    setLoadingLogs(true);
+    try {
+      const data = await tauriApi.getLaunchLogs();
+      setLogs(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
+
+  useEffect(() => {
+    if (open && activeSection === "diagnostics") {
+      fetchLogs();
+    }
+  }, [open, activeSection]);
+
+  const handleClearLogs = async () => {
+    try {
+      await tauriApi.clearLaunchLogs();
+      setLogs([]);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const scrollRef = useRef<HTMLDivElement>(null);
   useSmoothWheel(scrollRef, open);
@@ -215,6 +249,19 @@ export function SettingsModal({
             >
               <KeyRound className="w-4 h-4" />
               <span>Mağaza ve API Bağlantıları</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveSection("diagnostics")}
+              className={`w-full h-11 px-4 rounded-full text-xs font-semibold flex items-center gap-3 transition-colors cursor-pointer ${
+                activeSection === "diagnostics"
+                  ? "bg-white text-black"
+                  : "bg-[#0c0c11] hover:bg-[#14141c] text-zinc-300 border border-white/[0.07]"
+              }`}
+            >
+              <Terminal className="w-4 h-4" />
+              <span>Başlatma & Çökme Günlükleri</span>
             </button>
           </aside>
 
@@ -822,6 +869,180 @@ export function SettingsModal({
                     </div>
                   </section>
                 )}
+              </>
+            )}
+
+            {activeSection === "diagnostics" && (
+              <>
+                {/* Masaüstü Bildirimleri & Çökme Uyarıları Ayarı */}
+                <section className="p-6 rounded-2xl bg-[#09090d] border border-white/[0.08] space-y-4">
+                  <div className="flex items-center gap-2.5">
+                    <Bell className="w-4 h-4 text-zinc-300" />
+                    <div>
+                      <h2 className="text-base font-bold text-white">
+                        Masaüstü Bildirimleri & Sistem Uyarıları
+                      </h2>
+                      <p className="text-[11px] text-zinc-400 mt-0.5">
+                        Oyun açılışlarında, indirmelerde ve çökme/hata durumlarında Linux masaüstü bildirimi (notify-send) gönderir.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 pt-2">
+                    <label className="flex items-start gap-3 p-3 rounded-xl bg-zinc-950 border border-white/[0.06] cursor-pointer hover:border-white/15 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={draft.desktop_notifications ?? true}
+                        onChange={(e) =>
+                          setDraft((prev) => ({
+                            ...prev,
+                            desktop_notifications: e.target.checked,
+                          }))
+                        }
+                        className="rounded bg-black border-white/20 accent-white mt-0.5 w-4 h-4"
+                      />
+                      <div>
+                        <div className="text-xs font-semibold text-white">
+                          Canlı Oyun Başlatma & Çökme Bildirimleri
+                        </div>
+                        <div className="text-[11px] text-zinc-400 mt-0.5">
+                          Oyun başladığında veya beklenmedik şekilde çöktüğünde masaüstünde anında hata ve çıkış kodu bildirimini göster.
+                        </div>
+                      </div>
+                    </label>
+
+                    <label className="flex items-start gap-3 p-3 rounded-xl bg-zinc-950 border border-white/[0.06] cursor-pointer hover:border-white/15 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={draft.minimize_to_tray ?? true}
+                        onChange={(e) =>
+                          setDraft((prev) => ({
+                            ...prev,
+                            minimize_to_tray: e.target.checked,
+                          }))
+                        }
+                        className="rounded bg-black border-white/20 accent-white mt-0.5 w-4 h-4"
+                      />
+                      <div>
+                        <div className="text-xs font-semibold text-white">
+                          Sistem Tepsisine Küçülme (System Tray)
+                        </div>
+                        <div className="text-[11px] text-zinc-400 mt-0.5">
+                          Pencere kapatıldığında arka plan indirmelerini ve oyun oturumunu kesintiye uğratmadan sistem tepsisinde çalışmayı sürdür.
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                </section>
+
+                {/* Canlı Oyun Başlatma & Çökme Günlükleri (Terminal Görünümü) */}
+                <section className="p-6 rounded-2xl bg-[#09090d] border border-white/[0.08] space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-base font-bold text-white flex items-center gap-2">
+                        <span>Canlı Başlatma & Çökme Günlükleri</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-zinc-300 font-mono">
+                          {logs.length} oturum
+                        </span>
+                      </h2>
+                      <p className="text-[11px] text-zinc-400 mt-0.5">
+                        Oyunların çalıştırılma komutları, kullanılan Proton/Wine sürümleri ve hata çıktıları.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={fetchLogs}
+                        disabled={loadingLogs}
+                        className="h-8 px-3 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-white/10 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                        title="Günlükleri Yenile"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${loadingLogs ? "animate-spin" : ""}`} />
+                        <span>Yenile</span>
+                      </button>
+
+                      {logs.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleClearLogs}
+                          className="h-8 px-3 rounded-lg bg-zinc-900 hover:bg-red-950/60 text-zinc-400 hover:text-red-300 border border-white/10 hover:border-red-500/30 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                          title="Tüm Günlükleri Temizle"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Temizle</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 pt-2">
+                    {loadingLogs ? (
+                      <div className="py-16 text-center text-zinc-500 text-xs">
+                        Günlükler taranıyor...
+                      </div>
+                    ) : logs.length === 0 ? (
+                      <div className="py-16 text-center text-zinc-500 text-xs bg-zinc-950/50 rounded-xl border border-white/5">
+                        Henüz kaydedilmiş bir oyun çalıştırma veya çökme günlüğü bulunmuyor.
+                      </div>
+                    ) : (
+                      logs.map((log) => {
+                        const isCrash = log.exit_code !== null && log.exit_code !== 0;
+                        return (
+                          <div
+                            key={log.id}
+                            className="p-4 bg-zinc-950 rounded-xl border border-white/[0.06] space-y-2.5 font-mono"
+                          >
+                            <div className="flex items-center justify-between border-b border-white/[0.06] pb-2 font-sans">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-white text-xs">{log.game_title}</span>
+                                <span
+                                  className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${
+                                    isCrash
+                                      ? "bg-red-950/80 text-red-300 border-red-500/30"
+                                      : log.exit_code === 0
+                                      ? "bg-white/10 text-white border-white/20"
+                                      : "bg-zinc-800 text-zinc-400 border-white/10"
+                                  }`}
+                                >
+                                  {log.exit_code === null
+                                    ? "Çalışıyor"
+                                    : isCrash
+                                    ? `Çöktü (Exit Code: ${log.exit_code})`
+                                    : "Başarılı (0)"}
+                                </span>
+                                {log.extreme_boost_active && (
+                                  <span className="text-[10px] bg-white/10 text-white border border-white/15 px-1.5 py-0.5 rounded">
+                                    Performans Modu
+                                  </span>
+                                )}
+                                {log.runner_used && (
+                                  <span className="text-[10px] text-zinc-400 bg-zinc-900 border border-white/5 px-1.5 py-0.5 rounded truncate max-w-[150px]">
+                                    {log.runner_used.split("/").pop()}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[10px] text-zinc-500 font-mono">
+                                {new Date(log.timestamp_epoch * 1000).toLocaleTimeString("tr-TR")}
+                              </span>
+                            </div>
+
+                            <div className="text-[11px] text-zinc-400 break-all bg-black/60 p-2 rounded-lg border border-white/5">
+                              <span className="text-zinc-600 select-none">$ </span>
+                              {log.command_repr}
+                            </div>
+
+                            {log.output_tail && (
+                              <div className="text-[11px] text-zinc-300 whitespace-pre-wrap leading-relaxed max-h-36 overflow-y-auto bg-black/40 p-2.5 rounded-lg border border-white/5 text-[10.5px]">
+                                {log.output_tail}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </section>
               </>
             )}
           </div>

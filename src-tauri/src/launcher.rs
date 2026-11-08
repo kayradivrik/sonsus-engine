@@ -487,6 +487,15 @@ pub async fn launch_with_hooks(game: UnifiedGame, hook: HookProfile) -> Result<u
     }
 
     if is_uri {
+        let log_id = crate::logs_store::record_launch_start(
+            &game.id,
+            &game.title,
+            target,
+            None,
+            hook.enabled && hook.extreme_boost,
+            "URI Protokolü üzerinden başlatıldı (Steam/Epic İstemcisi)...",
+        );
+
         open_uri_scheme(target)?;
 
         if game.platform == Platform::Steam {
@@ -512,10 +521,13 @@ pub async fn launch_with_hooks(game: UnifiedGame, hook: HookProfile) -> Result<u
         } else {
             sleep(Duration::from_secs(5)).await;
         }
+
+        crate::logs_store::finalize_launch_log(log_id, Some(0), "Oyun oturumu tamamlandı.");
     } else {
         let mut program = target.clone();
         let mut full_args = launch_cfg.args.clone();
         let mut extra_envs: Vec<(String, String)> = Vec::new();
+        let runner_repr = hook.runner_path.clone();
 
         // Özel Proton / GE-Proton / Wine uyumluluk katmanı seçimi (Linux)
         #[cfg(unix)]
@@ -665,10 +677,52 @@ pub async fn launch_with_hooks(game: UnifiedGame, hook: HookProfile) -> Result<u
             }
         }
 
+        let cmd_repr = format!("{} {}", program, full_args.join(" "));
+        let log_id = crate::logs_store::record_launch_start(
+            &game.id,
+            &game.title,
+            &cmd_repr,
+            runner_repr,
+            hook.enabled && hook.extreme_boost,
+            "Süreç başlatılıyor...",
+        );
+
         let mut child = tokio::process::Command::from(cmd)
             .spawn()
-            .map_err(|e| format!("Süreç başlatılamadı ({program}): {e}"))?;
-        let _ = child.wait().await;
+            .map_err(|e| {
+                let err_msg = format!("Süreç başlatılamadı ({program}): {e}");
+                crate::logs_store::finalize_launch_log(log_id, Some(-1), &err_msg);
+                err_msg
+            })?;
+        let wait_res = child.wait().await;
+        let exit_code = match wait_res {
+            Ok(status) => status.code(),
+            Err(e) => {
+                crate::logs_store::finalize_launch_log(
+                    log_id,
+                    Some(-1),
+                    &format!("Süreç sonlanma bekleme hatası: {e}"),
+                );
+                None
+            }
+        };
+
+        if let Some(code) = exit_code {
+            if code != 0 {
+                let crash_msg = format!("Oyun beklenmedik şekilde çöktü / kapandı (Çıkış Kodu: {code})");
+                crate::logs_store::finalize_launch_log(log_id, Some(code), &crash_msg);
+                crate::platform_os::send_desktop_notification(
+                    "Oyun Çöktü / Sonlandı",
+                    &format!("{} beklenmedik bir kodla kapandı (Kod: {})", game.title, code),
+                );
+            } else {
+                crate::logs_store::finalize_launch_log(
+                    log_id,
+                    Some(0),
+                    "Oyun başarıyla tamamlandı (Çıkış Kodu: 0).",
+                );
+            }
+        }
     }
 
     let elapsed_mins = started_at.elapsed().as_secs() / 60;

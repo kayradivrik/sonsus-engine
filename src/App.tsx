@@ -389,7 +389,6 @@ export default function App() {
           }}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenUltraFps={() => setUltraFpsOpen(true)}
-          onOpenLaunchLogs={() => setLaunchLogsOpen(true)}
         />
 
         {/* Filtre Şeridi (Kütüphane sekmesinde veya Arama yapıldığında görünür) */}

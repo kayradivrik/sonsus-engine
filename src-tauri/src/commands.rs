@@ -94,15 +94,35 @@ pub async fn launch_game(
     hook_override: Option<HookProfile>,
     state: State<'_, AppState>,
 ) -> Result<UnifiedGame, String> {
+    let settings = state.settings.lock().unwrap().clone();
     let hook = hook_override
         .or_else(|| load_game_hook(&game.id))
-        .unwrap_or_else(|| state.settings.lock().unwrap().default_hook.clone());
+        .unwrap_or_else(|| settings.default_hook.clone());
 
     let game_id = game.id.clone();
     let _ = app.emit("game-started", &game_id);
 
+    if settings.desktop_notifications {
+        crate::platform_os::send_desktop_notification(
+            "Oyun Başlatıldı",
+            &format!("{} başlatılıyor...", game.title),
+        );
+    }
+
     let res = launch_with_hooks(game.clone(), hook).await;
     let _ = app.emit("game-exited", &game_id);
+
+    match &res {
+        Ok(_) => {}
+        Err(err) => {
+            if settings.desktop_notifications {
+                crate::platform_os::send_desktop_notification(
+                    "Oyun Başlatılamadı",
+                    &format!("{}: {}", game.title, err),
+                );
+            }
+        }
+    }
 
     let session_mins = res?;
     if session_mins > 0 {

@@ -11,7 +11,6 @@ import {
   Search,
   Sliders,
   SlidersHorizontal,
-  Terminal,
   User,
 } from "lucide-react";
 import { AppNavTab, ViewMode } from "../types/game";
@@ -36,7 +35,6 @@ interface TopStatusBarProps {
   onOpenOnboarding: () => void;
   onOpenSettings: () => void;
   onOpenUltraFps: () => void;
-  onOpenLaunchLogs: () => void;
 }
 
 export function TopStatusBar({
@@ -58,7 +56,6 @@ export function TopStatusBar({
   onOpenOnboarding,
   onOpenSettings,
   onOpenUltraFps,
-  onOpenLaunchLogs,
 }: TopStatusBarProps) {
   return (
     <header className="h-16 w-full max-w-[1880px] mx-auto px-6 sm:px-8 xl:px-12 2xl:px-16 flex items-center justify-between gap-4 shrink-0">
@@ -228,18 +225,9 @@ export function TopStatusBar({
         <button
           onClick={onOpenSettings}
           className="w-9 h-9 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 hover:border-white/20 flex items-center justify-center text-zinc-300 hover:text-white transition-colors cursor-pointer outline-none"
-          title="Sistem Hookları ve Kontrol Merkezi"
+          title="Ayarlar & Başlatma Günlükleri"
         >
           <Sliders className="w-3.5 h-3.5" />
-        </button>
-
-        {/* Çalıştırma & Hata Logları */}
-        <button
-          onClick={onOpenLaunchLogs}
-          className="w-9 h-9 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 hover:border-white/20 flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer outline-none"
-          title="Çalıştırma & Çökme Günlükleri"
-        >
-          <Terminal className="w-3.5 h-3.5" />
         </button>
       </div>
     </header>
