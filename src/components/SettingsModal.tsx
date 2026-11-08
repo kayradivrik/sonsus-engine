@@ -1,3 +1,4 @@
+import { listen } from "@tauri-apps/api/event";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -94,12 +95,10 @@ export function SettingsModal({
 
   useEffect(() => {
     let unlisten: any;
-    import("@tauri-apps/api/event").then(({ listen }) => {
-      listen<RunnerInstallProgress>("runner-install-progress", (event) => {
-        setInstallProgress(event.payload);
-      }).then((u) => {
-        unlisten = u;
-      });
+    listen<RunnerInstallProgress>("runner-install-progress", (event) => {
+      setInstallProgress(event.payload);
+    }).then((u) => {
+      unlisten = u;
     });
     return () => {
       if (unlisten) unlisten();

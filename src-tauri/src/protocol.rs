@@ -65,37 +65,34 @@ pub fn handle_local_media_request(request: Request<Vec<u8>>, responder: UriSchem
         let file_path = normalize_local_media_path(&raw_path);
 
         if file_path.contains("..") {
-            responder.respond(
-                Response::builder()
-                    .status(StatusCode::FORBIDDEN)
-                    .header("Access-Control-Allow-Origin", "*")
-                    .body(Vec::new())
-                    .unwrap(),
-            );
+            let resp = Response::builder()
+                .status(StatusCode::FORBIDDEN)
+                .header("Access-Control-Allow-Origin", "*")
+                .body(Vec::new())
+                .unwrap_or_else(|_| Response::new(Vec::new()));
+            responder.respond(resp);
             return;
         }
 
         match tokio::fs::read(&file_path).await {
             Ok(bytes) => {
                 let mime = sniff_image_mime(&bytes);
-                responder.respond(
-                    Response::builder()
-                        .status(StatusCode::OK)
-                        .header("Content-Type", mime)
-                        .header("Access-Control-Allow-Origin", "*")
-                        .header("Cache-Control", "public, max-age=604800, immutable")
-                        .body(bytes)
-                        .unwrap(),
-                );
+                let resp = Response::builder()
+                    .status(StatusCode::OK)
+                    .header("Content-Type", mime)
+                    .header("Access-Control-Allow-Origin", "*")
+                    .header("Cache-Control", "public, max-age=604800, immutable")
+                    .body(bytes)
+                    .unwrap_or_else(|_| Response::new(Vec::new()));
+                responder.respond(resp);
             }
             Err(_) => {
-                responder.respond(
-                    Response::builder()
-                        .status(StatusCode::NOT_FOUND)
-                        .header("Access-Control-Allow-Origin", "*")
-                        .body(Vec::new())
-                        .unwrap(),
-                );
+                let resp = Response::builder()
+                    .status(StatusCode::NOT_FOUND)
+                    .header("Access-Control-Allow-Origin", "*")
+                    .body(Vec::new())
+                    .unwrap_or_else(|_| Response::new(Vec::new()));
+                responder.respond(resp);
             }
         }
     });
