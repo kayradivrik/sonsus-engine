@@ -25,15 +25,15 @@ export const HomeDealsSection: React.FC = () => {
     <section className="mb-12">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2.5">
-          <span className="flex items-center justify-center w-7 h-7 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400">
-            <Gift className="w-4 h-4" />
+          <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-white/5 border border-white/10 text-zinc-300">
+            <Gift className="w-3.5 h-3.5" />
           </span>
           <div>
-            <h2 className="text-lg font-bold text-white tracking-wide">
-              Haftalık Ücretsiz Oyunlar & İndirim Fırsatları
+            <h2 className="text-base font-bold text-white tracking-wide">
+              Haftalık Fırsatlar & Ücretsiz Oyunlar
             </h2>
-            <p className="text-xs text-zinc-400">
-              Epic Games ücretsiz oyunları ve Steam'deki en yüksek indirimler
+            <p className="text-[11px] text-zinc-400">
+              Epic Games ve Steam vitrinindeki indirimler
             </p>
           </div>
         </div>
@@ -73,15 +73,15 @@ export const HomeDealsSection: React.FC = () => {
                 {/* İndirim / Ücretsiz Rozeti */}
                 <div className="absolute top-2 left-2 flex items-center gap-1.5">
                   <span
-                    className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
                       deal.is_free
-                        ? "bg-rose-500 text-white shadow-lg shadow-rose-500/40 animate-pulse"
-                        : "bg-emerald-500 text-black font-extrabold"
+                        ? "bg-white text-black"
+                        : "bg-zinc-800 border border-white/20 text-zinc-100"
                     }`}
                   >
                     {deal.is_free ? "ÜCRETSİZ" : `-%${deal.discount_percent}`}
                   </span>
-                  <span className="px-1.5 py-0.5 rounded-md bg-black/60 backdrop-blur-md text-[9px] uppercase tracking-wider text-white/70 font-bold border border-white/10">
+                  <span className="px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-md text-[9px] uppercase tracking-wider text-zinc-400 font-medium border border-white/10">
                     {deal.store}
                   </span>
                 </div>
@@ -89,7 +89,7 @@ export const HomeDealsSection: React.FC = () => {
 
               {/* Başlık ve Fiyat Paneli */}
               <div className="p-3 flex-1 flex flex-col justify-between">
-                <div className="text-xs font-bold text-white line-clamp-1 group-hover:text-emerald-300 transition-colors">
+                <div className="text-xs font-semibold text-zinc-100 line-clamp-1 group-hover:text-white transition-colors">
                   {deal.title}
                 </div>
 
@@ -100,16 +100,12 @@ export const HomeDealsSection: React.FC = () => {
                         {deal.original_price}
                       </span>
                     )}
-                    <span
-                      className={`text-xs font-extrabold ${
-                        deal.is_free ? "text-rose-400" : "text-emerald-400"
-                      }`}
-                    >
+                    <span className="text-xs font-bold text-zinc-100">
                       {deal.final_price}
                     </span>
                   </div>
 
-                  <ExternalLink className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors" />
+                  <ExternalLink className="w-3.5 h-3.5 text-zinc-500 group-hover:text-zinc-300 transition-colors" />
                 </div>
               </div>
             </div>

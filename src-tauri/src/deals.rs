@@ -158,3 +158,4 @@ pub async fn get_all_curated_deals() -> Vec<GameDealItem> {
     all.extend(steam);
     all
 }
+

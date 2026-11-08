@@ -95,3 +95,4 @@ export const HomeCategoryShelf: React.FC<HomeCategoryShelfProps> = ({
     </section>
   );
 };
+

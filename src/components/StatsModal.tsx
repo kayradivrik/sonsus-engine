@@ -102,7 +102,7 @@ export function StatsModal({
         {/* Başlık */}
         <div className="px-7 py-5 border-b border-white/[0.07] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+            <div className="w-9 h-9 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white">
               <BarChart3 className="w-4 h-4" />
             </div>
             <div>
@@ -146,9 +146,9 @@ export function StatsModal({
             <div className="p-4 rounded-2xl bg-[#0c0c12] border border-white/[0.08] space-y-1">
               <div className="flex items-center justify-between text-xs text-zinc-400">
                 <span>Toplam Oynama Süresi</span>
-                <Clock className="w-4 h-4 text-emerald-400" />
+                <Clock className="w-4 h-4 text-zinc-300" />
               </div>
-              <div className="text-2xl font-extrabold text-emerald-400 tabular-nums">
+              <div className="text-2xl font-extrabold text-white tabular-nums">
                 {stats.totalHours} saat
               </div>
               <div className="text-[11px] text-zinc-500">
@@ -159,7 +159,7 @@ export function StatsModal({
             <div className="p-4 rounded-2xl bg-[#0c0c12] border border-white/[0.08] space-y-1">
               <div className="flex items-center justify-between text-xs text-zinc-400">
                 <span>Yüklü Disk Kullanımı</span>
-                <HardDrive className="w-4 h-4 text-blue-400" />
+                <HardDrive className="w-4 h-4 text-zinc-300" />
               </div>
               <div className="text-2xl font-extrabold text-white tabular-nums">
                 {formatBytes(stats.totalDiskBytes)}
@@ -172,7 +172,7 @@ export function StatsModal({
             <div className="p-4 rounded-2xl bg-[#0c0c12] border border-white/[0.08] space-y-1">
               <div className="flex items-center justify-between text-xs text-zinc-400">
                 <span>Favori Koleksiyonu</span>
-                <Heart className="w-4 h-4 text-rose-400" />
+                <Heart className="w-4 h-4 text-white" />
               </div>
               <div className="text-2xl font-extrabold text-white tabular-nums">
                 {stats.favCount}
@@ -187,7 +187,7 @@ export function StatsModal({
             {/* Sol: En Çok Oynanan 8 Oyun */}
             <div className="lg:col-span-7 p-5 rounded-2xl bg-[#0c0c12] border border-white/[0.08] space-y-4">
               <div className="flex items-center gap-2 text-sm font-bold text-white">
-                <Trophy className="w-4 h-4 text-amber-400" />
+                <Trophy className="w-4 h-4 text-zinc-300" />
                 <span>En Çok Oynanan Oyunlar</span>
               </div>
 
@@ -229,13 +229,13 @@ export function StatsModal({
                             <span className="font-bold text-zinc-100 truncate">
                               {g.title}
                             </span>
-                            <span className="text-emerald-400 font-semibold shrink-0 tabular-nums">
+                            <span className="text-zinc-200 font-semibold shrink-0 tabular-nums">
                               {formatPlaytime(g.playtime_minutes)}
                             </span>
                           </div>
                           <div className="h-1.5 rounded-full bg-white/[0.07] overflow-hidden">
                             <div
-                              className="h-full rounded-full bg-emerald-500"
+                              className="h-full rounded-full bg-white"
                               style={{ width: `${pct}%` }}
                             />
                           </div>

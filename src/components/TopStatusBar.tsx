@@ -11,6 +11,7 @@ import {
   Plus,
   RefreshCw,
   Sliders,
+  Terminal,
   User,
   Zap,
 } from "lucide-react";
@@ -137,7 +138,7 @@ export function TopStatusBar({
           }`}
         >
           <span>Yüklü</span>
-          <span className="text-[11px] text-emerald-400 font-semibold tabular-nums">
+          <span className="text-[11px] text-zinc-300 font-medium tabular-nums">
             {installedCount}
           </span>
         </button>
@@ -160,18 +161,18 @@ export function TopStatusBar({
           }
           className={`px-3.5 py-1.5 rounded-full font-medium transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
             statusFilter === "favorites"
-              ? "bg-rose-500/15 text-rose-200 border border-rose-500/40 shadow-sm"
+              ? "bg-white/10 text-white border border-white/20 shadow-sm"
               : "text-zinc-400 hover:text-white border border-transparent"
           }`}
         >
           <Heart
             className={`w-3.5 h-3.5 ${
-              statusFilter === "favorites" ? "text-rose-400 fill-rose-400" : ""
+              statusFilter === "favorites" ? "text-white fill-white" : ""
             }`}
           />
           <span>Favoriler</span>
           {favoritesCount > 0 && (
-            <span className="text-[11px] text-rose-400 font-semibold tabular-nums">
+            <span className="text-[11px] text-zinc-400 font-medium tabular-nums">
               {favoritesCount}
             </span>
           )}
@@ -197,7 +198,7 @@ export function TopStatusBar({
           className="h-8 px-3 rounded-full bg-[#121216] hover:bg-[#1c1c22] border border-white/[0.08] text-zinc-300 hover:text-white text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer shrink-0"
           title="Harici (.exe, .AppImage, .sh) Oyun Ekle"
         >
-          <Plus className="w-3.5 h-3.5 text-emerald-400" />
+          <Plus className="w-3.5 h-3.5 text-zinc-300" />
           <span className="hidden xl:inline">Oyun Ekle</span>
         </button>
 
@@ -211,42 +212,39 @@ export function TopStatusBar({
           <BarChart3 className="w-3.5 h-3.5" />
         </button>
 
-        {/* İndirme Yöneticisi Kapsülü */}
         {/* E-Spor Ultra FPS & Konsol Modu Pill Tuşları */}
         {controllerName && (
           <div
-            className="h-8 px-2.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-1.5 text-xs text-emerald-300 shrink-0"
+            className="h-8 px-2.5 rounded-full bg-white/[0.05] border border-white/10 flex items-center gap-1.5 text-xs text-zinc-300 shrink-0"
             title={`Oyun Kolu Bağlı: ${controllerName}`}
           >
-            <Gamepad2 className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-            <span className="font-semibold text-[11px] hidden md:inline">Konsol Modu</span>
+            <Gamepad2 className="w-3.5 h-3.5 text-zinc-300" />
+            <span className="font-medium text-[11px] hidden md:inline">Konsol Modu</span>
           </div>
         )}
 
         <button
           type="button"
           onClick={onOpenUltraFps}
-          className="h-8 px-3 rounded-full bg-gradient-to-r from-emerald-600/20 to-teal-600/20 hover:from-emerald-600/30 hover:to-teal-600/30 border border-emerald-500/40 text-emerald-300 hover:text-white flex items-center gap-1.5 text-xs font-bold transition-all shadow-sm shadow-emerald-500/20 cursor-pointer shrink-0"
-          title="⚡ CS2 & Linux E-Spor Ultra FPS Motoru (Psikopat Mod)"
+          className="h-8 px-3 rounded-full bg-white/10 hover:bg-white/15 border border-white/20 text-zinc-100 hover:text-white flex items-center gap-1.5 text-xs font-medium transition-all cursor-pointer shrink-0"
+          title="⚡ CS2 & Linux E-Spor Ultra FPS Motoru"
         >
-          <Zap className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400 animate-pulse" />
+          <Zap className="w-3.5 h-3.5 text-zinc-300" />
           <span className="tracking-wide">Ultra FPS</span>
         </button>
 
         <button
           type="button"
           onClick={onOpenDownloads}
-          className={`h-8 px-3 rounded-full border flex items-center gap-1.5 text-xs font-semibold transition-all cursor-pointer shrink-0 ${
+          className={`h-8 px-3 rounded-full border flex items-center gap-1.5 text-xs font-medium transition-all cursor-pointer shrink-0 ${
             activeDownloadsCount > 0
-              ? "bg-blue-600/20 border-blue-500/50 text-blue-200 shadow-[0_0_20px_rgba(37,99,235,0.25)]"
+              ? "bg-white/15 border-white/30 text-white"
               : "bg-[#121216] hover:bg-[#1c1c22] border-white/[0.08] text-zinc-400 hover:text-white"
           }`}
           title="Uygulama İçi İndirme & Doğrulama Yöneticisi"
         >
           <Download
-            className={`w-3.5 h-3.5 ${
-              activeDownloadsCount > 0 ? "text-blue-400 animate-bounce" : ""
-            }`}
+            className="w-3.5 h-3.5 text-zinc-400"
           />
           {activeDownloadsCount > 0 ? (
             <span className="tabular-nums">
@@ -285,7 +283,7 @@ export function TopStatusBar({
           className="h-8 px-3 rounded-full bg-[#14141b] hover:bg-[#1e1e28] border border-white/12 text-xs font-semibold text-zinc-200 hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
           title="Giriş Ekranı ve Mağaza Hesapları (Steam / Epic / GOG)"
         >
-          <User className="w-3.5 h-3.5 text-emerald-400" />
+          <User className="w-3.5 h-3.5 text-zinc-400" />
           <span className="max-w-[96px] truncate">
             {playerName || "Hesaplar"}
           </span>
@@ -304,7 +302,7 @@ export function TopStatusBar({
           className="w-8 h-8 rounded-full bg-[#121216] hover:bg-[#1c1c22] border border-white/[0.08] flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
           title="Çalıştırma & Çökme Günlükleri"
         >
-          <span className="text-xs">📋</span>
+          <Terminal className="w-3.5 h-3.5" />
         </button>
       </div>
     </header>

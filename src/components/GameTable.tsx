@@ -55,11 +55,11 @@ export function GameTable({
                       e.stopPropagation();
                       onToggleFavorite(g);
                     }}
-                    className="text-zinc-500 hover:text-rose-400 cursor-pointer"
+                    className="text-zinc-500 hover:text-white cursor-pointer"
                   >
                     <Heart
                       className={`w-3.5 h-3.5 ${
-                        g.is_favorite ? "text-rose-400 fill-rose-400" : ""
+                        g.is_favorite ? "text-white fill-white" : ""
                       }`}
                     />
                   </button>
@@ -68,15 +68,15 @@ export function GameTable({
                   {g.title}
                 </td>
                 <td className="py-2.5 px-4">
-                  <span className="bg-white text-black text-[9px] font-black uppercase px-2 py-0.5 rounded-[3px]">
+                  <span className="bg-zinc-800 text-zinc-200 border border-white/10 text-[9px] font-bold uppercase px-2 py-0.5 rounded">
                     {platformLabel(g.platform)}
                   </span>
                 </td>
                 <td className="py-2.5 px-4">
                   {isRunning ? (
-                    <span className="text-amber-400 font-semibold">Çalışıyor</span>
+                    <span className="text-white font-semibold">Çalışıyor</span>
                   ) : isInst ? (
-                    <span className="text-emerald-400 font-semibold">Yüklü</span>
+                    <span className="text-zinc-300 font-medium">Yüklü</span>
                   ) : (
                     <span className="text-zinc-500">Bulutta</span>
                   )}
@@ -99,7 +99,7 @@ export function GameTable({
                         onLaunch(g);
                       }}
                       disabled={isRunning}
-                      className="px-3.5 py-1 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer"
+                      className="px-3.5 py-1 rounded-full bg-white hover:bg-zinc-200 text-black text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer"
                     >
                       <Play className="w-3 h-3 fill-black" />
                       <span>Oyna</span>
@@ -111,7 +111,7 @@ export function GameTable({
                         e.stopPropagation();
                         onOpenDetail(g, true);
                       }}
-                      className="px-3.5 py-1 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-semibold inline-flex items-center gap-1 cursor-pointer"
+                      className="px-3.5 py-1 rounded-full bg-white/10 hover:bg-white/20 text-white text-[11px] font-semibold inline-flex items-center gap-1 cursor-pointer"
                     >
                       <Download className="w-3 h-3" />
                       <span>İndir</span>

@@ -5,6 +5,23 @@
     color-scheme: dark;
   }
 
+  *, *::before, *::after {
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button:focus,
+  button:focus-visible,
+  input:focus,
+  input:focus-visible,
+  select:focus,
+  select:focus-visible,
+  textarea:focus,
+  textarea:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
   html,
   body,
   #root {

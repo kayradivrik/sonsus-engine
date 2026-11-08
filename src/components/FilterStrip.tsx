@@ -59,14 +59,14 @@ export function FilterStrip({
 
   const headingText =
     statusFilter === "installed"
-      ? "Yüklü oyunlar"
+      ? "Yüklü Oyunlar"
       : statusFilter === "cloud"
-      ? "Bulut kütüphanesi"
+      ? "Bulut Kütüphanesi"
       : statusFilter === "favorites"
-      ? "Favorilerim"
+      ? "Favori Oyunlar"
       : statusFilter === "hidden"
-      ? "Gizlenen oyunlar"
-      : "The library";
+      ? "Gizlenen Oyunlar"
+      : "Kütüphane";
 
   const stores: { key: "all" | Platform; label: string; count: number }[] = [
     { key: "all", label: "Tümü", count: counts.all },
@@ -83,7 +83,7 @@ export function FilterStrip({
       {/* Başlık + Özel Karanlık Sıralama Menüsü & Sayaç */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <h1 className="text-[32px] md:text-[36px] font-bold tracking-tight text-white leading-none">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white leading-none">
             {headingText}
           </h1>
 
@@ -93,10 +93,10 @@ export function FilterStrip({
               onClick={() =>
                 onStatusFilterChange(statusFilter === "hidden" ? "all" : "hidden")
               }
-              className={`h-7 px-3 rounded-full text-[11px] font-medium flex items-center gap-1.5 border cursor-pointer transition-colors ${
+              className={`h-7 px-3 rounded-full text-[11px] font-medium flex items-center gap-1.5 border cursor-pointer transition-colors outline-none ${
                 statusFilter === "hidden"
                   ? "bg-white text-black border-white font-semibold"
-                  : "bg-[#0c0c10] text-zinc-400 hover:text-zinc-200 border-white/10"
+                  : "bg-zinc-900/80 text-zinc-400 hover:text-zinc-200 border-white/10"
               }`}
               title="Gizlenen oyunları göster / gizle"
             >
@@ -114,7 +114,7 @@ export function FilterStrip({
             onChange={onSortModeChange}
             className="w-48"
           />
-          <span className="text-[13px] font-medium text-zinc-400 tabular-nums">
+          <span className="text-xs font-medium text-zinc-400 tabular-nums">
             {visibleCount.toLocaleString("tr-TR")} oyun
           </span>
         </div>
@@ -131,12 +131,12 @@ export function FilterStrip({
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
             placeholder="Oyun ara... (/ veya Ctrl+K)"
-            className="w-full h-9 rounded-full bg-[#0c0c10] border border-white/[0.09] focus:border-white/30 pl-9 pr-8 text-[13px] text-zinc-100 placeholder:text-zinc-500 outline-none transition-colors"
+            className="w-full h-9 rounded-full bg-zinc-900/60 hover:bg-zinc-900/90 border border-white/10 focus:border-white/30 pl-9 pr-8 text-[13px] text-zinc-100 placeholder:text-zinc-500 outline-none transition-colors"
           />
           {query && (
             <button
               onClick={() => onQueryChange("")}
-              className="absolute right-3 text-zinc-500 hover:text-zinc-200 cursor-pointer"
+              className="absolute right-3 text-zinc-500 hover:text-zinc-200 cursor-pointer outline-none"
               title="Aramayı temizle"
             >
               <X className="w-3.5 h-3.5" />
@@ -145,7 +145,7 @@ export function FilterStrip({
         </div>
 
         {/* Sade, Tek Katmanlı Mağaza Seçici */}
-        <div className="h-9 rounded-full bg-[#0c0c10] border border-white/[0.09] p-1 flex items-center gap-0.5 shrink-0">
+        <div className="h-9 rounded-full bg-zinc-900/60 border border-white/10 p-1 flex items-center gap-0.5 shrink-0">
           {stores.map((st) => {
             const active = platformFilter === st.key;
             return (
@@ -156,7 +156,7 @@ export function FilterStrip({
                     active && st.key !== "all" ? "all" : st.key
                   )
                 }
-                className={`h-full px-3.5 rounded-full text-xs font-medium flex items-center gap-1.5 transition-all duration-200 cursor-pointer ${
+                className={`h-full px-3.5 rounded-full text-xs font-medium flex items-center gap-1.5 transition-all duration-150 cursor-pointer outline-none ${
                   active
                     ? "bg-white text-black font-semibold shadow-sm"
                     : "text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.04]"
@@ -164,7 +164,7 @@ export function FilterStrip({
               >
                 <span>{st.label}</span>
                 {st.key !== "all" && (
-                  <span className="text-[10px] tabular-nums text-zinc-600">
+                  <span className="text-[10px] tabular-nums text-zinc-500">
                     {st.count}
                   </span>
                 )}
@@ -185,14 +185,14 @@ export function FilterStrip({
                 <button
                   key={`col-${c.name}`}
                   onClick={() => onCollectionFilterChange?.(active ? null : c.name)}
-                  className={`h-9 px-4 rounded-full border text-xs whitespace-nowrap flex items-center gap-1.5 shrink-0 transition-all duration-150 cursor-pointer ${
+                  className={`h-9 px-4 rounded-full border text-xs whitespace-nowrap flex items-center gap-1.5 shrink-0 transition-all duration-150 cursor-pointer outline-none ${
                     active
-                      ? "border-amber-400 bg-amber-400/20 text-amber-200 font-semibold"
-                      : "border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 text-amber-300/80"
+                      ? "border-white/40 bg-white/15 text-white font-medium"
+                      : "border-white/[0.08] bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300"
                   }`}
                 >
-                  <span>★ {c.name}</span>
-                  <span className={active ? "text-amber-200" : "text-amber-500/60"}>
+                  <span>{c.name}</span>
+                  <span className={active ? "text-zinc-200" : "text-zinc-500"}>
                     {c.count}
                   </span>
                 </button>
@@ -205,10 +205,10 @@ export function FilterStrip({
                 <button
                   key={g.name}
                   onClick={() => onGenreFilterChange(active ? null : g.name)}
-                  className={`h-9 px-4 rounded-full border text-xs whitespace-nowrap flex items-center gap-1.5 shrink-0 transition-all duration-150 cursor-pointer ${
+                  className={`h-9 px-4 rounded-full border text-xs whitespace-nowrap flex items-center gap-1.5 shrink-0 transition-all duration-150 cursor-pointer outline-none ${
                     active
-                      ? "border-white/70 bg-white/[0.13] text-white font-semibold"
-                      : "border-white/[0.08] bg-[#0c0c10] hover:bg-[#15151c] text-zinc-300"
+                      ? "border-white/50 bg-white/20 text-white font-semibold"
+                      : "border-white/[0.08] bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300"
                   }`}
                 >
                   <span>{g.name}</span>
@@ -224,14 +224,14 @@ export function FilterStrip({
             <div className="absolute right-0 flex items-center gap-1 pl-4 bg-gradient-to-l from-black via-black/90 to-transparent">
               <button
                 onClick={() => scrollPills(-260)}
-                className="w-7 h-7 rounded-full bg-[#14141a] hover:bg-[#22222c] border border-white/12 flex items-center justify-center text-zinc-300 cursor-pointer transition-colors"
+                className="w-7 h-7 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-300 cursor-pointer transition-colors outline-none"
                 title="Sola kaydır"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => scrollPills(260)}
-                className="w-7 h-7 rounded-full bg-[#14141a] hover:bg-[#22222c] border border-white/12 flex items-center justify-center text-zinc-300 cursor-pointer transition-colors"
+                className="w-7 h-7 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-300 cursor-pointer transition-colors outline-none"
                 title="Sağa kaydır"
               >
                 <ChevronRight className="w-3.5 h-3.5" />

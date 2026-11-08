@@ -263,7 +263,7 @@ export function SettingsModal({
                           className="h-10 px-3 rounded-xl bg-[#14141c] hover:bg-[#1d1d28] border border-white/12 text-zinc-300 hover:text-white cursor-pointer"
                           title="Klasör seç"
                         >
-                          <FolderSearch className="w-4 h-4 text-blue-400" />
+                          <FolderSearch className="w-4 h-4 text-zinc-300" />
                         </button>
                         {(draft.default_install_dir || fallbackInstallDir) && (
                           <button
@@ -311,7 +311,7 @@ export function SettingsModal({
                           className="h-10 px-3 rounded-xl bg-[#14141c] hover:bg-[#1d1d28] border border-white/12 text-zinc-300 hover:text-white cursor-pointer"
                           title="Klasör seç"
                         >
-                          <FolderSearch className="w-4 h-4 text-blue-400" />
+                          <FolderSearch className="w-4 h-4 text-zinc-300" />
                         </button>
                       </div>
                     </div>
@@ -350,7 +350,7 @@ export function SettingsModal({
                           className="h-10 px-3 rounded-xl bg-[#14141c] hover:bg-[#1d1d28] border border-white/12 text-zinc-300 hover:text-white cursor-pointer"
                           title="Özel Steam kök klasörü seç"
                         >
-                          <FolderSearch className="w-4 h-4 text-blue-400" />
+                          <FolderSearch className="w-4 h-4 text-zinc-300" />
                         </button>
                         {(draft.custom_steam_root || diagnostics?.detected_steam_root) && (
                           <button
@@ -384,7 +384,7 @@ export function SettingsModal({
                               sync_epic_heroic: e.target.checked,
                             })
                           }
-                          className="w-4 h-4 accent-emerald-500"
+                          className="w-4 h-4 accent-white rounded"
                         />
                       </label>
                     </div>
@@ -417,7 +417,7 @@ export function SettingsModal({
                             }
                             className={`p-4 rounded-xl border text-left transition-colors cursor-pointer ${
                               selected
-                                ? "border-emerald-500/60 bg-emerald-500/[0.08]"
+                                ? "border-white/40 bg-white/10"
                                 : "border-white/[0.08] bg-black hover:border-white/25"
                             }`}
                           >
@@ -425,7 +425,7 @@ export function SettingsModal({
                               <span className="font-semibold text-zinc-100 truncate">
                                 {loc.label}
                               </span>
-                              <span className="text-[11px] text-emerald-400 font-semibold shrink-0">
+                              <span className="text-[11px] text-zinc-300 font-semibold shrink-0">
                                 {formatBytes(loc.free_bytes)} boş
                               </span>
                             </div>
@@ -472,7 +472,7 @@ export function SettingsModal({
                           },
                         })
                       }
-                      className="w-4 h-4 accent-emerald-500"
+                      className="w-4 h-4 accent-white rounded"
                     />
                     <span>Aktif</span>
                   </label>
@@ -593,7 +593,7 @@ export function SettingsModal({
                           },
                         })
                       }
-                      className="w-4 h-4 accent-emerald-500"
+                      className="w-4 h-4 accent-white rounded"
                     />
                     <span>GameMode (`gamemoderun`)</span>
                   </label>
@@ -611,7 +611,7 @@ export function SettingsModal({
                           },
                         })
                       }
-                      className="w-4 h-4 accent-emerald-500"
+                      className="w-4 h-4 accent-white rounded"
                     />
                     <span>MangoHud FPS Katmanı</span>
                   </label>
@@ -629,7 +629,7 @@ export function SettingsModal({
                           },
                         })
                       }
-                      className="w-4 h-4 accent-emerald-500"
+                      className="w-4 h-4 accent-white rounded"
                     />
                     <span>Gamescope AMD FSR</span>
                   </label>
@@ -725,7 +725,7 @@ export function SettingsModal({
                       onClose();
                       onOpenOnboarding();
                     }}
-                    className="h-10 px-5 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs flex items-center gap-2 shrink-0 cursor-pointer"
+                    className="h-10 px-5 rounded-full bg-white hover:bg-zinc-200 text-black font-bold text-xs flex items-center gap-2 shrink-0 cursor-pointer"
                   >
                     <UserCheck className="w-4 h-4" />
                     <span>Giriş & Hesap Ekranını Aç</span>
@@ -795,7 +795,7 @@ export function SettingsModal({
                       </div>
                       <div>
                         Algılanan Proton / Wine Sürümleri:{" "}
-                        <span className="text-emerald-400 font-semibold">
+                        <span className="text-white font-semibold">
                           {diagnostics.runners.length} adet
                         </span>
                       </div>
@@ -812,7 +812,7 @@ export function SettingsModal({
                           key={String(name)}
                           className={`px-3 py-1 rounded-full text-[11px] border ${
                             ok
-                              ? "border-emerald-500/35 bg-emerald-500/10 text-emerald-300"
+                              ? "border-white/20 bg-white/10 text-white"
                               : "border-white/[0.06] text-zinc-600"
                           }`}
                         >

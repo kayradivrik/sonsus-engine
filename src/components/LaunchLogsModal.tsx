@@ -74,17 +74,17 @@ export const LaunchLogsModal: React.FC<LaunchLogsModalProps> = ({ onClose, gameI
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-white font-sans">{log.game_title}</span>
                     <span
-                      className={`text-[10px] px-2 py-0.5 rounded-full ${
+                      className={`text-[10px] px-2 py-0.5 rounded-full border ${
                         log.exit_code === 0 || log.exit_code === null
-                          ? "bg-emerald-500/20 text-emerald-400"
-                          : "bg-red-500/20 text-red-400"
+                          ? "bg-white/10 text-white border-white/20"
+                          : "bg-zinc-800 text-zinc-300 border-white/10"
                       }`}
                     >
                       {log.exit_code !== null ? `Çıkış Kodu: ${log.exit_code}` : "Çalışıyor / Başarılı"}
                     </span>
                     {log.extreme_boost_active && (
-                      <span className="text-[10px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded">
-                        ⚡ Ultra FPS
+                      <span className="text-[10px] bg-white/15 text-white border border-white/20 px-1.5 py-0.5 rounded font-mono">
+                        Ultra FPS
                       </span>
                     )}
                   </div>
@@ -94,7 +94,7 @@ export const LaunchLogsModal: React.FC<LaunchLogsModalProps> = ({ onClose, gameI
                 </div>
 
                 <div className="text-white/60 text-[11px] break-all">
-                  <span className="text-emerald-400">$ </span>
+                  <span className="text-zinc-400">$ </span>
                   {log.command_repr}
                 </div>
 

@@ -215,7 +215,7 @@ export function OnboardingScreen({
         {/* Karşılama Başlığı & Oyuncu Kimliği */}
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
           <div className="space-y-2.5 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-[11px] font-semibold">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-zinc-300 text-[11px] font-semibold">
               <Sparkles className="w-3.5 h-3.5" />
               <span>Steam • Epic Games • GOG • Yerel Oyunlar Tek Çatıda</span>
             </div>
@@ -233,7 +233,7 @@ export function OnboardingScreen({
           {/* Oyuncu Profil Kapsülü */}
           <div className="w-full lg:w-80 p-4 rounded-2xl bg-[#09090d] border border-white/[0.09] space-y-2">
             <label className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-400">
-              <User className="w-3.5 h-3.5 text-emerald-400" />
+              <User className="w-3.5 h-3.5 text-zinc-300" />
               <span>Oyuncu Adı / Profil Etiketi</span>
             </label>
             <input
@@ -256,7 +256,7 @@ export function OnboardingScreen({
                   STEAM
                 </span>
                 {auth?.steam_connected ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-white/10 text-white border border-white/20">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>Algılandı</span>
                   </span>
@@ -283,11 +283,11 @@ export function OnboardingScreen({
 
             <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-[11px] text-zinc-400">
               <span className="inline-flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <ShieldCheck className="w-3.5 h-3.5 text-zinc-400" />
                 <span>Şifre gerekmez (Yerel VDF)</span>
               </span>
               {auth?.steam_connected && (
-                <span className="text-emerald-400 font-semibold">Hazır</span>
+                <span className="text-white font-semibold">Hazır</span>
               )}
             </div>
           </div>
@@ -300,12 +300,12 @@ export function OnboardingScreen({
                   EPIC GAMES
                 </span>
                 {auth?.epic_connected ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-white/10 text-white border border-white/20">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>Bağlı</span>
                   </span>
                 ) : (
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] bg-blue-500/12 text-blue-300 border border-blue-500/25">
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] bg-white/[0.05] text-zinc-400 border border-white/10">
                     Doğrudan Giriş
                   </span>
                 )}
@@ -327,10 +327,10 @@ export function OnboardingScreen({
                   <button
                     type="button"
                     onClick={() => handleOpenExternal(oauthUrls[0])}
-                    className="w-full h-9 px-3.5 rounded-xl bg-[#14141d] hover:bg-[#1d1d2a] border border-white/12 text-xs font-semibold text-zinc-100 flex items-center justify-between cursor-pointer transition-colors"
+                    className="w-full h-9 px-3.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-xs font-semibold text-zinc-100 flex items-center justify-between cursor-pointer transition-colors"
                   >
                     <span>1. Epic Giriş Sayfasını Aç</span>
-                    <ExternalLink className="w-3.5 h-3.5 text-blue-400" />
+                    <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
                   </button>
 
                   <div className="flex gap-2">
@@ -339,13 +339,13 @@ export function OnboardingScreen({
                       value={epicCode}
                       onChange={(e) => setEpicCode(e.target.value)}
                       placeholder='2. Kodu veya {"authorizationCode":...} yapıştır'
-                      className="flex-1 h-9 rounded-xl bg-black border border-white/12 focus:border-blue-400 px-3 text-xs font-mono text-zinc-100 placeholder:text-zinc-600 outline-none"
+                      className="flex-1 h-9 rounded-xl bg-black border border-white/12 focus:border-white/40 px-3 text-xs font-mono text-zinc-100 placeholder:text-zinc-600 outline-none"
                     />
                     <button
                       type="button"
                       disabled={epicBusy}
                       onClick={handleConnectEpic}
-                      className="h-9 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold cursor-pointer disabled:opacity-50 shrink-0"
+                      className="h-9 px-3.5 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-bold cursor-pointer disabled:opacity-50 shrink-0"
                     >
                       {epicBusy ? "..." : "Bağla"}
                     </button>
@@ -364,7 +364,7 @@ export function OnboardingScreen({
                   type="button"
                   disabled={epicBusy}
                   onClick={handleDisconnectEpic}
-                  className="text-rose-400 hover:text-rose-300 font-semibold inline-flex items-center gap-1 cursor-pointer"
+                  className="text-zinc-400 hover:text-rose-400 font-semibold inline-flex items-center gap-1 cursor-pointer"
                 >
                   <LogOut className="w-3 h-3" />
                   <span>Oturumu Kapat</span>
@@ -381,12 +381,12 @@ export function OnboardingScreen({
                   GOG.COM
                 </span>
                 {auth?.gog_connected ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-white/10 text-white border border-white/20">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>Bağlı</span>
                   </span>
                 ) : (
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] bg-white/[0.05] text-zinc-400 border border-white/10">
                     Doğrudan Giriş
                   </span>
                 )}
@@ -408,10 +408,10 @@ export function OnboardingScreen({
                   <button
                     type="button"
                     onClick={() => handleOpenExternal(oauthUrls[1])}
-                    className="w-full h-9 px-3.5 rounded-xl bg-[#14141d] hover:bg-[#1d1d2a] border border-white/12 text-xs font-semibold text-zinc-100 flex items-center justify-between cursor-pointer transition-colors"
+                    className="w-full h-9 px-3.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-xs font-semibold text-zinc-100 flex items-center justify-between cursor-pointer transition-colors"
                   >
                     <span>1. GOG Giriş Sayfasını Aç</span>
-                    <ExternalLink className="w-3.5 h-3.5 text-purple-400" />
+                    <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
                   </button>
 
                   <div className="flex gap-2">
@@ -420,13 +420,13 @@ export function OnboardingScreen({
                       value={gogCode}
                       onChange={(e) => setGogCode(e.target.value)}
                       placeholder="2. Yönlendirme URL'sini veya kodu yapıştır"
-                      className="flex-1 h-9 rounded-xl bg-black border border-white/12 focus:border-purple-400 px-3 text-xs font-mono text-zinc-100 placeholder:text-zinc-600 outline-none"
+                      className="flex-1 h-9 rounded-xl bg-black border border-white/12 focus:border-white/40 px-3 text-xs font-mono text-zinc-100 placeholder:text-zinc-600 outline-none"
                     />
                     <button
                       type="button"
                       disabled={gogBusy}
                       onClick={handleConnectGog}
-                      className="h-9 px-3.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold cursor-pointer disabled:opacity-50 shrink-0"
+                      className="h-9 px-3.5 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-bold cursor-pointer disabled:opacity-50 shrink-0"
                     >
                       {gogBusy ? "..." : "Bağla"}
                     </button>
@@ -474,7 +474,7 @@ export function OnboardingScreen({
             type="button"
             disabled={entering}
             onClick={handleEnterLibrary}
-            className="w-full sm:w-auto h-12 px-8 rounded-full bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-black font-extrabold text-sm flex items-center justify-center gap-2.5 shadow-[0_10px_35px_rgba(16,185,129,0.35)] transition-all cursor-pointer disabled:opacity-50"
+            className="w-full sm:w-auto h-12 px-8 rounded-full bg-white hover:bg-zinc-200 active:scale-[0.98] text-black font-bold text-sm flex items-center justify-center gap-2.5 shadow-xl transition-all cursor-pointer disabled:opacity-50"
           >
             <span>
               {entering

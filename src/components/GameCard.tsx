@@ -70,14 +70,14 @@ export const GameCard = memo(function GameCard({
       <div
         className={`aspect-[2/3] w-full rounded-[11px] bg-[#0d0d12] relative overflow-hidden transition-transform duration-200 ease-out will-change-transform group-hover:-translate-y-1 ${
           isGamepadFocused
-            ? "ring-4 ring-emerald-400 scale-[1.04] shadow-[0_0_30px_rgba(52,211,153,0.4)] z-10"
+            ? "ring-2 ring-white scale-[1.03] z-10"
             : isRunning
-            ? "ring-2 ring-amber-400"
+            ? "ring-2 ring-white/60"
             : isDownloading
-            ? "ring-2 ring-blue-500/80"
+            ? "ring-2 ring-white/40"
             : isInstalled
-            ? "ring-1 ring-emerald-500/35 group-hover:ring-emerald-400/80"
-            : "ring-1 ring-white/[0.09] group-hover:ring-white/30"
+            ? "ring-1 ring-white/20 group-hover:ring-white/40"
+            : "ring-1 ring-white/[0.08] group-hover:ring-white/25"
         }`}
       >
         {activeCover ? (
@@ -107,12 +107,12 @@ export const GameCard = memo(function GameCard({
           title={game.is_favorite ? "Favorilerden çıkar" : "Favorilere ekle"}
           className={`absolute top-2.5 right-2.5 z-20 w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
             game.is_favorite
-              ? "bg-black/75 border border-rose-500/50 text-rose-400 opacity-100"
-              : "bg-black/65 border border-white/15 text-zinc-300 hover:text-rose-300 opacity-0 group-hover:opacity-100"
+              ? "bg-black/75 border border-white/30 text-white opacity-100"
+              : "bg-black/65 border border-white/15 text-zinc-300 hover:text-white opacity-0 group-hover:opacity-100"
           }`}
         >
           <Heart
-            className={`w-3.5 h-3.5 ${game.is_favorite ? "fill-rose-400" : ""}`}
+            className={`w-3.5 h-3.5 ${game.is_favorite ? "fill-white text-white" : ""}`}
           />
         </button>
 
@@ -121,28 +121,29 @@ export const GameCard = memo(function GameCard({
 
         {/* Sol Alt Mağaza & Kurulum Durumu Rozetleri */}
         <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 z-10 pointer-events-none">
-          <span className="bg-white text-black text-[9px] font-black tracking-wider uppercase px-2 py-[2px] rounded-[3px]">
+          <span className="bg-black/80 backdrop-blur-md text-zinc-300 border border-white/10 text-[9px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded">
             {platformLabel(game.platform)}
           </span>
           {isRunning ? (
-            <span className="bg-amber-400 text-black text-[9px] font-extrabold uppercase px-1.5 py-[2px] rounded-[3px] animate-pulse">
+            <span className="bg-white text-black text-[9px] font-bold uppercase px-2 py-0.5 rounded flex items-center gap-1 shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-black animate-ping" />
               ÇALIŞIYOR
             </span>
           ) : isDownloading ? (
-            <span className="bg-blue-500 text-white text-[9px] font-extrabold uppercase px-1.5 py-[2px] rounded-[3px]">
+            <span className="bg-zinc-800 text-zinc-200 border border-white/15 text-[9px] font-bold uppercase px-2 py-0.5 rounded">
               %{Math.round(downloadTask.progress_percent)}
             </span>
           ) : isPaused ? (
-            <span className="bg-amber-500 text-black text-[9px] font-extrabold uppercase px-1.5 py-[2px] rounded-[3px]">
+            <span className="bg-zinc-800 text-zinc-400 border border-white/10 text-[9px] font-semibold uppercase px-2 py-0.5 rounded">
               DURAKLATILDI
             </span>
           ) : game.update_available ? (
-            <span className="bg-cyan-400 text-black text-[9px] font-extrabold uppercase px-1.5 py-[2px] rounded-[3px] inline-flex items-center gap-0.5">
+            <span className="bg-zinc-800 text-zinc-200 border border-white/15 text-[9px] font-semibold uppercase px-2 py-0.5 rounded inline-flex items-center gap-1">
               <ArrowUpCircle className="w-2.5 h-2.5" />
               <span>GÜNCELLEME</span>
             </span>
           ) : isInstalled ? (
-            <span className="bg-emerald-500 text-black text-[9px] font-extrabold uppercase px-1.5 py-[2px] rounded-[3px]">
+            <span className="bg-black/75 backdrop-blur-md text-zinc-300 border border-white/10 text-[9px] font-medium uppercase px-2 py-0.5 rounded">
               YÜKLÜ
             </span>
           ) : null}
@@ -153,7 +154,7 @@ export const GameCard = memo(function GameCard({
           <div className="absolute inset-x-0 bottom-0 h-1 bg-black/70 z-10">
             <div
               className={`h-full transition-all duration-300 ${
-                isPaused ? "bg-amber-400" : "bg-blue-500"
+                isPaused ? "bg-zinc-500" : "bg-white"
               }`}
               style={{
                 width: `${Math.max(2, Math.min(100, downloadTask.progress_percent))}%`,
@@ -163,7 +164,7 @@ export const GameCard = memo(function GameCard({
         )}
 
         {/* Hover Hızlı Eylem Katmanı */}
-        <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center justify-center p-3">
+        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center justify-center p-3">
           {isInstalled ? (
             <button
               type="button"
@@ -172,7 +173,7 @@ export const GameCard = memo(function GameCard({
                 onLaunch(game);
               }}
               disabled={isRunning}
-              className="px-4 py-2 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs flex items-center gap-1.5 shadow-lg transition-transform active:scale-95 cursor-pointer disabled:opacity-50"
+              className="px-4 py-2 rounded-full bg-white hover:bg-zinc-200 text-black font-bold text-xs flex items-center gap-1.5 shadow-xl transition-transform active:scale-95 cursor-pointer disabled:opacity-50"
             >
               <Play className="w-3.5 h-3.5 fill-black" />
               <span>{isRunning ? "Çalışıyor" : "Oyna"}</span>
@@ -184,7 +185,7 @@ export const GameCard = memo(function GameCard({
                 e.stopPropagation();
                 onOpenDetail(game, !isDownloading && !isPaused);
               }}
-              className="px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs flex items-center gap-1.5 shadow-lg transition-transform active:scale-95 cursor-pointer"
+              className="px-4 py-2 rounded-full bg-white hover:bg-zinc-200 text-black font-semibold text-xs flex items-center gap-1.5 shadow-xl transition-transform active:scale-95 cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
               <span>{isDownloading ? "İndiriliyor" : "İndir"}</span>

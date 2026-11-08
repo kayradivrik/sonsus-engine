@@ -98,7 +98,7 @@ export function AddCustomGameModal({
       >
         <div className="px-6 py-4 border-b border-white/[0.07] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+            <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white">
               <Plus className="w-4 h-4" />
             </div>
             <div>
@@ -138,7 +138,7 @@ export function AddCustomGameModal({
                 onClick={handlePickExe}
                 className="h-10 px-3.5 rounded-xl bg-[#14141d] hover:bg-[#1e1e2b] border border-white/12 text-zinc-200 flex items-center gap-1.5 cursor-pointer shrink-0"
               >
-                <FileCode2 className="w-4 h-4 text-emerald-400" />
+                <FileCode2 className="w-4 h-4 text-zinc-300" />
                 <span>Dosya Seç</span>
               </button>
             </div>
@@ -229,7 +229,7 @@ export function AddCustomGameModal({
             type="button"
             disabled={busy}
             onClick={handleSubmit}
-            className="h-10 px-6 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black font-bold flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            className="h-10 px-6 rounded-full bg-white hover:bg-zinc-200 text-black font-bold flex items-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
             <span>{busy ? "Ekleniyor & Poster Çekiliyor..." : "Kütüphaneye Ekle"}</span>

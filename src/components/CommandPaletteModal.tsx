@@ -168,7 +168,7 @@ export function CommandPaletteModal({
                           {game.title}
                         </span>
                         {game.is_favorite && (
-                          <Heart className="w-3 h-3 text-rose-400 fill-rose-400 shrink-0" />
+                          <Heart className="w-3 h-3 text-white fill-white shrink-0" />
                         )}
                       </div>
                       <div className="flex items-center gap-2 text-[11px] text-zinc-500 mt-0.5">
@@ -193,7 +193,7 @@ export function CommandPaletteModal({
                     </button>
 
                     {isInstalled ? (
-                      <span className="px-3 py-1 rounded-full bg-emerald-500 text-black text-[11px] font-bold inline-flex items-center gap-1">
+                      <span className="px-3 py-1 rounded-full bg-white text-black text-[11px] font-bold inline-flex items-center gap-1">
                         <Play className="w-3 h-3 fill-black" />
                         <span>Oyna</span>
                       </span>

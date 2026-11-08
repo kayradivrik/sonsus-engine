@@ -29,7 +29,7 @@ export function RecentShelf({
     <div className="mb-8 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs font-bold text-zinc-300 uppercase tracking-wider">
-          <Clock className="w-3.5 h-3.5 text-emerald-400" />
+          <Clock className="w-3.5 h-3.5 text-zinc-400" />
           <span>Son Oynananlar & Devam Et</span>
         </div>
       </div>
@@ -45,9 +45,9 @@ export function RecentShelf({
             <div
               key={game.id}
               onClick={() => onOpenDetail(game)}
-              className="group p-3 rounded-2xl bg-[#09090d] hover:bg-[#111118] border border-white/[0.08] hover:border-white/20 flex items-center gap-3.5 cursor-pointer transition-all"
+              className="group p-3 rounded-2xl bg-zinc-950 hover:bg-zinc-900 border border-white/[0.08] hover:border-white/20 flex items-center gap-3.5 cursor-pointer transition-all"
             >
-              <div className="w-12 h-16 rounded-lg overflow-hidden bg-[#14141c] shrink-0 ring-1 ring-white/10">
+              <div className="w-12 h-16 rounded-lg overflow-hidden bg-black shrink-0 ring-1 ring-white/10">
                 {cover ? (
                   <img
                     src={cover}
@@ -60,11 +60,11 @@ export function RecentShelf({
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="bg-white text-black text-[8px] font-black uppercase px-1.5 py-[1px] rounded-[3px]">
+                  <span className="bg-zinc-800 text-zinc-300 border border-white/10 text-[8px] font-bold uppercase px-1.5 py-[1px] rounded">
                     {platformLabel(game.platform)}
                   </span>
                   {pt && (
-                    <span className="text-[11px] text-emerald-400 font-semibold">
+                    <span className="text-[11px] text-zinc-300 font-medium">
                       {pt}
                     </span>
                   )}
@@ -86,7 +86,7 @@ export function RecentShelf({
                     onLaunch(game);
                   }}
                   title="Hemen Oyna"
-                  className="w-9 h-9 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black flex items-center justify-center shrink-0 shadow-md transition-transform active:scale-95 cursor-pointer disabled:opacity-50"
+                  className="w-9 h-9 rounded-full bg-white hover:bg-zinc-200 text-black flex items-center justify-center shrink-0 shadow-md transition-transform active:scale-95 cursor-pointer disabled:opacity-50"
                 >
                   <Play className="w-3.5 h-3.5 fill-black ml-0.5" />
                 </button>

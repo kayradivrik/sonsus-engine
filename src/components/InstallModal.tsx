@@ -160,8 +160,8 @@ export function InstallModal({
             onClick={() => setTab("install")}
             className={`flex-1 h-9 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer border ${
               tab === "install"
-                ? "bg-blue-600/20 border-blue-500/50 text-blue-300"
-                : "bg-[#14141c] border-white/[0.07] text-zinc-400 hover:text-zinc-200"
+                ? "bg-white text-black border-white"
+                : "bg-zinc-900 border-white/10 text-zinc-400 hover:text-zinc-200"
             }`}
           >
             <Download className="w-3.5 h-3.5" />
@@ -172,8 +172,8 @@ export function InstallModal({
             onClick={() => setTab("locate")}
             className={`flex-1 h-9 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer border ${
               tab === "locate"
-                ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
-                : "bg-[#14141c] border-white/[0.07] text-zinc-400 hover:text-zinc-200"
+                ? "bg-white text-black border-white"
+                : "bg-zinc-900 border-white/10 text-zinc-400 hover:text-zinc-200"
             }`}
           >
             <FolderCheck className="w-3.5 h-3.5" />
@@ -211,16 +211,16 @@ export function InstallModal({
                       onClick={() => setSelectedBaseDir(loc.path)}
                       className={`w-full p-3 rounded-xl border text-left transition-all cursor-pointer ${
                         active
-                          ? "border-blue-500/70 bg-blue-500/10"
-                          : "border-white/[0.08] bg-[#13131a] hover:border-white/20"
+                          ? "border-white/40 bg-white/10"
+                          : "border-white/[0.08] bg-zinc-900/60 hover:border-white/20"
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-semibold text-zinc-100 flex items-center gap-2">
-                          <HardDrive className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                          <HardDrive className="w-3.5 h-3.5 text-zinc-300 shrink-0" />
                           <span>{loc.label}</span>
                         </span>
-                        <span className="text-[11px] text-emerald-400 font-semibold shrink-0">
+                        <span className="text-[11px] text-zinc-300 font-semibold shrink-0">
                           {formatBytes(loc.free_bytes)} boş
                         </span>
                       </div>
@@ -230,7 +230,7 @@ export function InstallModal({
                       {loc.total_bytes > 0 && (
                         <div className="mt-2 h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
                           <div
-                            className="h-full bg-blue-500 rounded-full"
+                            className="h-full bg-white rounded-full"
                             style={{ width: `${usedRatio}%` }}
                           />
                         </div>
@@ -322,7 +322,7 @@ export function InstallModal({
             <p className="text-zinc-400 leading-relaxed">
               Oyun diskinizde zaten yüklüyse (örneğin başka bir diskte veya Heroic/Steam/Epic
               klasöründe), oyunun tam klasör yolunu seçerek doğrudan{" "}
-              <span className="text-emerald-400 font-semibold">Yüklü</span> durumuna
+              <span className="text-white font-semibold">Yüklü</span> durumuna
               geçirebilirsiniz.
             </p>
 
@@ -336,14 +336,14 @@ export function InstallModal({
                   value={locateDir}
                   onChange={(e) => setLocateDir(e.target.value)}
                   placeholder="/home/kullanici/Games/OyunAdi veya D:\Games\OyunAdi"
-                  className="flex-1 h-10 rounded-lg bg-[#14141c] border border-white/15 focus:border-emerald-500 px-3 text-xs font-mono text-zinc-100 outline-none"
+                  className="flex-1 h-10 rounded-lg bg-black border border-white/12 focus:border-white/40 px-3 text-xs font-mono text-zinc-100 outline-none"
                 />
                 <button
                   type="button"
                   onClick={handleBrowseLocateDir}
-                  className="h-10 px-3.5 rounded-lg bg-[#181822] hover:bg-[#222230] border border-white/15 text-zinc-200 hover:text-white flex items-center gap-1.5 cursor-pointer"
+                  className="h-10 px-3.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-white/12 text-zinc-200 hover:text-white flex items-center gap-1.5 cursor-pointer"
                 >
-                  <FolderSearch className="w-4 h-4 text-emerald-400" />
+                  <FolderSearch className="w-4 h-4 text-zinc-300" />
                   <span>Gözat</span>
                 </button>
               </div>
@@ -361,7 +361,7 @@ export function InstallModal({
                 type="button"
                 disabled={busy || !locateDir.trim()}
                 onClick={() => runInstall("locate")}
-                className="h-10 px-5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-bold flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                className="h-10 px-5 rounded-lg bg-white hover:bg-zinc-200 text-black font-bold flex items-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 <FolderCheck className="w-4 h-4" />
                 <span>Klasörü Doğrula ve Bağla</span>

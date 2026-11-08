@@ -47,16 +47,16 @@ export function CustomSelect<T extends string = string>({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className={`w-full flex items-center justify-between gap-2 text-left transition-colors cursor-pointer ${
+        className={`w-full flex items-center justify-between gap-2 text-left transition-all cursor-pointer outline-none focus:outline-none ${
           compact
-            ? "h-8 px-3.5 rounded-full bg-[#0c0c10] hover:bg-[#15151c] border border-white/[0.09] text-xs text-zinc-300"
-            : "h-10 px-3.5 rounded-lg bg-[#14141b] hover:bg-[#1b1b24] border border-white/12 text-xs text-zinc-100"
-        }`}
+            ? "h-8 px-3.5 rounded-full bg-zinc-900/90 hover:bg-zinc-800/90 border border-white/10 hover:border-white/20 text-xs text-zinc-200"
+            : "h-10 px-3.5 rounded-lg bg-zinc-900/90 hover:bg-zinc-800/90 border border-white/10 hover:border-white/20 text-xs text-zinc-100"
+        } ${open ? "border-white/30" : ""}`}
       >
         <span className="truncate">{activeOption?.label ?? ""}</span>
         <span
           className={`flex items-center shrink-0 ${
-            compact ? "" : "pl-2.5 border-l border-white/12"
+            compact ? "" : "pl-2.5 border-l border-white/10"
           }`}
         >
           <ChevronDown
@@ -68,7 +68,7 @@ export function CustomSelect<T extends string = string>({
       </button>
 
       {open && (
-        <div className="absolute right-0 left-0 min-w-[180px] mt-1.5 z-50 rounded-xl bg-[#13131a] border border-white/15 shadow-[0_16px_40px_rgba(0,0,0,0.9)] py-1 max-h-60 overflow-y-auto animate-fade-in">
+        <div className="absolute right-0 left-0 min-w-[180px] mt-1.5 z-50 rounded-xl bg-[#0e0e12] border border-white/10 shadow-[0_16px_40px_rgba(0,0,0,0.95)] py-1 max-h-60 overflow-y-auto animate-fade-in backdrop-blur-xl">
           {options.map((opt) => {
             const selected = opt.value === value;
             return (
@@ -79,14 +79,14 @@ export function CustomSelect<T extends string = string>({
                   onChange(opt.value);
                   setOpen(false);
                 }}
-                className={`w-full px-3.5 py-2 text-xs flex items-center justify-between gap-2 text-left transition-colors cursor-pointer ${
+                className={`w-full px-3.5 py-2 text-xs flex items-center justify-between gap-2 text-left transition-colors cursor-pointer outline-none focus:outline-none ${
                   selected
-                    ? "bg-emerald-500/15 text-emerald-300 font-semibold"
-                    : "text-zinc-300 hover:bg-white/[0.06] hover:text-white"
+                    ? "bg-white/10 text-white font-medium"
+                    : "text-zinc-400 hover:bg-white/[0.05] hover:text-zinc-200"
                 }`}
               >
                 <span className="truncate">{opt.label}</span>
-                {selected && <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                {selected && <Check className="w-3.5 h-3.5 text-white shrink-0" />}
               </button>
             );
           })}

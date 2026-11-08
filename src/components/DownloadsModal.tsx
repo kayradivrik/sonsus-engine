@@ -136,7 +136,7 @@ export function DownloadsModal({
                         <button
                           type="button"
                           onClick={() => handlePause(task)}
-                          className="h-8 px-3 rounded-full bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-300 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                          className="h-8 px-3 rounded-full bg-zinc-800 hover:bg-zinc-700 border border-white/10 text-zinc-300 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
                           title="İndirmeyi duraklat"
                         >
                           <Pause className="w-3.5 h-3.5" />
@@ -148,10 +148,10 @@ export function DownloadsModal({
                         <button
                           type="button"
                           onClick={() => handleResume(task)}
-                          className="h-8 px-3 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                          className="h-8 px-3 rounded-full bg-white hover:bg-zinc-200 text-black text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                           title="Kaldığı yerden devam ettir"
                         >
-                          <Play className="w-3.5 h-3.5 fill-white" />
+                          <Play className="w-3.5 h-3.5 fill-black" />
                           <span>Devam Et</span>
                         </button>
                       )}
@@ -170,7 +170,7 @@ export function DownloadsModal({
                       <button
                         type="button"
                         onClick={() => handleRemove(task)}
-                        className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-rose-500/20 flex items-center justify-center text-zinc-400 hover:text-rose-300 cursor-pointer"
+                        className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white cursor-pointer"
                         title={isDownloading ? "İndirmeyi iptal et" : "Listeden temizle"}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -184,12 +184,12 @@ export function DownloadsModal({
                       <div
                         className={`h-full rounded-full transition-all duration-300 ${
                           isCompleted
-                            ? "bg-emerald-500"
+                            ? "bg-white"
                             : isFailed
-                            ? "bg-rose-500"
+                            ? "bg-zinc-600"
                             : isPaused
-                            ? "bg-amber-400"
-                            : "bg-blue-500"
+                            ? "bg-zinc-500"
+                            : "bg-white"
                         }`}
                         style={{
                           width: `${Math.max(
@@ -203,10 +203,10 @@ export function DownloadsModal({
                     <div className="flex items-center justify-between text-[11px] text-zinc-400 tabular-nums">
                       <span className="flex items-center gap-1.5 font-semibold text-zinc-200">
                         {isCompleted && (
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                          <CheckCircle2 className="w-3.5 h-3.5 text-white" />
                         )}
                         {isFailed && (
-                          <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
+                          <AlertCircle className="w-3.5 h-3.5 text-zinc-400" />
                         )}
                         <span>%{task.progress_percent.toFixed(1)}</span>
                       </span>
