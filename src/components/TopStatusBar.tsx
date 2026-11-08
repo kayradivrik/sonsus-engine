@@ -1,3 +1,4 @@
+import { useTranslation } from "../i18n/useTranslation";
 import {
   BarChart3,
   Compass,
@@ -63,6 +64,7 @@ export function TopStatusBar({
   onOpenStorageCleaner,
   onOpenVictusControl,
 }: TopStatusBarProps) {
+  const { t } = useTranslation();
   return (
     <header className="h-16 w-full max-w-[1920px] mx-auto px-6 sm:px-8 xl:px-12 2xl:px-16 flex items-center justify-between gap-4 shrink-0">
       {/* Sol: Yeni Vektörel Kinetik sonsus-engine Amblemi + Ana Sayfa & Kütüphane Sekmeleri */}
@@ -88,7 +90,7 @@ export function TopStatusBar({
               }`}
           >
             <Compass className="w-3.5 h-3.5" />
-            <span>Ana Sayfa</span>
+            <span>{t.home}</span>
           </button>
 
           <button
@@ -100,7 +102,7 @@ export function TopStatusBar({
               }`}
           >
             <Library className="w-3.5 h-3.5" />
-            <span>Kütüphane</span>
+            <span>{t.library}</span>
           </button>
         </div>
       </div>
@@ -112,10 +114,10 @@ export function TopStatusBar({
           type="button"
           onClick={onOpenCommandPalette}
           className="h-9 px-3 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 hover:border-white/20 text-zinc-300 hover:text-white text-xs flex items-center gap-2 transition-all cursor-pointer outline-none"
-          title="Oyun Arama ve Hızlı Komut Paleti (Ctrl+K)"
+          title={t.searchTitle}
         >
           <Search className="w-3.5 h-3.5 text-zinc-400" />
-          <span className="hidden md:inline font-medium">Ara...</span>
+          <span className="hidden md:inline font-medium">{t.searchPlaceholder}</span>
           <span className="hidden lg:inline text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-zinc-400 border border-white/10">
             Ctrl+K
           </span>
@@ -140,7 +142,7 @@ export function TopStatusBar({
           title="Performans ve CS2 Ayarları"
         >
           <SlidersHorizontal className="w-3.5 h-3.5 text-zinc-400" />
-          <span>Performans</span>
+          <span>{t.performanceMode}</span>
         </button>
 
         {/* Oyun Kolu Durumu */}
