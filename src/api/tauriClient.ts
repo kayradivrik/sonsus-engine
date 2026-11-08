@@ -164,4 +164,8 @@ export const tauriApi = {
 
   clearLaunchLogs: () =>
     invoke<void>("clear_launch_logs"),
+
+  // --- Canlı İndirimler & Ücretsiz Oyunlar ---
+  getCuratedDeals: () =>
+    invoke<import("../types/game").GameDealItem[]>("get_curated_deals"),
 };

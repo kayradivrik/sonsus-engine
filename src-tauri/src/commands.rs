@@ -480,3 +480,10 @@ pub fn clear_launch_logs() -> Result<(), String> {
     clear_all_launch_logs();
     Ok(())
 }
+
+// --- Oyun Fırsatları & İndirimler ---
+
+#[tauri::command]
+pub async fn get_curated_deals() -> Vec<crate::deals::GameDealItem> {
+    crate::deals::get_all_curated_deals().await
+}

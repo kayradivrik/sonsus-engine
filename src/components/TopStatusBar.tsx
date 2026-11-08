@@ -1,10 +1,12 @@
 import {
   BarChart3,
   Command,
+  Compass,
   Download,
   Gamepad2,
   Heart,
   LayoutGrid,
+  Library,
   List,
   Plus,
   RefreshCw,
@@ -12,9 +14,11 @@ import {
   User,
   Zap,
 } from "lucide-react";
-import { LibraryQuickFilter, ViewMode } from "../types/game";
+import { AppNavTab, LibraryQuickFilter, ViewMode } from "../types/game";
 
 interface TopStatusBarProps {
+  currentTab: AppNavTab;
+  onTabChange: (tab: AppNavTab) => void;
   statusFilter: LibraryQuickFilter;
   onStatusFilterChange: (s: LibraryQuickFilter) => void;
   installedCount: number;
@@ -40,6 +44,8 @@ interface TopStatusBarProps {
 }
 
 export function TopStatusBar({
+  currentTab,
+  onTabChange,
   statusFilter,
   onStatusFilterChange,
   installedCount,
@@ -65,17 +71,48 @@ export function TopStatusBar({
 }: TopStatusBarProps) {
   return (
     <header className="h-16 max-w-[1480px] w-full mx-auto px-8 lg:px-12 flex items-center justify-between gap-3 shrink-0">
-      {/* Sol: `sonsus-engine` minimalist amblem + marka */}
-      <div
-        onClick={() => onStatusFilterChange("all")}
-        className="flex items-center gap-2.5 cursor-pointer select-none group shrink-0"
-      >
-        <div className="w-6 h-6 rounded-full border-[2px] border-white flex items-center justify-center relative overflow-hidden">
-          <div className="w-2.5 h-2.5 rounded-full bg-white group-hover:scale-110 transition-transform" />
+      {/* Sol: `sonsus-engine` minimalist amblem + Ana Sayfa & Kütüphane Sekmeleri */}
+      <div className="flex items-center gap-5 shrink-0">
+        <div
+          onClick={() => onTabChange("home")}
+          className="flex items-center gap-2.5 cursor-pointer select-none group"
+        >
+          <div className="w-6 h-6 rounded-full border-[2px] border-white flex items-center justify-center relative overflow-hidden">
+            <div className="w-2.5 h-2.5 rounded-full bg-white group-hover:scale-110 transition-transform" />
+          </div>
+          <span className="text-[16px] font-bold tracking-tight text-white hidden sm:inline">
+            sonsus-engine
+          </span>
         </div>
-        <span className="text-[16px] font-bold tracking-tight text-white">
-          sonsus-engine
-        </span>
+
+        {/* Ana Sayfa & Kütüphane Anahtarı */}
+        <div className="flex items-center p-0.5 rounded-full bg-[#121218] border border-white/10">
+          <button
+            type="button"
+            onClick={() => onTabChange("home")}
+            className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+              currentTab === "home"
+                ? "bg-white text-black shadow-md shadow-white/10 font-bold"
+                : "text-zinc-400 hover:text-white"
+            }`}
+          >
+            <Compass className="w-3.5 h-3.5" />
+            <span>Ana Sayfa</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onTabChange("library")}
+            className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+              currentTab === "library"
+                ? "bg-white text-black shadow-md shadow-white/10 font-bold"
+                : "text-zinc-400 hover:text-white"
+            }`}
+          >
+            <Library className="w-3.5 h-3.5" />
+            <span>Kütüphane</span>
+          </button>
+        </div>
       </div>
 
       {/* Sağ: Pill navigasyon + Ctrl+K + Oyun Ekle + İstatistik + İndirmeler + Profil + Ayarlar */}

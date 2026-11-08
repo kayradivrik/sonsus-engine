@@ -8,7 +8,21 @@ export type LibraryQuickFilter =
   | "cloud"
   | "favorites"
   | "hidden";
+export interface GameDealItem {
+  id: string;
+  title: string;
+  store: "steam" | "epic" | string;
+  original_price?: string | null;
+  final_price: string;
+  discount_percent: number;
+  is_free: boolean;
+  banner_url: string;
+  store_url: string;
+  expiry_date?: string | null;
+}
+
 export type DisplayBackend = "auto" | "xrandr" | "gamescope" | "kscreen";
+export type AppNavTab = "home" | "library";
 export type SortMode = "status" | "title" | "playtime" | "recent" | "size";
 export type ViewMode = "grid" | "table";
 export type PageSizeOption = 24 | 48 | 96;

@@ -7,10 +7,12 @@ import { DownloadsModal } from "./components/DownloadsModal";
 import { FilterStrip } from "./components/FilterStrip";
 import { GameDetailView } from "./components/GameDetailView";
 import { GameTable } from "./components/GameTable";
+import { HomeCategoryShelf } from "./components/HomeCategoryShelf";
+import { HomeDealsSection } from "./components/HomeDealsSection";
+import { HomeHeroSlider } from "./components/HomeHeroSlider";
 import { LaunchLogsModal } from "./components/LaunchLogsModal";
 import { OnboardingScreen } from "./components/OnboardingScreen";
 import { PaginationBar } from "./components/PaginationBar";
-import { RecentShelf } from "./components/RecentShelf";
 import { SettingsModal } from "./components/SettingsModal";
 import { StatsModal } from "./components/StatsModal";
 import { TopStatusBar } from "./components/TopStatusBar";
@@ -20,6 +22,7 @@ import { useGamepadNav } from "./hooks/useGamepadNav";
 import { useLibrary } from "./hooks/useLibrary";
 import { useSmoothWheel } from "./hooks/useSmoothWheel";
 import {
+  AppNavTab,
   AppSettings,
   DownloadTaskInfo,
   SystemDiagnostics,
@@ -29,6 +32,7 @@ import {
 } from "./types/game";
 
 export default function App() {
+  const [currentTab, setCurrentTab] = useState<AppNavTab>("home");
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const showToast = useCallback((msg: string) => {
     setToastMsg(msg);
@@ -353,14 +357,6 @@ export default function App() {
     onPrevStore: handlePrevStore,
   });
 
-  const showRecentShelf =
-    statusFilter === "all" &&
-    platformFilter === "all" &&
-    !genreFilter &&
-    !query.trim() &&
-    page === 1 &&
-    recentGames.length > 0;
-
   return (
     <div className="h-screen w-screen bg-black text-zinc-100 flex flex-col overflow-hidden">
       {/* Kütüphane Görünümü (`hidden` ile kaydırma konumu ve çözülmüş poster önbelleği korunur) */}
@@ -372,6 +368,8 @@ export default function App() {
         }
       >
         <TopStatusBar
+          currentTab={currentTab}
+          onTabChange={setCurrentTab}
           statusFilter={statusFilter}
           onStatusFilterChange={setStatusFilter}
           installedCount={counts.installed}
@@ -399,69 +397,155 @@ export default function App() {
           onOpenLaunchLogs={() => setLaunchLogsOpen(true)}
         />
 
-        <FilterStrip
-          query={query}
-          onQueryChange={setQuery}
-          searchInputRef={searchInputRef}
-          statusFilter={statusFilter}
-          onStatusFilterChange={setStatusFilter}
-          platformFilter={platformFilter}
-          onPlatformFilterChange={setPlatformFilter}
-          genreFilter={genreFilter}
-          onGenreFilterChange={setGenreFilter}
-          genreCounts={genreCounts}
-          collectionFilter={collectionFilter}
-          onCollectionFilterChange={setCollectionFilter}
-          collectionCounts={collectionCounts}
-          sortMode={sortMode}
-          onSortModeChange={setSortMode}
-          visibleCount={filteredGames.length}
-          counts={counts}
-        />
+        {/* Filtre Şeridi (Kütüphane sekmesinde veya Arama yapıldığında görünür) */}
+        {currentTab === "library" && (
+          <FilterStrip
+            query={query}
+            onQueryChange={setQuery}
+            searchInputRef={searchInputRef}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+            platformFilter={platformFilter}
+            onPlatformFilterChange={setPlatformFilter}
+            genreFilter={genreFilter}
+            onGenreFilterChange={setGenreFilter}
+            genreCounts={genreCounts}
+            collectionFilter={collectionFilter}
+            onCollectionFilterChange={setCollectionFilter}
+            collectionCounts={collectionCounts}
+            sortMode={sortMode}
+            onSortModeChange={setSortMode}
+            visibleCount={filteredGames.length}
+            counts={counts}
+          />
+        )}
 
         <main ref={mainScrollRef} className="flex-1 overflow-y-auto pb-14">
           <div className="max-w-[1480px] w-full mx-auto px-8 lg:px-12">
-            {showRecentShelf && (
-              <RecentShelf
-                games={recentGames}
-                runningId={runningId}
-                onOpenDetail={(g) => handleOpenDetail(g, false)}
-                onLaunch={handleLaunch}
-              />
-            )}
+            {currentTab === "home" ? (
+              <>
+                {/* 1. Büyük Sinematik Öne Çıkanlar Slider'ı */}
+                <HomeHeroSlider
+                  games={games}
+                  onOpenDetail={(g) => handleOpenDetail(g, false)}
+                  onLaunch={handleLaunch}
+                />
 
-            {filteredGames.length === 0 ? (
-              <div className="py-24 text-center text-sm text-zinc-500">
-                Arama veya filtreyle eşleşen oyun bulunamadı.
-              </div>
-            ) : viewMode === "grid" ? (
-              <VirtualGameGrid
-                games={paginatedGames}
-                runningId={runningId}
-                downloadsById={downloadsMap}
-                focusedIndex={controllerName ? selectedIndex : undefined}
-                onOpenDetail={handleOpenDetail}
-                onLaunch={handleLaunch}
-                onToggleFavorite={handleToggleFavorite}
-              />
+                {/* 2. Canlı Fırsatlar & İndirimler & Haftalık Ücretsiz Oyunlar */}
+                <HomeDealsSection />
+
+                {/* 3. Epic Games Tarzı Kategorize Raflar */}
+                {recentGames.length > 0 && (
+                  <HomeCategoryShelf
+                    title="Son Oynananlar & Hızlı Başlat"
+                    badgeIcon="⚡"
+                    games={recentGames}
+                    runningId={runningId}
+                    onOpenDetail={(g) => handleOpenDetail(g, false)}
+                    onLaunch={handleLaunch}
+                    onToggleFavorite={handleToggleFavorite}
+                  />
+                )}
+
+                {/* Aksiyon & Nişancı Kategorisi */}
+                <HomeCategoryShelf
+                  title="Aksiyon & Nişancı Oyunları"
+                  badgeIcon="🔥"
+                  games={games.filter((g) =>
+                    g.genres?.some((genre) =>
+                      ["action", "shooter", "aksiyon", "nişancı"].some((k) =>
+                        genre.toLowerCase().includes(k)
+                      )
+                    )
+                  )}
+                  runningId={runningId}
+                  onOpenDetail={(g) => handleOpenDetail(g, false)}
+                  onLaunch={handleLaunch}
+                  onToggleFavorite={handleToggleFavorite}
+                  onViewCategoryAll={() => {
+                    setGenreFilter("Action");
+                    setCurrentTab("library");
+                  }}
+                />
+
+                {/* Macera & RPG Kategorisi */}
+                <HomeCategoryShelf
+                  title="Macera & Rol Yapma (RPG)"
+                  badgeIcon="🗡️"
+                  games={games.filter((g) =>
+                    g.genres?.some((genre) =>
+                      ["adventure", "rpg", "macera", "rol yapma"].some((k) =>
+                        genre.toLowerCase().includes(k)
+                      )
+                    )
+                  )}
+                  runningId={runningId}
+                  onOpenDetail={(g) => handleOpenDetail(g, false)}
+                  onLaunch={handleLaunch}
+                  onToggleFavorite={handleToggleFavorite}
+                  onViewCategoryAll={() => {
+                    setGenreFilter("Adventure");
+                    setCurrentTab("library");
+                  }}
+                />
+
+                {/* Bağımsız / Indie Kategorisi */}
+                <HomeCategoryShelf
+                  title="Seçkin Bağımsız (Indie) Yapımlar"
+                  badgeIcon="🎨"
+                  games={games.filter((g) =>
+                    g.genres?.some((genre) =>
+                      ["indie", "bağımsız"].some((k) =>
+                        genre.toLowerCase().includes(k)
+                      )
+                    )
+                  )}
+                  runningId={runningId}
+                  onOpenDetail={(g) => handleOpenDetail(g, false)}
+                  onLaunch={handleLaunch}
+                  onToggleFavorite={handleToggleFavorite}
+                  onViewCategoryAll={() => {
+                    setGenreFilter("Indie");
+                    setCurrentTab("library");
+                  }}
+                />
+              </>
             ) : (
-              <GameTable
-                games={paginatedGames}
-                runningId={runningId}
-                onOpenDetail={handleOpenDetail}
-                onLaunch={handleLaunch}
-                onToggleFavorite={handleToggleFavorite}
-              />
-            )}
+              <>
+                {filteredGames.length === 0 ? (
+                  <div className="py-24 text-center text-sm text-zinc-500">
+                    Arama veya filtreyle eşleşen oyun bulunamadı.
+                  </div>
+                ) : viewMode === "grid" ? (
+                  <VirtualGameGrid
+                    games={paginatedGames}
+                    runningId={runningId}
+                    downloadsById={downloadsMap}
+                    focusedIndex={controllerName ? selectedIndex : undefined}
+                    onOpenDetail={handleOpenDetail}
+                    onLaunch={handleLaunch}
+                    onToggleFavorite={handleToggleFavorite}
+                  />
+                ) : (
+                  <GameTable
+                    games={paginatedGames}
+                    runningId={runningId}
+                    onOpenDetail={handleOpenDetail}
+                    onLaunch={handleLaunch}
+                    onToggleFavorite={handleToggleFavorite}
+                  />
+                )}
 
-            <PaginationBar
-              page={page}
-              totalPages={totalPages}
-              totalItems={filteredGames.length}
-              pageSize={pageSize}
-              onPageChange={handlePageChange}
-              onPageSizeChange={setPageSize}
-            />
+                <PaginationBar
+                  page={page}
+                  totalPages={totalPages}
+                  totalItems={filteredGames.length}
+                  pageSize={pageSize}
+                  onPageChange={handlePageChange}
+                  onPageSizeChange={setPageSize}
+                />
+              </>
+            )}
           </div>
         </main>
       </div>

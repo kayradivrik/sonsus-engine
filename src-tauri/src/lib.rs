@@ -2,6 +2,7 @@ pub mod auth;
 pub mod commands;
 pub mod covers;
 pub mod db;
+pub mod deals;
 pub mod downloader;
 pub mod installer;
 pub mod launcher;
@@ -20,14 +21,15 @@ use commands::{
     add_custom_game, apply_steam_esports_preset_command, check_game_update,
     clear_launch_logs, connect_epic_account, connect_gog_account, create_game_save_backup,
     disconnect_epic_account, disconnect_gog_account, fetch_game_cover, get_active_downloads,
-    get_app_settings, get_cached_library, get_game_hook_profile, get_game_save_backups,
-    get_install_locations, get_launch_logs, get_oauth_login_urls, get_online_game_details,
-    get_store_auth_status, get_system_diagnostics, get_ultra_perf_status, install_boost_helper,
-    install_game, install_ge_proton, launch_game, list_remote_ge_proton, open_external_url,
-    open_game_folder, pause_game_download, pick_executable, pick_folder, remove_download_task,
-    restore_game_save_backup, scan_all_libraries, set_game_hook_profile, set_game_preferences,
-    start_game_download, stop_extreme_boost_now, sync_game_cloud_saves, trigger_extreme_boost_now,
-    uninstall_game, update_app_settings, verify_or_repair_game, AppState,
+    get_app_settings, get_cached_library, get_curated_deals, get_game_hook_profile,
+    get_game_save_backups, get_install_locations, get_launch_logs, get_oauth_login_urls,
+    get_online_game_details, get_store_auth_status, get_system_diagnostics, get_ultra_perf_status,
+    install_boost_helper, install_game, install_ge_proton, launch_game, list_remote_ge_proton,
+    open_external_url, open_game_folder, pause_game_download, pick_executable, pick_folder,
+    remove_download_task, restore_game_save_backup, scan_all_libraries, set_game_hook_profile,
+    set_game_preferences, start_game_download, stop_extreme_boost_now, sync_game_cloud_saves,
+    trigger_extreme_boost_now, uninstall_game, update_app_settings, verify_or_repair_game,
+    AppState,
 };
 use db::load_settings;
 use downloader::DownloadManager;
@@ -117,6 +119,7 @@ pub fn run() {
             restore_game_save_backup,
             get_launch_logs,
             clear_launch_logs,
+            get_curated_deals,
         ])
         .run(tauri::generate_context!())
         .expect("sonsus-engine başlatılırken hata oluştu");
