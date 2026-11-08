@@ -370,11 +370,6 @@ export default function App() {
         <TopStatusBar
           currentTab={currentTab}
           onTabChange={setCurrentTab}
-          statusFilter={statusFilter}
-          onStatusFilterChange={setStatusFilter}
-          installedCount={counts.installed}
-          cloudCount={counts.cloud}
-          favoritesCount={counts.favorites}
           playerName={settings.player_name}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
@@ -421,7 +416,7 @@ export default function App() {
         )}
 
         <main ref={mainScrollRef} className="flex-1 overflow-y-auto pb-14">
-          <div className="max-w-[1480px] w-full mx-auto px-8 lg:px-12">
+          <div className="w-full max-w-[1880px] mx-auto px-6 sm:px-8 xl:px-12 2xl:px-16">
             {currentTab === "home" ? (
               <>
                 {/* 1. Büyük Sinematik Öne Çıkanlar Slider'ı */}

@@ -68,7 +68,7 @@ export const GameCard = memo(function GameCard({
     >
       {/* Yuvarlatılmış Dikey Poster */}
       <div
-        className={`aspect-[2/3] w-full rounded-[11px] bg-[#0d0d12] relative overflow-hidden transition-transform duration-200 ease-out will-change-transform group-hover:-translate-y-1 ${
+        className={`aspect-[2/3] w-full rounded-[11px] bg-[#0d0d12] relative overflow-hidden transition-transform duration-150 ease-out group-hover:-translate-y-1 ${
           isGamepadFocused
             ? "ring-2 ring-white scale-[1.03] z-10"
             : isRunning

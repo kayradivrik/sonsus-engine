@@ -378,6 +378,40 @@ export function buildCoverCandidates(game: UnifiedGame, bustCacheKey?: number): 
   return candidates;
 }
 
+export function buildHeroCandidates(game: UnifiedGame): string[] {
+  const candidates: string[] = [];
+  const pushUnique = (url?: string | null) => {
+    if (url && !candidates.includes(url)) {
+      candidates.push(url);
+    }
+  };
+
+  if (game.hero_path_or_url) {
+    pushUnique(resolveMediaSrc(game.hero_path_or_url));
+  }
+  if (game.cover_path_or_url) {
+    pushUnique(resolveMediaSrc(game.cover_path_or_url));
+  }
+  pushUnique(game.fallback_cover_url);
+
+  if (game.platform === "steam") {
+    pushUnique(
+      `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${game.platform_id}/header.jpg`
+    );
+    pushUnique(
+      `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${game.platform_id}/capsule_616x353.jpg`
+    );
+    pushUnique(
+      `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.platform_id}/library_hero.jpg`
+    );
+    pushUnique(
+      `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${game.platform_id}/library_600x900.jpg`
+    );
+  }
+
+  return candidates;
+}
+
 export function formatBytes(bytes?: number | null): string {
   if (!bytes || bytes <= 0) return "—";
   const gb = bytes / (1024 * 1024 * 1024);

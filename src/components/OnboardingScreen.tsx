@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { tauriApi } from "../api/tauriClient";
+import { SonsusLogo } from "./ui/SonsusLogo";
 import { AppSettings, StoreAuthStatus } from "../types/game";
 
 interface OnboardingScreenProps {
@@ -175,9 +176,7 @@ export function OnboardingScreen({
       {/* Üst Çubuk */}
       <div className="relative z-10 max-w-[1220px] w-full mx-auto px-6 sm:px-10 pt-7 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-full border-2 border-white flex items-center justify-center">
-            <div className="w-3 h-3 rounded-full bg-white" />
-          </div>
+          <SonsusLogo size={28} />
           <span className="text-base font-bold tracking-tight text-white">
             sonsus-engine
           </span>

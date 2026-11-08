@@ -12,7 +12,8 @@ interface VirtualGameGridProps {
 }
 
 /**
- * Sayfalanmış (`paginatedGames`) poster ızgarasını sıfır DOM şişmesiyle çizer.
+ * Sayfalanmış (`paginatedGames`) poster ızgarasını geniş ekranlarla tam uyumlu,
+ * akıcı ve dengeli kolon sayısıyla çizer.
  */
 export function VirtualGameGrid({
   games,
@@ -24,7 +25,7 @@ export function VirtualGameGrid({
   onToggleFavorite,
 }: VirtualGameGridProps) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-x-5 gap-y-8">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-x-5 gap-y-7">
       {games.map((game, idx) => (
         <GameCard
           key={game.id}

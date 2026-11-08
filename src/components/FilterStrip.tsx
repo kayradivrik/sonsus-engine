@@ -1,5 +1,5 @@
 import { RefObject, useRef } from "react";
-import { ChevronLeft, ChevronRight, EyeOff, Search, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, EyeOff, Heart, Search, X } from "lucide-react";
 import { GenreCountItem, LibraryCounts } from "../hooks/useLibrary";
 import { LibraryQuickFilter, Platform, SortMode } from "../types/game";
 import { CustomSelect, SelectOption } from "./ui/CustomSelect";
@@ -57,17 +57,6 @@ export function FilterStrip({
     pillScrollRef.current?.scrollBy({ left: delta, behavior: "smooth" });
   };
 
-  const headingText =
-    statusFilter === "installed"
-      ? "Yüklü Oyunlar"
-      : statusFilter === "cloud"
-      ? "Bulut Kütüphanesi"
-      : statusFilter === "favorites"
-      ? "Favori Oyunlar"
-      : statusFilter === "hidden"
-      ? "Gizlenen Oyunlar"
-      : "Kütüphane";
-
   const stores: { key: "all" | Platform; label: string; count: number }[] = [
     { key: "all", label: "Tümü", count: counts.all },
     { key: "steam", label: "Steam", count: counts.steam },
@@ -79,13 +68,87 @@ export function FilterStrip({
   ];
 
   return (
-    <section className="max-w-[1480px] w-full mx-auto px-8 lg:px-12 pt-4 pb-6 shrink-0">
-      {/* Başlık + Özel Karanlık Sıralama Menüsü & Sayaç */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white leading-none">
-            {headingText}
+    <section className="w-full max-w-[1880px] mx-auto px-6 sm:px-8 xl:px-12 2xl:px-16 pt-3 pb-6 shrink-0">
+      {/* 1. Satır: Başlık + Durum Kapsülleri (Yüklü/Bulut/Favori) + Sıralama Menüsü & Sayaç */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-4 flex-wrap">
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white leading-none">
+            Kütüphane
           </h1>
+
+          {/* Kütüphane İçi Hızlı Durum Filtre Kapsülleri */}
+          <div className="h-9 rounded-full bg-zinc-950 border border-white/10 p-0.5 flex items-center gap-0.5 shrink-0 shadow-inner">
+            <button
+              type="button"
+              onClick={() => onStatusFilterChange("all")}
+              className={`h-full px-3.5 rounded-full text-xs font-medium transition-all cursor-pointer outline-none ${
+                statusFilter === "all"
+                  ? "bg-white text-black font-semibold shadow-sm"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              <span>Tümü</span>
+              <span className="text-[10px] ml-1.5 opacity-60 tabular-nums">
+                {counts.all}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onStatusFilterChange("installed")}
+              className={`h-full px-3.5 rounded-full text-xs font-medium transition-all cursor-pointer outline-none ${
+                statusFilter === "installed"
+                  ? "bg-white text-black font-semibold shadow-sm"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              <span>Yüklü</span>
+              <span className="text-[10px] ml-1.5 opacity-60 tabular-nums">
+                {counts.installed}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onStatusFilterChange("cloud")}
+              className={`h-full px-3.5 rounded-full text-xs font-medium transition-all cursor-pointer outline-none ${
+                statusFilter === "cloud"
+                  ? "bg-white text-black font-semibold shadow-sm"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              <span>Bulutta</span>
+              <span className="text-[10px] ml-1.5 opacity-60 tabular-nums">
+                {counts.cloud}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                onStatusFilterChange(
+                  statusFilter === "favorites" ? "all" : "favorites"
+                )
+              }
+              className={`h-full px-3.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer outline-none ${
+                statusFilter === "favorites"
+                  ? "bg-white text-black font-semibold shadow-sm"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              <Heart
+                className={`w-3.5 h-3.5 ${
+                  statusFilter === "favorites" ? "fill-black" : ""
+                }`}
+              />
+              <span>Favoriler</span>
+              {counts.favorites > 0 && (
+                <span className="text-[10px] opacity-60 tabular-nums">
+                  {counts.favorites}
+                </span>
+              )}
+            </button>
+          </div>
 
           {(counts.hidden > 0 || statusFilter === "hidden") && (
             <button
@@ -93,7 +156,7 @@ export function FilterStrip({
               onClick={() =>
                 onStatusFilterChange(statusFilter === "hidden" ? "all" : "hidden")
               }
-              className={`h-7 px-3 rounded-full text-[11px] font-medium flex items-center gap-1.5 border cursor-pointer transition-colors outline-none ${
+              className={`h-8 px-3 rounded-full text-[11px] font-medium flex items-center gap-1.5 border cursor-pointer transition-colors outline-none ${
                 statusFilter === "hidden"
                   ? "bg-white text-black border-white font-semibold"
                   : "bg-zinc-900/80 text-zinc-400 hover:text-zinc-200 border-white/10"
@@ -120,18 +183,18 @@ export function FilterStrip({
         </div>
       </div>
 
-      {/* Arama + Mağaza Seçici + Kategori Pill Barı */}
-      <div className="mt-5 flex items-center gap-2.5">
+      {/* 2. Satır: Arama Kutusu + Mağaza Seçici + Kategori / Tür Şeridi */}
+      <div className="mt-4 flex items-center gap-3">
         {/* Yuvarlatılmış Arama Kutusu */}
-        <div className="relative flex items-center w-52 md:w-60 shrink-0">
+        <div className="relative flex items-center w-56 md:w-64 shrink-0">
           <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3.5 pointer-events-none" />
           <input
             ref={searchInputRef}
             type="text"
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="Oyun ara... (/ veya Ctrl+K)"
-            className="w-full h-9 rounded-full bg-zinc-900/60 hover:bg-zinc-900/90 border border-white/10 focus:border-white/30 pl-9 pr-8 text-[13px] text-zinc-100 placeholder:text-zinc-500 outline-none transition-colors"
+            placeholder="Kütüphanede ara... (/)"
+            className="w-full h-9 rounded-full bg-zinc-900/80 hover:bg-zinc-900 border border-white/10 focus:border-white/30 pl-9 pr-8 text-[13px] text-zinc-100 placeholder:text-zinc-500 outline-none transition-colors"
           />
           {query && (
             <button
@@ -144,8 +207,8 @@ export function FilterStrip({
           )}
         </div>
 
-        {/* Sade, Tek Katmanlı Mağaza Seçici */}
-        <div className="h-9 rounded-full bg-zinc-900/60 border border-white/10 p-1 flex items-center gap-0.5 shrink-0">
+        {/* Mağaza Seçici Segmenti */}
+        <div className="h-9 rounded-full bg-zinc-950 border border-white/10 p-0.5 flex items-center gap-0.5 shrink-0">
           {stores.map((st) => {
             const active = platformFilter === st.key;
             return (
@@ -159,7 +222,7 @@ export function FilterStrip({
                 className={`h-full px-3.5 rounded-full text-xs font-medium flex items-center gap-1.5 transition-all duration-150 cursor-pointer outline-none ${
                   active
                     ? "bg-white text-black font-semibold shadow-sm"
-                    : "text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.04]"
+                    : "text-zinc-400 hover:text-zinc-100"
                 }`}
               >
                 <span>{st.label}</span>
@@ -185,10 +248,10 @@ export function FilterStrip({
                 <button
                   key={`col-${c.name}`}
                   onClick={() => onCollectionFilterChange?.(active ? null : c.name)}
-                  className={`h-9 px-4 rounded-full border text-xs whitespace-nowrap flex items-center gap-1.5 shrink-0 transition-all duration-150 cursor-pointer outline-none ${
+                  className={`h-8 px-3.5 rounded-full border text-xs whitespace-nowrap flex items-center gap-1.5 shrink-0 transition-all duration-150 cursor-pointer outline-none ${
                     active
                       ? "border-white/40 bg-white/15 text-white font-medium"
-                      : "border-white/[0.08] bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300"
+                      : "border-white/[0.08] bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300"
                   }`}
                 >
                   <span>{c.name}</span>
@@ -205,10 +268,10 @@ export function FilterStrip({
                 <button
                   key={g.name}
                   onClick={() => onGenreFilterChange(active ? null : g.name)}
-                  className={`h-9 px-4 rounded-full border text-xs whitespace-nowrap flex items-center gap-1.5 shrink-0 transition-all duration-150 cursor-pointer outline-none ${
+                  className={`h-8 px-3.5 rounded-full border text-xs whitespace-nowrap flex items-center gap-1.5 shrink-0 transition-all duration-150 cursor-pointer outline-none ${
                     active
                       ? "border-white/50 bg-white/20 text-white font-semibold"
-                      : "border-white/[0.08] bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300"
+                      : "border-white/[0.08] bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300"
                   }`}
                 >
                   <span>{g.name}</span>

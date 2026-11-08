@@ -448,7 +448,7 @@ export function GameDetailView({
     <div className="flex-1 min-h-0 flex flex-col bg-black text-zinc-100 overflow-hidden animate-detail-enter">
       {/* Üst Sabit Kapsül Çubuğu */}
       <header className="h-16 border-b border-white/[0.06] bg-black/80 backdrop-blur-md z-20 shrink-0">
-        <div className="h-full max-w-[1480px] w-full mx-auto px-8 lg:px-12 flex items-center justify-between gap-4">
+        <div className="h-full w-full max-w-[1880px] mx-auto px-6 sm:px-8 xl:px-12 2xl:px-16 flex items-center justify-between gap-4">
           <button
             type="button"
             onClick={onBack}
@@ -587,7 +587,7 @@ export function GameDetailView({
             </div>
           )}
 
-          <div className="relative z-10 max-w-[1480px] w-full mx-auto px-8 lg:px-12 pt-10 pb-10 flex flex-col md:flex-row items-start md:items-end gap-8">
+          <div className="relative z-10 w-full max-w-[1880px] mx-auto px-6 sm:px-8 xl:px-12 2xl:px-16 pt-10 pb-10 flex flex-col md:flex-row items-start md:items-end gap-8">
             {/* Sol: Keskin 2:3 Dikey Poster */}
             <div className="w-36 sm:w-44 md:w-48 aspect-[2/3] rounded-[14px] overflow-hidden bg-[#0c0c12] ring-1 ring-white/15 shadow-[0_24px_60px_rgba(0,0,0,0.95)] shrink-0">
               {activePoster ? (
@@ -873,7 +873,7 @@ export function GameDetailView({
         </section>
 
         {/* Alt İçerik Konteyneri */}
-        <div className="max-w-[1480px] w-full mx-auto px-8 lg:px-12 pt-7 space-y-8">
+        <div className="w-full max-w-[1880px] mx-auto px-6 sm:px-8 xl:px-12 2xl:px-16 pt-7 space-y-8">
           {/* KURULUM & BİTİRME SÜRESİ BENTO ŞERİDİ */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
             <div className="p-4 rounded-2xl bg-zinc-950 border border-white/[0.08] flex items-start gap-3.5">
