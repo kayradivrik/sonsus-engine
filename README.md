@@ -14,7 +14,9 @@
 <p align="center">
     <img src="docs/screenshots/hero_preview.jpg" alt="Sonsus Engine Ana Sayfa & Sinematik Vitrin" width="100%" style="border-radius: 14px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
   <br/><br/>
-  <img src="docs/screenshots/library_grid.jpg" alt="Sonsus Engine Kütüphane & Izgara Görünümü" width="100%" style="border-radius: 14px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
+    <img src="docs/screenshots/library_grid.jpg" alt="Sonsus Engine Kütüphane & Izgara Görünümü" width="100%" style="border-radius: 14px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
+  <br/><br/>
+  <img src="docs/screenshots/stats_modal.jpg" alt="Sonsus Engine Bento İstatistik & Kütüphane Analiz Paneli" width="100%" style="border-radius: 14px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
 </p>
 
 ---
