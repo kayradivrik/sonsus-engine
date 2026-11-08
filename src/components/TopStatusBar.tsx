@@ -64,7 +64,7 @@ export function TopStatusBar({
   onOpenStorageCleaner,
   onOpenVictusControl,
 }: TopStatusBarProps) {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   return (
     <header className="h-16 w-full max-w-[1920px] mx-auto px-6 sm:px-8 xl:px-12 2xl:px-16 flex items-center justify-between gap-4 shrink-0">
       {/* Sol: Yeni Vektörel Kinetik sonsus-engine Amblemi + Ana Sayfa & Kütüphane Sekmeleri */}
@@ -109,18 +109,18 @@ export function TopStatusBar({
 
       {/* Sağ: Sade, Rahat Araç Butonları */}
       <div className="flex items-center gap-2 text-xs shrink-0">
-        {/* Hızlı Arama & Komut Paleti (Ctrl+K) */}
+        {/* Premium Hızlı Arama & Komut Paleti (Ctrl+K) */}
         <button
           type="button"
           onClick={onOpenCommandPalette}
-          className="h-9 px-3 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 hover:border-white/20 text-zinc-300 hover:text-white text-xs flex items-center gap-2 transition-all cursor-pointer outline-none"
+          className="group relative h-9.5 px-3.5 rounded-full bg-gradient-to-r from-zinc-900 via-zinc-900/90 to-zinc-950 hover:border-cyan-500/40 border border-white/10 text-zinc-300 hover:text-white text-xs flex items-center gap-2.5 transition-all shadow-[0_2px_12px_rgba(0,0,0,0.5)] hover:shadow-[0_0_20px_rgba(6,182,212,0.15)] cursor-pointer outline-none"
           title={t.searchTitle}
         >
-          <Search className="w-3.5 h-3.5 text-zinc-400" />
-          <span className="hidden md:inline font-medium">{t.searchPlaceholder}</span>
-          <span className="hidden lg:inline text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-zinc-400 border border-white/10">
+          <Search className="w-3.5 h-3.5 text-zinc-400 group-hover:text-cyan-400 transition-colors" />
+          <span className="hidden md:inline font-medium text-zinc-300 group-hover:text-white transition-colors">{t.searchPlaceholder}</span>
+          <kbd className="hidden sm:inline-flex items-center text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-white/5 group-hover:bg-cyan-500/10 text-zinc-400 group-hover:text-cyan-300 border border-white/10 group-hover:border-cyan-500/20 transition-colors">
             Ctrl+K
-          </span>
+          </kbd>
         </button>
 
         {/* Özel Oyun Ekle */}
@@ -128,10 +128,10 @@ export function TopStatusBar({
           type="button"
           onClick={onOpenAddCustomGame}
           className="h-9 px-3 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 hover:border-white/20 text-zinc-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer outline-none"
-          title="Harici (.exe, .AppImage, .sh) Oyun Ekle"
+          title={t.addGame}
         >
           <Plus className="w-3.5 h-3.5 text-zinc-300" />
-          <span className="hidden md:inline">Oyun Ekle</span>
+          <span className="hidden md:inline">{t.addGame}</span>
         </button>
 
         {/* Performans Modülü */}
@@ -139,7 +139,7 @@ export function TopStatusBar({
           type="button"
           onClick={onOpenUltraFps}
           className="h-9 px-3 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 hover:border-white/20 text-zinc-300 hover:text-white flex items-center gap-1.5 text-xs font-medium transition-all cursor-pointer outline-none"
-          title="Performans ve CS2 Ayarları"
+          title={lang === "tr" ? "Performans ve CS2 Ayarları" : "Performance & Latency Tweaks"}
         >
           <SlidersHorizontal className="w-3.5 h-3.5 text-zinc-400" />
           <span>{t.performanceMode}</span>
@@ -149,10 +149,12 @@ export function TopStatusBar({
         {controllerName && (
           <div
             className="h-9 px-3 rounded-full bg-zinc-900/80 border border-white/10 flex items-center gap-1.5 text-xs text-zinc-300"
-            title={`Oyun Kolu Bağlı: ${controllerName}`}
+            title={`${lang === "tr" ? "Oyun Kolu Bağlı" : "Gamepad Connected"}: ${controllerName}`}
           >
             <Gamepad2 className="w-3.5 h-3.5 text-zinc-300" />
-            <span className="font-medium text-[11px] hidden xl:inline">Konsol</span>
+            <span className="font-medium text-[11px] hidden xl:inline">
+              {lang === "tr" ? "Konsol" : "Controller"}
+            </span>
           </div>
         )}
 
@@ -164,7 +166,7 @@ export function TopStatusBar({
             ? "bg-white text-black border-white font-bold shadow-md"
             : "bg-zinc-900/80 hover:bg-zinc-800 border-white/10 hover:border-white/20 text-zinc-300 hover:text-white"
             }`}
-          title="Uygulama İçi İndirme & Doğrulama Yöneticisi"
+          title={t.downloads}
         >
           <Download className="w-3.5 h-3.5" />
           {activeDownloadsCount > 0 ? (
@@ -183,7 +185,7 @@ export function TopStatusBar({
           <button
             onClick={() => onViewModeChange(viewMode === "grid" ? "table" : "grid")}
             className="w-9 h-9 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 hover:border-white/20 flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer outline-none"
-            title={viewMode === "grid" ? "Liste görünümü" : "Poster görünümü"}
+            title={viewMode === "grid" ? (lang === "tr" ? "Liste görünümü" : "List view") : (lang === "tr" ? "Poster görünümü" : "Grid view")}
           >
             {viewMode === "grid" ? (
               <List className="w-3.5 h-3.5" />
@@ -198,7 +200,7 @@ export function TopStatusBar({
           onClick={onRescan}
           disabled={scanning}
           className="w-9 h-9 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 hover:border-white/20 flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer disabled:opacity-50 outline-none"
-          title="Kütüphaneyi Yeniden Tara (R)"
+          title={`${t.rescan} (R)`}
         >
           <RefreshCw className={`w-3.5 h-3.5 ${scanning ? "animate-spin text-white" : ""}`} />
         </button>
@@ -208,7 +210,7 @@ export function TopStatusBar({
           type="button"
           onClick={onOpenStorageCleaner}
           className="w-9 h-9 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 hover:border-white/20 flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer outline-none"
-          title="Disk Alanı & Shader Temizleyici"
+          title={t.cleaner}
         >
           <HardDrive className="w-3.5 h-3.5" />
         </button>
@@ -218,7 +220,7 @@ export function TopStatusBar({
           type="button"
           onClick={onOpenVictusControl}
           className="w-9 h-9 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 hover:border-white/20 flex items-center justify-center text-zinc-300 hover:text-white transition-colors cursor-pointer outline-none"
-          title="HP Victus Fan & Güç Kontrolü"
+          title={t.hardware}
         >
           <Laptop className="w-3.5 h-3.5" />
         </button>
@@ -228,7 +230,7 @@ export function TopStatusBar({
           type="button"
           onClick={onOpenStats}
           className="w-9 h-9 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 hover:border-white/20 flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer outline-none"
-          title="Kütüphane İstatistik Paneli"
+          title={t.stats}
         >
           <BarChart3 className="w-3.5 h-3.5" />
         </button>
@@ -238,11 +240,11 @@ export function TopStatusBar({
           type="button"
           onClick={onOpenOnboarding}
           className="h-9 px-3 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 hover:border-white/20 text-xs font-semibold text-zinc-200 hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer outline-none"
-          title="Mağaza Hesapları (Steam / Epic / GOG)"
+          title={t.profile}
         >
           <User className="w-3.5 h-3.5 text-zinc-400" />
           <span className="max-w-[80px] truncate hidden sm:inline">
-            {playerName || "Hesaplar"}
+            {playerName || (lang === "tr" ? "Hesaplar" : "Accounts")}
           </span>
         </button>
 
@@ -250,7 +252,7 @@ export function TopStatusBar({
         <button
           onClick={onOpenSettings}
           className="w-9 h-9 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 hover:border-white/20 flex items-center justify-center text-zinc-300 hover:text-white transition-colors cursor-pointer outline-none"
-          title="Ayarlar & Başlatma Günlükleri"
+          title={t.settings}
         >
           <Sliders className="w-3.5 h-3.5" />
         </button>

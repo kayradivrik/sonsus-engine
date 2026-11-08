@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Gauge, Cpu, Fan, BatteryCharging, Zap, Shield, RefreshCw, X, Laptop } from "lucide-react";
 import { tauriApi } from "../api/tauriClient";
 import { HardwareThermalStatus } from "../types/game";
+import { useTranslation } from "../i18n/useTranslation";
 
 interface VictusControlModalProps {
   onClose: () => void;
@@ -12,6 +13,7 @@ export const VictusControlModal: React.FC<VictusControlModalProps> = ({
   onClose,
   showToast,
 }) => {
+  const { t, lang } = useTranslation();
   const [status, setStatus] = useState<HardwareThermalStatus | null>(null);
   const [updatingProfile, setUpdatingProfile] = useState<string | null>(null);
 
@@ -46,22 +48,22 @@ export const VictusControlModal: React.FC<VictusControlModalProps> = ({
   const PROFILES = [
     {
       key: "performance",
-      label: "Performans Modu",
-      subtext: "Maksimum CPU gücü, agresif fan eğrisi ve e-spor için en yüksek FPS.",
+      label: t.perfProfile,
+      subtext: lang === "tr" ? "Maksimum CPU gücü, agresif fan eğrisi ve e-spor için en yüksek FPS." : "Max CPU boost, aggressive fan profile and top FPS for esports.",
       icon: Zap,
       activeColor: "bg-white text-black font-bold",
     },
     {
       key: "balanced",
-      label: "Dengeli Mod",
-      subtext: "Günlük kullanım ve orta yükte oyunlar için dinamik frekans ve optimize fan.",
+      label: t.balancedProfile,
+      subtext: lang === "tr" ? "Günlük kullanım ve orta yükte oyunlar için dinamik frekans ve optimize fan." : "Dynamic frequency scaling and optimized fans for everyday gaming.",
       icon: Gauge,
       activeColor: "bg-white text-black font-bold",
     },
     {
       key: "power-saver",
-      label: "Sessiz / Tasarruf Modu",
-      subtext: "Düşük güç tüketimi, fısıltı kadar sessiz fanlar ve uzatılmış pil ömrü.",
+      label: t.quietProfile,
+      subtext: lang === "tr" ? "Düşük güç tüketimi, fısıltı kadar sessiz fanlar ve uzatılmış pil ömrü." : "Whisper quiet fans, lower power draw and extended battery life.",
       icon: Shield,
       activeColor: "bg-white text-black font-bold",
     },
@@ -79,14 +81,14 @@ export const VictusControlModal: React.FC<VictusControlModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-bold text-white tracking-tight">
-                  HP Victus Donanım & Fan Kontrolü
+                  {t.hardwareTitle}
                 </h2>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/10 text-zinc-300 border border-white/10">
                   HP-WMI Live
                 </span>
               </div>
               <p className="text-xs text-zinc-400">
-                Canlı CPU sıcaklığı, çift fan devir hızı (RPM) ve termal güç profilleri
+                {t.hardwareSubtitle}
               </p>
             </div>
           </div>
@@ -105,7 +107,7 @@ export const VictusControlModal: React.FC<VictusControlModalProps> = ({
             <div className="rounded-2xl bg-zinc-900/60 border border-white/10 p-4 flex flex-col justify-between">
               <div className="flex items-center gap-1.5 text-xs text-zinc-400 font-medium mb-2">
                 <Cpu className="w-4 h-4 text-zinc-300" />
-                <span>CPU Isısı</span>
+                <span>{t.cpuTemp}</span>
               </div>
               <div className="text-2xl font-black text-white tabular-nums">
                 {status?.cpu_temp_celsius != null ? `${status.cpu_temp_celsius}°C` : "—"}
@@ -117,7 +119,7 @@ export const VictusControlModal: React.FC<VictusControlModalProps> = ({
             <div className="rounded-2xl bg-zinc-900/60 border border-white/10 p-4 flex flex-col justify-between">
               <div className="flex items-center gap-1.5 text-xs text-zinc-400 font-medium mb-2">
                 <Fan className={`w-4 h-4 text-zinc-300 ${(status?.fans[0]?.rpm ?? 0) > 0 ? "animate-spin" : ""}`} />
-                <span>CPU Fanı</span>
+                <span>CPU Fan</span>
               </div>
               <div className="text-2xl font-black text-white tabular-nums">
                 {status?.fans[0]?.rpm ?? 0}
@@ -129,7 +131,7 @@ export const VictusControlModal: React.FC<VictusControlModalProps> = ({
             <div className="rounded-2xl bg-zinc-900/60 border border-white/10 p-4 flex flex-col justify-between">
               <div className="flex items-center gap-1.5 text-xs text-zinc-400 font-medium mb-2">
                 <Fan className={`w-4 h-4 text-zinc-300 ${(status?.fans[1]?.rpm ?? 0) > 0 ? "animate-spin" : ""}`} />
-                <span>GPU Fanı</span>
+                <span>GPU Fan</span>
               </div>
               <div className="text-2xl font-black text-white tabular-nums">
                 {status?.fans[1]?.rpm ?? 0}
@@ -141,10 +143,10 @@ export const VictusControlModal: React.FC<VictusControlModalProps> = ({
             <div className="rounded-2xl bg-zinc-900/60 border border-white/10 p-4 flex flex-col justify-between">
               <div className="flex items-center gap-1.5 text-xs text-zinc-400 font-medium mb-2">
                 <BatteryCharging className="w-4 h-4 text-zinc-300" />
-                <span>Güç Tüketimi</span>
+                <span>{lang === "tr" ? "Güç Tüketimi" : "Power Draw"}</span>
               </div>
               <div className="text-2xl font-black text-white tabular-nums">
-                {status?.battery_watts != null ? `${status.battery_watts}W` : "Adaptörde"}
+                {status?.battery_watts != null ? `${status.battery_watts}W` : (lang === "tr" ? "Adaptörde" : "AC Power")}
               </div>
               <div className="text-[10px] text-zinc-500 mt-1">Anlık Değer</div>
             </div>
@@ -153,11 +155,11 @@ export const VictusControlModal: React.FC<VictusControlModalProps> = ({
           {/* Güç ve Fan Profili Seçimi */}
           <div className="space-y-3">
             <div className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center justify-between">
-              <span>Termal Güç Profili</span>
+              <span>{t.powerProfiles}</span>
               {updatingProfile && (
                 <span className="text-zinc-400 flex items-center gap-1 text-[11px] normal-case">
                   <RefreshCw className="w-3 h-3 animate-spin" />
-                  Uygulanıyor...
+                  {lang === "tr" ? "Uygulanıyor..." : "Applying..."}
                 </span>
               )}
             </div>
@@ -199,7 +201,7 @@ export const VictusControlModal: React.FC<VictusControlModalProps> = ({
                         </span>
                         {isActive && (
                           <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white text-black">
-                            Aktif Profil
+                            {lang === "tr" ? "Aktif Profil" : "Active Profile"}
                           </span>
                         )}
                       </div>
@@ -216,13 +218,13 @@ export const VictusControlModal: React.FC<VictusControlModalProps> = ({
 
         {/* Alt Bilgi */}
         <div className="p-4 bg-zinc-950 border-t border-white/10 flex items-center justify-between text-[11px] text-zinc-500">
-          <span>HP ACPI ve Intel P-State üzerinden doğrudan kontrol edilir.</span>
+          <span>{lang === "tr" ? "ACPI ve Linux CPU P-State üzerinden doğrudan kontrol edilir." : "Direct kernel hardware ACPI & CPU P-State thermal control."}</span>
           <button
             type="button"
             onClick={onClose}
             className="px-4 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white font-medium cursor-pointer"
           >
-            Kapat
+            {lang === "tr" ? "Kapat" : "Close"}
           </button>
         </div>
       </div>

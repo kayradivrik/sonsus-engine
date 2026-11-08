@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { HardDrive, Trash2, RefreshCw, X, ShieldCheck, CheckCircle2, AlertTriangle } from "lucide-react";
 import { tauriApi } from "../api/tauriClient";
 import { CleanableCategory, StorageAnalysisResult, formatBytes } from "../types/game";
+import { useTranslation } from "../i18n/useTranslation";
 
 interface StorageCleanerModalProps {
   onClose: () => void;
@@ -12,6 +13,7 @@ export const StorageCleanerModal: React.FC<StorageCleanerModalProps> = ({
   onClose,
   showToast,
 }) => {
+  const { t, lang } = useTranslation();
   const [data, setData] = useState<StorageAnalysisResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [cleaningId, setCleaningId] = useState<string | null>(null);
@@ -81,13 +83,13 @@ export const StorageCleanerModal: React.FC<StorageCleanerModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-                Disk Alanı & Shader Temizleyici
+                {t.cleanerTitle}
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/10 text-zinc-300 border border-white/10">
-                  Otomatik Analiz
+                  {lang === "tr" ? "Otomatik Analiz" : "Auto Analysis"}
                 </span>
               </h2>
               <p className="text-xs text-zinc-400">
-                Steam shadercache, Mesa önbellekleri ve artık Proton prefix'lerini silin
+                {t.cleanerSubtitle}
               </p>
             </div>
           </div>
@@ -105,10 +107,10 @@ export const StorageCleanerModal: React.FC<StorageCleanerModalProps> = ({
           <div className="rounded-2xl bg-zinc-900/60 border border-white/10 p-5 flex items-center justify-between">
             <div>
               <div className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">
-                Kazanılabilir Boş Alan
+                {t.totalReclaimable}
               </div>
               <div className="text-3xl font-black text-white tracking-tight">
-                {loading ? "Hesaplanıyor..." : formatBytes(activeReclaimable)}
+                {loading ? (lang === "tr" ? "Hesaplanıyor..." : "Calculating...") : formatBytes(activeReclaimable)}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -119,7 +121,7 @@ export const StorageCleanerModal: React.FC<StorageCleanerModalProps> = ({
                 className="h-10 px-3.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-xs font-medium text-zinc-300 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-                <span>Yenile</span>
+                <span>{t.rescan}</span>
               </button>
               {activeReclaimable > 0 && (
                 <button
@@ -129,7 +131,7 @@ export const StorageCleanerModal: React.FC<StorageCleanerModalProps> = ({
                   className="h-10 px-4 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-lg disabled:opacity-50"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  <span>Hepsini Temizle</span>
+                  <span>{t.cleanAllBtn}</span>
                 </button>
               )}
             </div>
@@ -138,7 +140,7 @@ export const StorageCleanerModal: React.FC<StorageCleanerModalProps> = ({
           {/* Kategoriler Listesi */}
           <div className="space-y-3">
             <div className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
-              Temizlenebilir Bileşenler
+              {lang === "tr" ? "Temizlenebilir Bileşenler" : "Cleanable Items"}
             </div>
 
             {loading ? (
@@ -168,7 +170,7 @@ export const StorageCleanerModal: React.FC<StorageCleanerModalProps> = ({
                         {cat.safe_to_delete && (
                           <span className="text-[10px] font-semibold text-zinc-400 flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded border border-white/10">
                             <ShieldCheck className="w-3 h-3 text-zinc-300" />
-                            Güvenli
+                            {t.safeBadge}
                           </span>
                         )}
                       </div>
@@ -186,7 +188,7 @@ export const StorageCleanerModal: React.FC<StorageCleanerModalProps> = ({
                           {isCleaned ? "0 B" : formatBytes(cat.size_bytes)}
                         </div>
                         <div className="text-[10px] text-zinc-500">
-                          {cat.item_count} dosya
+                          {cat.item_count} {lang === "tr" ? "dosya" : "files"}
                         </div>
                       </div>
 
@@ -206,7 +208,7 @@ export const StorageCleanerModal: React.FC<StorageCleanerModalProps> = ({
                           ) : (
                             <Trash2 className="w-3.5 h-3.5 text-zinc-400" />
                           )}
-                          <span>Temizle</span>
+                          <span>{lang === "tr" ? "Temizle" : "Clean"}</span>
                         </button>
                       )}
                     </div>

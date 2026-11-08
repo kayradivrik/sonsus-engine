@@ -25,13 +25,23 @@ interface FilterStripProps {
   counts: LibraryCounts;
 }
 
-const SORT_OPTIONS: SelectOption<SortMode>[] = [
-  { value: "status", label: "Sırala: Yüklü Önce" },
-  { value: "title", label: "Sırala: İsim (A-Z)" },
-  { value: "playtime", label: "Sırala: Oynama Süresi" },
-  { value: "recent", label: "Sırala: Son Oynanan" },
-  { value: "size", label: "Sırala: Disk Boyutu" },
-];
+const GENRE_TR_MAP: Record<string, string> = {
+  Action: "Aksiyon",
+  Adventure: "Macera",
+  Indie: "Bağımsız (Indie)",
+  Shooter: "Nişancı",
+  Horror: "Korku",
+  Simulation: "Simülasyon",
+  Strategy: "Strateji",
+  RPG: "RPG / Rol Yapma",
+  Racing: "Yarış",
+  Sports: "Spor",
+  Puzzle: "Bulmaca",
+  Casual: "Gündelik",
+  Anime: "Anime",
+  Platformer: "Platform",
+  Survival: "Hayatta Kalma",
+};
 
 export function FilterStrip({
   query,
@@ -52,8 +62,16 @@ export function FilterStrip({
   visibleCount,
   counts,
 }: FilterStripProps) {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const pillScrollRef = useRef<HTMLDivElement>(null);
+
+  const sortOptions: SelectOption<SortMode>[] = [
+    { value: "status", label: t.sortByInstalled },
+    { value: "title", label: t.sortByTitle },
+    { value: "playtime", label: t.sortByPlaytime },
+    { value: "recent", label: t.sortByRecent },
+    { value: "size", label: t.sortBySize },
+  ];
 
   const scrollPills = (delta: number) => {
     pillScrollRef.current?.scrollBy({ left: delta, behavior: "smooth" });
@@ -163,10 +181,10 @@ export function FilterStrip({
                   ? "bg-white text-black border-white font-semibold"
                   : "bg-zinc-900/80 text-zinc-400 hover:text-zinc-200 border-white/10"
               }`}
-              title="Gizlenen oyunları göster / gizle"
+              title={lang === "en" ? "Show / hide hidden games" : "Gizlenen oyunları göster / gizle"}
             >
               <EyeOff className="w-3 h-3" />
-              <span>Gizlenenler ({counts.hidden})</span>
+              <span>{lang === "en" ? `Hidden (${counts.hidden})` : `Gizlenenler (${counts.hidden})`}</span>
             </button>
           )}
         </div>
@@ -175,37 +193,42 @@ export function FilterStrip({
           <CustomSelect
             compact
             value={sortMode}
-            options={SORT_OPTIONS}
+            options={sortOptions}
             onChange={onSortModeChange}
             className="w-48"
           />
           <span className="text-xs font-medium text-zinc-400 tabular-nums">
-            {visibleCount.toLocaleString("tr-TR")} oyun
+            {visibleCount.toLocaleString(lang === "tr" ? "tr-TR" : "en-US")} {t.itemsCount}
           </span>
         </div>
       </div>
 
       {/* 2. Satır: Arama Kutusu + Mağaza Seçici + Kategori / Tür Şeridi */}
       <div className="mt-4 flex items-center gap-3">
-        {/* Yuvarlatılmış Arama Kutusu */}
-        <div className="relative flex items-center w-56 md:w-64 shrink-0">
-          <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3.5 pointer-events-none" />
+        {/* Premium Neon/Glow Arama Kutusu */}
+        <div className="group relative flex items-center w-60 sm:w-72 shrink-0 transition-all focus-within:w-72 sm:focus-within:w-80">
+          <div className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-purple-500/0 opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none blur-sm" />
+          <Search className="w-4 h-4 text-zinc-400 group-focus-within:text-cyan-400 absolute left-3.5 pointer-events-none transition-colors" />
           <input
             ref={searchInputRef}
             type="text"
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
-            placeholder={`${t.library} ${t.searchPlaceholder}`}
-            className="w-full h-9 rounded-full bg-zinc-900/80 hover:bg-zinc-900 border border-white/10 focus:border-white/30 pl-9 pr-8 text-[13px] text-zinc-100 placeholder:text-zinc-500 outline-none transition-colors"
+            placeholder={t.searchPlaceholder}
+            className="w-full h-9.5 rounded-full bg-zinc-900/90 hover:bg-zinc-900 border border-white/10 group-focus-within:border-cyan-500/50 pl-10 pr-9 text-xs font-medium text-zinc-100 placeholder:text-zinc-500 outline-none transition-all shadow-inner group-focus-within:shadow-[0_0_20px_rgba(6,182,212,0.15)]"
           />
-          {query && (
+          {query ? (
             <button
               onClick={() => onQueryChange("")}
-              className="absolute right-3 text-zinc-500 hover:text-zinc-200 cursor-pointer outline-none"
-              title="Aramayı temizle"
+              className="absolute right-2.5 w-5 h-5 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-zinc-400 hover:text-white cursor-pointer outline-none transition-colors"
+              title={lang === "tr" ? "Temizle" : "Clear"}
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-3 h-3" />
             </button>
+          ) : (
+            <span className="hidden sm:inline-block absolute right-3 text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-zinc-400 border border-white/5 pointer-events-none">
+              /
+            </span>
           )}
         </div>
 
@@ -276,7 +299,7 @@ export function FilterStrip({
                       : "border-white/[0.08] bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300"
                   }`}
                 >
-                  <span>{g.name}</span>
+                  <span>{lang === "tr" ? (GENRE_TR_MAP[g.name] || g.name) : g.name}</span>
                   <span className={active ? "text-zinc-300" : "text-zinc-500"}>
                     {g.count}
                   </span>
@@ -290,14 +313,14 @@ export function FilterStrip({
               <button
                 onClick={() => scrollPills(-260)}
                 className="w-7 h-7 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-300 cursor-pointer transition-colors outline-none"
-                title="Sola kaydır"
+                title={lang === "tr" ? "Sola kaydır" : "Scroll left"}
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => scrollPills(260)}
                 className="w-7 h-7 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-300 cursor-pointer transition-colors outline-none"
-                title="Sağa kaydır"
+                title={lang === "tr" ? "Sağa kaydır" : "Scroll right"}
               >
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>

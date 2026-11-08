@@ -6,6 +6,7 @@ import {
   formatPlaytime,
   platformLabel,
 } from "../types/game";
+import { useTranslation } from "../i18n/useTranslation";
 
 interface RecentShelfProps {
   games: UnifiedGame[];
@@ -23,6 +24,7 @@ export function RecentShelf({
   onOpenDetail,
   onLaunch,
 }: RecentShelfProps) {
+  const { t } = useTranslation();
   if (games.length === 0) return null;
 
   return (
@@ -30,7 +32,7 @@ export function RecentShelf({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs font-bold text-zinc-300 uppercase tracking-wider">
           <Clock className="w-3.5 h-3.5 text-zinc-400" />
-          <span>Son Oynananlar & Devam Et</span>
+          <span>{t.recentGames}</span>
         </div>
       </div>
 
@@ -85,7 +87,7 @@ export function RecentShelf({
                     e.stopPropagation();
                     onLaunch(game);
                   }}
-                  title="Hemen Oyna"
+                  title={t.play}
                   className="w-9 h-9 rounded-full bg-white hover:bg-zinc-200 text-black flex items-center justify-center shrink-0 shadow-md transition-transform active:scale-95 cursor-pointer disabled:opacity-50"
                 >
                   <Play className="w-3.5 h-3.5 fill-black ml-0.5" />

@@ -1,3 +1,4 @@
+import { useTranslation } from "../i18n/useTranslation";
 import { useState } from "react";
 import { FileCode2, FolderSearch, Plus, X } from "lucide-react";
 import { tauriApi } from "../api/tauriClient";
@@ -27,6 +28,7 @@ export function AddCustomGameModal({
   onGameAdded,
   onNotify,
 }: AddCustomGameModalProps) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [exePath, setExePath] = useState("");
   const [argsText, setArgsText] = useState("");
@@ -57,7 +59,7 @@ export function AddCustomGameModal({
 
   const handleSubmit = async () => {
     if (!title.trim() || !exePath.trim()) {
-      onNotify("Lütfen oyun adını ve çalıştırılabilir dosya yolunu seçin.");
+      onNotify(t.fillRequiredError);
       return;
     }
     setBusy(true);
@@ -73,7 +75,7 @@ export function AddCustomGameModal({
         wine_prefix: winePrefix.trim() || null,
       });
       onGameAdded(created);
-      onNotify(`${created.title} kütüphaneye eklendi ve posteri eşitlendi!`);
+      onNotify(`${created.title} ${t.gameAddedSuccess}`);
       setTitle("");
       setExePath("");
       setArgsText("");
@@ -103,10 +105,10 @@ export function AddCustomGameModal({
             </div>
             <div>
               <h2 className="text-sm font-bold text-white">
-                Harici / Özel Oyun Ekle
+                {t.addCustomGameTitle}
               </h2>
               <p className="text-[11px] text-zinc-400">
-                .exe, .AppImage, .sh veya emülatör oyunlarını kütüphaneye bağla
+                {t.addCustomGameSubtitle}
               </p>
             </div>
           </div>
@@ -123,14 +125,14 @@ export function AddCustomGameModal({
         <div className="p-6 space-y-4">
           <div>
             <label className="block text-[11px] text-zinc-400 mb-1.5">
-              Çalıştırılabilir Dosya (.exe / .AppImage / .sh / Binary)
+              {t.executableLabel}
             </label>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={exePath}
                 onChange={(e) => setExePath(e.target.value)}
-                placeholder="/home/kullanici/Games/Oyun/Game.exe"
+                placeholder={t.executablePlaceholder}
                 className="flex-1 h-10 rounded-xl bg-black border border-white/12 focus:border-white/35 px-3.5 font-mono text-zinc-100 outline-none"
               />
               <button
@@ -139,14 +141,14 @@ export function AddCustomGameModal({
                 className="h-10 px-3.5 rounded-xl bg-[#14141d] hover:bg-[#1e1e2b] border border-white/12 text-zinc-200 flex items-center gap-1.5 cursor-pointer shrink-0"
               >
                 <FileCode2 className="w-4 h-4 text-zinc-300" />
-                <span>Dosya Seç</span>
+                <span>{t.pickFileBtn}</span>
               </button>
             </div>
           </div>
 
           <div>
             <label className="block text-[11px] text-zinc-400 mb-1.5">
-              Oyun Başlığı (Poster ve mağaza bilgileri bu isme göre otomatik çekilir)
+              {t.gameTitleLabel}
             </label>
             <input
               type="text"
@@ -160,14 +162,14 @@ export function AddCustomGameModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
               <label className="block text-[11px] text-zinc-400 mb-1.5">
-                Çalışma Klasörü (İsteğe Bağlı)
+                {t.workingDirLabel}
               </label>
               <div className="flex gap-1.5">
                 <input
                   type="text"
                   value={workingDir}
                   onChange={(e) => setWorkingDir(e.target.value)}
-                  placeholder="Otomatik"
+                  placeholder={t.autoLabel}
                   className="flex-1 h-9 rounded-xl bg-black border border-white/12 px-3 font-mono text-zinc-200 outline-none"
                 />
                 <button
@@ -182,7 +184,7 @@ export function AddCustomGameModal({
 
             <div>
               <label className="block text-[11px] text-zinc-400 mb-1.5">
-                Wine / Proton Prefix (Linux .exe için)
+                {t.winePrefixLabel}
               </label>
               <div className="flex gap-1.5">
                 <input
@@ -223,7 +225,7 @@ export function AddCustomGameModal({
             onClick={onClose}
             className="h-10 px-4 rounded-full bg-white/[0.06] hover:bg-white/12 text-zinc-300 font-medium cursor-pointer"
           >
-            Vazgeç
+            {t.cancelBtn}
           </button>
           <button
             type="button"
@@ -232,7 +234,7 @@ export function AddCustomGameModal({
             className="h-10 px-6 rounded-full bg-white hover:bg-zinc-200 text-black font-bold flex items-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
-            <span>{busy ? "Ekleniyor & Poster Çekiliyor..." : "Kütüphaneye Ekle"}</span>
+            <span>{busy ? "Ekleniyor & Poster Çekiliyor..." : "{t.saveGameBtn}"}</span>
           </button>
         </div>
       </div>

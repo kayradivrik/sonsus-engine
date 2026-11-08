@@ -5,6 +5,7 @@ import {
   buildCoverCandidates,
   buildHeroCandidates,
 } from "../types/game";
+import { useTranslation } from "../i18n/useTranslation";
 
 interface HomeHeroSliderProps {
   games: UnifiedGame[];
@@ -102,6 +103,7 @@ export const HomeHeroSlider: React.FC<HomeHeroSliderProps> = ({
   onOpenDetail,
   onLaunch,
 }) => {
+  const { t, lang } = useTranslation();
   // Banner veya geniş kapak resmi olan popüler / son oynanan 5-6 oyunu seç
   const slides = React.useMemo(() => {
     if (!games || games.length === 0) return [];
@@ -176,7 +178,7 @@ export const HomeHeroSlider: React.FC<HomeHeroSliderProps> = ({
           <div className="relative z-10 p-7 sm:p-10 md:p-12 max-w-xl">
             <div className="flex items-center gap-2 mb-3">
               <span className="px-2.5 py-0.5 rounded-full bg-white/10 border border-white/15 text-[11px] font-semibold text-zinc-200">
-                Öne Çıkan
+                {t.featured}
               </span>
               <span className="text-[10px] uppercase tracking-wider text-zinc-400 font-bold px-2 py-0.5 rounded bg-black/60 border border-white/10">
                 {current.platform}
@@ -189,10 +191,10 @@ export const HomeHeroSlider: React.FC<HomeHeroSliderProps> = ({
 
             <p className="text-xs sm:text-sm text-zinc-300 line-clamp-2 mb-6 leading-relaxed">
               {current.summary_hint ||
-                `${current.genres?.join(", ") || "Aksiyon & Macera"} • ${
+                `${current.genres?.join(", ") || (lang === "en" ? "Action & Adventure" : "Aksiyon & Macera")} • ${
                   current.status === "installed"
-                    ? "Bilgisayarda Yüklü"
-                    : "Bulut Kütüphanesi"
+                    ? t.installedLocally
+                    : t.cloudLibrary
                 }`}
             </p>
 
@@ -203,7 +205,7 @@ export const HomeHeroSlider: React.FC<HomeHeroSliderProps> = ({
                 className="px-6 py-2.5 rounded-full bg-white hover:bg-zinc-200 text-black font-extrabold text-xs flex items-center gap-2 transition-transform active:scale-95 shadow-xl cursor-pointer"
               >
                 <Play className="w-4 h-4 fill-black" />
-                <span>{current.status === "installed" ? "Oyna" : "Detaylar"}</span>
+                <span>{current.status === "installed" ? t.play : t.details}</span>
               </button>
 
               <button
@@ -212,7 +214,7 @@ export const HomeHeroSlider: React.FC<HomeHeroSliderProps> = ({
                 className="px-5 py-2.5 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/15 text-zinc-200 font-semibold text-xs flex items-center gap-2 transition-colors cursor-pointer"
               >
                 <Info className="w-4 h-4 text-zinc-400" />
-                <span>İncele</span>
+                <span>{t.details}</span>
               </button>
             </div>
           </div>

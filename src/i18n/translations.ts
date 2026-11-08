@@ -1,20 +1,6 @@
 export type Language = "tr" | "en";
 
 export interface Translations {
-  // Additional labels
-  getLoginCode: string;
-  pasteAuthCode: string;
-  pasteGogCode: string;
-  viewCategory: string;
-  actionAndShooter: string;
-  adventureAndRpg: string;
-  indiePicks: string;
-  quickLaunchRecent: string;
-  storeSteam: string;
-  storeEpic: string;
-  storeGog: string;
-  storeCustom: string;
-
   appName: string;
   home: string;
   library: string;
@@ -31,6 +17,7 @@ export interface Translations {
   settings: string;
   profile: string;
 
+  // Onboarding
   welcomeTitle: string;
   welcomeSubtitle: string;
   selectLanguage: string;
@@ -51,7 +38,11 @@ export interface Translations {
   disconnect: string;
   continueBtn: string;
   saveAndEnter: string;
+  getLoginCode: string;
+  pasteAuthCode: string;
+  pasteGogCode: string;
 
+  // Home
   featured: string;
   weeklyDeals: string;
   weeklyDealsSub: string;
@@ -61,11 +52,25 @@ export interface Translations {
   adventureGames: string;
   indieGames: string;
   viewCategoryAll: string;
+  viewCategory: string;
   play: string;
   details: string;
   installedLocally: string;
   cloudLibrary: string;
 
+  // Shelf Titles
+  actionAndShooter: string;
+  adventureAndRpg: string;
+  indiePicks: string;
+  quickLaunchRecent: string;
+
+  // Stores
+  storeSteam: string;
+  storeEpic: string;
+  storeGog: string;
+  storeCustom: string;
+
+  // Library
   all: string;
   installed: string;
   cloud: string;
@@ -78,6 +83,26 @@ export interface Translations {
   noGamesFound: string;
   itemsCount: string;
 
+  // AddCustomGameModal
+  addCustomGameTitle: string;
+  addCustomGameSubtitle: string;
+  executableLabel: string;
+  executablePlaceholder: string;
+  pickFileBtn: string;
+  gameTitleLabel: string;
+  gameTitlePlaceholder: string;
+  workingDirLabel: string;
+  autoLabel: string;
+  winePrefixLabel: string;
+  argsLabel: string;
+  argsPlaceholder: string;
+  cancelBtn: string;
+  saveGameBtn: string;
+  addingBtn: string;
+  fillRequiredError: string;
+  gameAddedSuccess: string;
+
+  // Stats Modal
   statsTitle: string;
   statsSubtitle: string;
   totalGames: string;
@@ -89,6 +114,7 @@ export interface Translations {
   storeDistribution: string;
   genreDistribution: string;
 
+  // Cleaner
   cleanerTitle: string;
   cleanerSubtitle: string;
   cleanAllBtn: string;
@@ -97,6 +123,7 @@ export interface Translations {
   safeBadge: string;
   cleanSuccess: string;
 
+  // Hardware Modal
   hardwareTitle: string;
   hardwareSubtitle: string;
   cpuTemp: string;
@@ -109,19 +136,6 @@ export interface Translations {
 
 export const translations: Record<Language, Translations> = {
   tr: {
-    getLoginCode: "Giriş Kodu Al",
-    pasteAuthCode: "authorizationCode yapıştırın",
-    pasteGogCode: "GOG kodunu yapıştırın",
-    viewCategory: "Kategoriyi Göster",
-    actionAndShooter: "Aksiyon & Nişancı Oyunları",
-    adventureAndRpg: "Macera & Rol Yapma (RPG)",
-    indiePicks: "Seçkin Bağımsız (Indie) Yapımlar",
-    quickLaunchRecent: "Son Oynananlar & Hızlı Başlat",
-    storeSteam: "Steam",
-    storeEpic: "Epic",
-    storeGog: "GOG",
-    storeCustom: "Özel",
-
     appName: "sonsus-engine",
     home: "Ana Sayfa",
     library: "Kütüphane",
@@ -158,6 +172,9 @@ export const translations: Record<Language, Translations> = {
     disconnect: "Çıkış Yap",
     continueBtn: "Kütüphaneye Başla",
     saveAndEnter: "Kaydet ve Başla",
+    getLoginCode: "Giriş Kodu Al",
+    pasteAuthCode: "authorizationCode yapıştırın",
+    pasteGogCode: "GOG kodunu yapıştırın",
 
     featured: "Öne Çıkan",
     weeklyDeals: "Haftalık Fırsatlar & Ücretsiz Oyunlar",
@@ -168,10 +185,21 @@ export const translations: Record<Language, Translations> = {
     adventureGames: "Macera & Rol Yapma (RPG)",
     indieGames: "Seçkin Bağımsız (Indie) Yapımlar",
     viewCategoryAll: "Kategoriyi Göster",
+    viewCategory: "Kategoriyi Göster",
     play: "Oyna",
     details: "İncele",
     installedLocally: "Bilgisayarda Yüklü",
     cloudLibrary: "Bulut Kütüphanesi",
+
+    actionAndShooter: "Aksiyon & Nişancı Oyunları",
+    adventureAndRpg: "Macera & Rol Yapma (RPG)",
+    indiePicks: "Seçkin Bağımsız (Indie) Yapımlar",
+    quickLaunchRecent: "Son Oynananlar & Hızlı Başlat",
+
+    storeSteam: "Steam",
+    storeEpic: "Epic",
+    storeGog: "GOG",
+    storeCustom: "Özel",
 
     all: "Tümü",
     installed: "Yüklü",
@@ -184,6 +212,24 @@ export const translations: Record<Language, Translations> = {
     sortBySize: "Sırala: Disk Boyutu",
     noGamesFound: "Arama veya filtreyle eşleşen oyun bulunamadı.",
     itemsCount: "oyun",
+
+    addCustomGameTitle: "Harici / Özel Oyun Ekle",
+    addCustomGameSubtitle: ".exe, .AppImage, .sh veya emülatör oyunlarını kütüphaneye bağla",
+    executableLabel: "Çalıştırılabilir Dosya (.exe / .AppImage / .sh / Binary)",
+    executablePlaceholder: "/home/kullanici/Games/Oyun/Game.exe",
+    pickFileBtn: "Dosya Seç",
+    gameTitleLabel: "Oyun Başlığı (Afiş ve mağaza bilgileri bu isme göre çekilir)",
+    gameTitlePlaceholder: "Örn: Cyberpunk 2077",
+    workingDirLabel: "Çalışma Klasörü (İsteğe Bağlı)",
+    autoLabel: "Otomatik",
+    winePrefixLabel: "Wine / Proton Prefix (Linux .exe için)",
+    argsLabel: "Başlatma Parametreleri (İsteğe Bağlı)",
+    argsPlaceholder: "-novid -fullscreen",
+    cancelBtn: "Vazgeç",
+    saveGameBtn: "Kütüphaneye Ekle",
+    addingBtn: "Ekleniyor...",
+    fillRequiredError: "Lütfen oyun adını ve çalıştırılabilir dosya yolunu seçin.",
+    gameAddedSuccess: "kütüphaneye eklendi ve afişi eşitlendi!",
 
     statsTitle: "Kütüphane İstatistikleri",
     statsSubtitle: "Tüm mağazalardaki oyun süresi, depolama ve koleksiyon analizi",
@@ -214,19 +260,6 @@ export const translations: Record<Language, Translations> = {
     perfProfile: "Yüksek Performans",
   },
   en: {
-    getLoginCode: "Get Auth Code",
-    pasteAuthCode: "Paste authorizationCode here",
-    pasteGogCode: "Paste GOG code here",
-    viewCategory: "View All",
-    actionAndShooter: "Action & Shooter Games",
-    adventureAndRpg: "Adventure & RPG Games",
-    indiePicks: "Featured Indie Games",
-    quickLaunchRecent: "Recent & Quick Launch",
-    storeSteam: "Steam",
-    storeEpic: "Epic",
-    storeGog: "GOG",
-    storeCustom: "Custom",
-
     appName: "sonsus-engine",
     home: "Home",
     library: "Library",
@@ -263,6 +296,9 @@ export const translations: Record<Language, Translations> = {
     disconnect: "Sign Out",
     continueBtn: "Enter Library",
     saveAndEnter: "Save & Start",
+    getLoginCode: "Get Auth Code",
+    pasteAuthCode: "Paste authorizationCode here",
+    pasteGogCode: "Paste GOG code here",
 
     featured: "Featured",
     weeklyDeals: "Weekly Deals & Free Games",
@@ -273,10 +309,21 @@ export const translations: Record<Language, Translations> = {
     adventureGames: "Adventure & RPG",
     indieGames: "Featured Indie Games",
     viewCategoryAll: "View All",
+    viewCategory: "View All",
     play: "Play",
     details: "Details",
     installedLocally: "Installed Locally",
     cloudLibrary: "Cloud Library",
+
+    actionAndShooter: "Action & Shooter Games",
+    adventureAndRpg: "Adventure & RPG Games",
+    indiePicks: "Featured Indie Games",
+    quickLaunchRecent: "Recent & Quick Launch",
+
+    storeSteam: "Steam",
+    storeEpic: "Epic",
+    storeGog: "GOG",
+    storeCustom: "Custom",
 
     all: "All",
     installed: "Installed",
@@ -289,6 +336,24 @@ export const translations: Record<Language, Translations> = {
     sortBySize: "Sort: Disk Size",
     noGamesFound: "No games found matching your search or filter.",
     itemsCount: "games",
+
+    addCustomGameTitle: "Add Custom Game",
+    addCustomGameSubtitle: "Link .exe, .AppImage, .sh or emulator games to your library",
+    executableLabel: "Executable File (.exe / .AppImage / .sh / Binary)",
+    executablePlaceholder: "C:\\Games\\MyGame\\Game.exe",
+    pickFileBtn: "Browse File",
+    gameTitleLabel: "Game Title (Cover art & metadata fetched automatically)",
+    gameTitlePlaceholder: "e.g. Cyberpunk 2077",
+    workingDirLabel: "Working Directory (Optional)",
+    autoLabel: "Auto",
+    winePrefixLabel: "Wine / Proton Prefix (For Linux .exe)",
+    argsLabel: "Launch Arguments (Optional)",
+    argsPlaceholder: "-novid -fullscreen",
+    cancelBtn: "Cancel",
+    saveGameBtn: "Add to Library",
+    addingBtn: "Adding...",
+    fillRequiredError: "Please enter a game title and select an executable file.",
+    gameAddedSuccess: "added to library and cover artwork synchronized!",
 
     statsTitle: "Library Analytics",
     statsSubtitle: "Playtime, disk storage, and collection analytics across all stores",

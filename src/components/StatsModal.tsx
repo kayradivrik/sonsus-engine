@@ -16,6 +16,7 @@ import {
   formatPlaytime,
   platformLabel,
 } from "../types/game";
+import { useTranslation } from "../i18n/useTranslation";
 
 interface StatsModalProps {
   open: boolean;
@@ -36,6 +37,7 @@ export function StatsModal({
   onClose,
   onOpenDetail,
 }: StatsModalProps) {
+  const { t, lang } = useTranslation();
   const stats = useMemo(() => {
     const visible = games.filter((g) => !g.is_hidden);
     let totalMinutes = 0;
@@ -108,11 +110,11 @@ export function StatsModal({
             <div>
               <h2 className="text-base font-extrabold text-white">
                 {playerName
-                  ? `${playerName} — Kütüphane İstatistikleri`
-                  : "Kütüphane & Oyuncu İstatistik Paneli"}
+                  ? `${playerName} — ${t.statsTitle}`
+                  : t.statsTitle}
               </h2>
               <p className="text-xs text-zinc-400">
-                Tüm mağazalardaki oyun süresi, depolama ve koleksiyon analizi
+                {t.statsSubtitle}
               </p>
             </div>
           </div>
@@ -132,53 +134,57 @@ export function StatsModal({
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="p-4 rounded-2xl bg-[#0c0c12] border border-white/[0.08] space-y-1">
               <div className="flex items-center justify-between text-xs text-zinc-400">
-                <span>Toplam Kütüphane</span>
+                <span>{t.totalGames}</span>
                 <Gamepad2 className="w-4 h-4 text-white" />
               </div>
               <div className="text-2xl font-extrabold text-white tabular-nums">
-                {stats.totalGames.toLocaleString("tr-TR")}
+                {stats.totalGames.toLocaleString(lang === "tr" ? "tr-TR" : "en-US")}
               </div>
               <div className="text-[11px] text-zinc-500">
-                {stats.installedCount} yüklü • {stats.cloudCount} bulutta
+                {stats.installedCount} {t.installed.toLowerCase()} • {stats.cloudCount} {lang === "tr" ? "bulutta" : "in cloud"}
               </div>
             </div>
 
             <div className="p-4 rounded-2xl bg-[#0c0c12] border border-white/[0.08] space-y-1">
               <div className="flex items-center justify-between text-xs text-zinc-400">
-                <span>Toplam Oynama Süresi</span>
+                <span>{t.totalPlaytime}</span>
                 <Clock className="w-4 h-4 text-zinc-300" />
               </div>
               <div className="text-2xl font-extrabold text-white tabular-nums">
-                {stats.totalHours} saat
+                {stats.totalHours} {t.hoursSuffix}
               </div>
               <div className="text-[11px] text-zinc-500">
-                Kütüphanenin %{stats.completionRate}&apos;i denendi
+                {lang === "tr"
+                  ? `Kütüphanenin %${stats.completionRate}'i denendi`
+                  : `${stats.completionRate}% of library explored`}
               </div>
             </div>
 
             <div className="p-4 rounded-2xl bg-[#0c0c12] border border-white/[0.08] space-y-1">
               <div className="flex items-center justify-between text-xs text-zinc-400">
-                <span>Yüklü Disk Kullanımı</span>
+                <span>{t.diskUsage}</span>
                 <HardDrive className="w-4 h-4 text-zinc-300" />
               </div>
               <div className="text-2xl font-extrabold text-white tabular-nums">
                 {formatBytes(stats.totalDiskBytes)}
               </div>
               <div className="text-[11px] text-zinc-500">
-                {stats.installedCount} kurulu oyun toplamı
+                {lang === "tr"
+                  ? `${stats.installedCount} kurulu oyun toplamı`
+                  : `${stats.installedCount} installed games total`}
               </div>
             </div>
 
             <div className="p-4 rounded-2xl bg-[#0c0c12] border border-white/[0.08] space-y-1">
               <div className="flex items-center justify-between text-xs text-zinc-400">
-                <span>Favori Koleksiyonu</span>
+                <span>{t.favoriteCollection}</span>
                 <Heart className="w-4 h-4 text-white" />
               </div>
               <div className="text-2xl font-extrabold text-white tabular-nums">
                 {stats.favCount}
               </div>
               <div className="text-[11px] text-zinc-500">
-                Kalp ile işaretlenen oyunlar
+                {lang === "tr" ? "Kalp ile işaretlenen oyunlar" : "Games marked as favorites"}
               </div>
             </div>
           </div>
@@ -188,12 +194,14 @@ export function StatsModal({
             <div className="lg:col-span-7 p-5 rounded-2xl bg-[#0c0c12] border border-white/[0.08] space-y-4">
               <div className="flex items-center gap-2 text-sm font-bold text-white">
                 <Trophy className="w-4 h-4 text-zinc-300" />
-                <span>En Çok Oynanan Oyunlar</span>
+                <span>{t.mostPlayedGames}</span>
               </div>
 
               {stats.topPlayed.length === 0 ? (
                 <p className="text-xs text-zinc-500 py-8 text-center">
-                  Henüz oynama süresi kaydedilmiş bir oyun bulunmuyor.
+                  {lang === "tr"
+                    ? "Henüz oynama süresi kaydedilmiş bir oyun bulunmuyor."
+                    : "No played games recorded yet."}
                 </p>
               ) : (
                 <div className="space-y-3">
@@ -252,7 +260,7 @@ export function StatsModal({
               <div className="p-5 rounded-2xl bg-[#0c0c12] border border-white/[0.08] space-y-3.5">
                 <div className="flex items-center gap-2 text-sm font-bold text-white">
                   <Layers className="w-4 h-4 text-blue-400" />
-                  <span>Mağaza Dağılımı</span>
+                  <span>{t.storeDistribution}</span>
                 </div>
 
                 {(["steam", "epic", "gog", "custom"] as const).map((plat) => {
@@ -268,7 +276,7 @@ export function StatsModal({
                           {platformLabel(plat)}
                         </span>
                         <span className="text-zinc-400 tabular-nums">
-                          {count} oyun (%{pct})
+                          {count} {t.itemsCount} (%{pct})
                         </span>
                       </div>
                       <div className="h-1.5 rounded-full bg-white/[0.07] overflow-hidden">
@@ -285,7 +293,7 @@ export function StatsModal({
               {stats.topGenres.length > 0 && (
                 <div className="p-5 rounded-2xl bg-[#0c0c12] border border-white/[0.08] space-y-3">
                   <div className="text-sm font-bold text-white">
-                    En Çok Sahip Olunan Türler
+                    {t.genreDistribution}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {stats.topGenres.map(([name, cnt]) => (

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import {
   ArrowRight,
-  CheckCircle2,
   ExternalLink,
   User,
   X,
@@ -146,31 +145,42 @@ export function OnboardingScreen({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      <div className="w-full max-w-xl bg-[#09090d] border border-white/10 rounded-2xl shadow-2xl p-6 sm:p-8 space-y-6">
+    <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-fade-in">
+      <div className="relative w-full max-w-xl bg-gradient-to-b from-[#111118] via-[#0b0b10] to-[#060609] border border-white/15 rounded-3xl shadow-[0_25px_80px_rgba(0,0,0,0.95)] p-7 sm:p-8 space-y-6 overflow-hidden">
+        {/* Üst İnce Neon Vurgu Çizgisi */}
+        <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
         
         {/* Üst Logo & Dil Seçici */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <SonsusLogo size={32} />
+          <div className="flex items-center gap-3.5">
+            <div className="p-2.5 rounded-2xl bg-white/[0.04] border border-white/10 shadow-inner flex items-center justify-center">
+              <SonsusLogo size={30} />
+            </div>
             <div>
-              <h2 className="text-base font-extrabold text-white tracking-tight">
-                sonsus-engine
-              </h2>
-              <p className="text-[11px] text-zinc-400 font-medium">
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-black text-white tracking-tight">
+                  sonsus-engine
+                </h2>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 font-semibold">
+                  v1.0.0
+                </span>
+              </div>
+              <p className="text-xs text-zinc-400 font-medium mt-0.5">
                 {t.welcomeSubtitle}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             {/* TR / EN Dil Seçim Butonları */}
-            <div className="flex items-center p-0.5 rounded-lg bg-zinc-900 border border-white/10 text-xs font-semibold">
+            <div className="flex items-center p-1 rounded-xl bg-black/70 border border-white/10 shadow-inner text-xs font-semibold">
               <button
                 type="button"
                 onClick={() => setLang("tr")}
-                className={`px-2.5 py-1 rounded-md transition-colors ${
-                  lang === "tr" ? "bg-white text-black font-bold" : "text-zinc-400 hover:text-white"
+                className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                  lang === "tr"
+                    ? "bg-white text-black font-extrabold shadow-sm scale-100"
+                    : "text-zinc-400 hover:text-white"
                 }`}
               >
                 TR
@@ -178,8 +188,10 @@ export function OnboardingScreen({
               <button
                 type="button"
                 onClick={() => setLang("en")}
-                className={`px-2.5 py-1 rounded-md transition-colors ${
-                  lang === "en" ? "bg-white text-black font-bold" : "text-zinc-400 hover:text-white"
+                className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                  lang === "en"
+                    ? "bg-white text-black font-extrabold shadow-sm scale-100"
+                    : "text-zinc-400 hover:text-white"
                 }`}
               >
                 EN
@@ -190,7 +202,7 @@ export function OnboardingScreen({
               <button
                 type="button"
                 onClick={onClose}
-                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white cursor-pointer"
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white cursor-pointer transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -200,7 +212,7 @@ export function OnboardingScreen({
 
         {/* Oyuncu Adı Inputu */}
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
+          <label className="text-xs font-bold text-zinc-300 flex items-center gap-2">
             <User className="w-3.5 h-3.5 text-zinc-400" />
             <span>{t.playerTagLabel}</span>
           </label>
@@ -209,7 +221,7 @@ export function OnboardingScreen({
             value={playerName}
             onChange={(e) => setPlayerName(e.target.value)}
             placeholder={t.playerTagPlaceholder}
-            className="w-full h-10 px-3.5 rounded-xl bg-zinc-900/90 border border-white/10 text-sm text-white focus:border-white/30 placeholder-zinc-500"
+            className="w-full h-10.5 px-4 rounded-xl bg-black/60 border border-white/10 hover:border-white/20 focus:border-white/40 focus:ring-2 focus:ring-white/10 text-sm font-medium text-white placeholder-zinc-500 outline-none transition-all shadow-inner"
           />
         </div>
 
@@ -220,45 +232,51 @@ export function OnboardingScreen({
           </div>
 
           {/* Steam */}
-          <div className="p-4 rounded-xl bg-[#0d0d12] border border-white/10 hover:border-white/20 transition-all flex items-center justify-between">
+          <div className="p-4 rounded-2xl bg-zinc-950/80 border border-white/[0.08] hover:border-white/20 transition-all flex items-center justify-between">
             <div className="flex items-center gap-3.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600/20 to-blue-900/10 border border-blue-500/30 text-blue-400 font-black text-xs flex items-center justify-center shadow-inner">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600/25 to-blue-900/10 border border-blue-500/30 text-blue-400 font-black text-sm flex items-center justify-center shadow-inner">
                 ST
               </div>
               <div>
-                <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                <div className="text-xs font-bold text-white flex items-center gap-2">
                   <span>Steam</span>
                   {auth?.steam_connected && (
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-400">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      {lang === "tr" ? "Algılandı" : "Detected"}
+                    </span>
                   )}
                 </div>
-                <div className="text-[11px] text-zinc-400">
+                <div className="text-[11px] text-zinc-400 font-mono mt-0.5">
                   {auth?.steam_connected
                     ? `${auth.steam_persona} • ID: ${auth.steam_id64?.slice(-6) || "..."}`
                     : t.steamNotFound}
                 </div>
               </div>
             </div>
-            <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] text-zinc-400 font-medium font-mono">
-              {auth?.steam_connected ? (lang === "tr" ? "Otomatik Bağlandı" : "Auto-detected") : "—"}
+            <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] text-zinc-400 font-medium font-mono">
+              {auth?.steam_connected ? (lang === "tr" ? "Otomatik Bağlı" : "Auto-detected") : "—"}
             </span>
           </div>
 
           {/* Epic Games */}
-          <div className="p-4 rounded-xl bg-[#0d0d12] border border-white/10 hover:border-white/20 transition-all space-y-3">
+          <div className="p-4 rounded-2xl bg-zinc-950/80 border border-white/[0.08] hover:border-white/20 transition-all space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3.5">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-zinc-700/30 to-zinc-900 border border-white/15 text-white font-black text-xs flex items-center justify-center shadow-inner">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-zinc-700/30 to-zinc-900 border border-white/15 text-white font-black text-sm flex items-center justify-center shadow-inner">
                   EP
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <div className="text-xs font-bold text-white flex items-center gap-2">
                     <span>Epic Games</span>
                     {auth?.epic_connected && (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-400">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        {lang === "tr" ? "Bağlandı" : "Connected"}
+                      </span>
                     )}
                   </div>
-                  <div className="text-[11px] text-zinc-400">
+                  <div className="text-[11px] text-zinc-400 mt-0.5">
                     {auth?.epic_connected ? auth.epic_display_name : t.epicNotConnected}
                   </div>
                 </div>
@@ -269,7 +287,7 @@ export function OnboardingScreen({
                   type="button"
                   onClick={handleDisconnectEpic}
                   disabled={epicBusy}
-                  className="h-7 px-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-xs font-semibold cursor-pointer transition-colors"
+                  className="h-7.5 px-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-xs font-semibold cursor-pointer transition-colors"
                 >
                   {t.disconnect}
                 </button>
@@ -278,7 +296,7 @@ export function OnboardingScreen({
                   href={oauthUrls[0]}
                   target="_blank"
                   rel="noreferrer"
-                  className="h-7 px-3 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                  className="h-7.5 px-3 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"
                 >
                   <span>{t.getLoginCode}</span>
                   <ExternalLink className="w-3 h-3 text-zinc-400" />
@@ -293,13 +311,13 @@ export function OnboardingScreen({
                   placeholder={t.pasteAuthCode}
                   value={epicCode}
                   onChange={(e) => setEpicCode(e.target.value)}
-                  className="flex-1 h-8 px-3 rounded-lg bg-zinc-950 border border-white/10 text-xs text-white placeholder-zinc-500 focus:border-white/30"
+                  className="flex-1 h-9 px-3.5 rounded-xl bg-black/60 border border-white/10 text-xs text-white placeholder-zinc-500 focus:border-white/30 outline-none"
                 />
                 <button
                   type="button"
                   onClick={handleConnectEpic}
                   disabled={!epicCode.trim() || epicBusy}
-                  className="h-8 px-4 rounded-lg bg-white hover:bg-zinc-200 disabled:opacity-40 text-black font-extrabold text-xs cursor-pointer transition-colors"
+                  className="h-9 px-4 rounded-xl bg-white hover:bg-zinc-200 disabled:opacity-40 text-black font-extrabold text-xs cursor-pointer transition-colors shadow-sm"
                 >
                   {t.connect}
                 </button>
@@ -308,20 +326,23 @@ export function OnboardingScreen({
           </div>
 
           {/* GOG */}
-          <div className="p-4 rounded-xl bg-[#0d0d12] border border-white/10 hover:border-white/20 transition-all space-y-3">
+          <div className="p-4 rounded-2xl bg-zinc-950/80 border border-white/[0.08] hover:border-white/20 transition-all space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3.5">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-600/20 to-purple-900/10 border border-purple-500/30 text-purple-400 font-black text-xs flex items-center justify-center shadow-inner">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600/25 to-purple-900/10 border border-purple-500/30 text-purple-400 font-black text-sm flex items-center justify-center shadow-inner">
                   GG
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <div className="text-xs font-bold text-white flex items-center gap-2">
                     <span>GOG.com</span>
                     {auth?.gog_connected && (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-400">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        {lang === "tr" ? "Bağlandı" : "Connected"}
+                      </span>
                     )}
                   </div>
-                  <div className="text-[11px] text-zinc-400">
+                  <div className="text-[11px] text-zinc-400 mt-0.5">
                     {auth?.gog_connected ? auth.gog_username : t.gogNotConnected}
                   </div>
                 </div>
@@ -332,7 +353,7 @@ export function OnboardingScreen({
                   type="button"
                   onClick={handleDisconnectGog}
                   disabled={gogBusy}
-                  className="h-7 px-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-xs font-semibold cursor-pointer transition-colors"
+                  className="h-7.5 px-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-xs font-semibold cursor-pointer transition-colors"
                 >
                   {t.disconnect}
                 </button>
@@ -341,7 +362,7 @@ export function OnboardingScreen({
                   href={oauthUrls[1]}
                   target="_blank"
                   rel="noreferrer"
-                  className="h-7 px-3 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                  className="h-7.5 px-3 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"
                 >
                   <span>{t.getLoginCode}</span>
                   <ExternalLink className="w-3 h-3 text-zinc-400" />
@@ -356,13 +377,13 @@ export function OnboardingScreen({
                   placeholder={t.pasteGogCode}
                   value={gogCode}
                   onChange={(e) => setGogCode(e.target.value)}
-                  className="flex-1 h-8 px-3 rounded-lg bg-zinc-950 border border-white/10 text-xs text-white placeholder-zinc-500 focus:border-white/30"
+                  className="flex-1 h-9 px-3.5 rounded-xl bg-black/60 border border-white/10 text-xs text-white placeholder-zinc-500 focus:border-white/30 outline-none"
                 />
                 <button
                   type="button"
                   onClick={handleConnectGog}
                   disabled={!gogCode.trim() || gogBusy}
-                  className="h-8 px-4 rounded-lg bg-white hover:bg-zinc-200 disabled:opacity-40 text-black font-extrabold text-xs cursor-pointer transition-colors"
+                  className="h-9 px-4 rounded-xl bg-white hover:bg-zinc-200 disabled:opacity-40 text-black font-extrabold text-xs cursor-pointer transition-colors shadow-sm"
                 >
                   {t.connect}
                 </button>
@@ -376,10 +397,10 @@ export function OnboardingScreen({
           type="button"
           onClick={handleFinish}
           disabled={entering}
-          className="w-full h-11 rounded-xl bg-white hover:bg-zinc-200 text-black font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-[0.99] cursor-pointer"
+          className="w-full h-11.5 rounded-2xl bg-gradient-to-r from-white via-zinc-100 to-white hover:from-zinc-100 hover:to-zinc-200 text-black font-black text-sm flex items-center justify-center gap-2.5 shadow-[0_10px_30px_rgba(255,255,255,0.15)] transition-all active:scale-[0.99] cursor-pointer"
         >
           <span>{isFirstRun ? t.continueBtn : t.saveAndEnter}</span>
-          <ArrowRight className="w-4 h-4" />
+          <ArrowRight className="w-4 h-4 stroke-[2.5]" />
         </button>
 
       </div>
