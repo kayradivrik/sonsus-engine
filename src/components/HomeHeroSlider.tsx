@@ -160,7 +160,11 @@ export const HomeHeroSlider: React.FC<HomeHeroSliderProps> = ({
                 className="w-full h-full object-cover object-center filter brightness-[0.78] transition-all duration-700 ease-out"
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-r from-zinc-950 via-zinc-900 to-black" />
+              <div className="w-full h-full bg-gradient-to-br from-zinc-900 via-black to-zinc-950 flex items-center justify-end pr-16 select-none pointer-events-none">
+                <span className="text-8xl font-black text-white/[0.04] uppercase tracking-tighter">
+                  {current.title.slice(0, 10)}
+                </span>
+              </div>
             )}
 
             {/* Sol ve Alt Doğal Karartma (Yazıların Okunması İçin - Sağdaki Karakter Sanatını Kapatmaz) */}

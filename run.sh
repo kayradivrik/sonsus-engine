@@ -11,6 +11,13 @@ if [[ "${1:-}" == "--dev" ]]; then
   exec npm run tauri dev
 fi
 
+if [[ "${1:-}" == "--build" ]]; then
+  echo "🚀 sonsus-engine release derleniyor..."
+  npm run build
+  cargo build --release --manifest-path src-tauri/Cargo.toml
+  exec ./src-tauri/target/release/sonsus-engine
+fi
+
 if [[ -x "src-tauri/target/release/sonsus-engine" ]]; then
   exec ./src-tauri/target/release/sonsus-engine
 elif [[ -x "src-tauri/target/debug/sonsus-engine" ]]; then

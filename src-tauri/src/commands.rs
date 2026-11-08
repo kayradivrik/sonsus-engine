@@ -76,13 +76,19 @@ pub async fn scan_all_libraries(state: State<'_, AppState>) -> Result<Vec<Unifie
     );
 
     let mut all = steam_games;
-    all.extend(epic_games?);
-    all.extend(gog_games.map_err(|e| e.to_string())?);
+    if let Ok(epic) = epic_games {
+        all.extend(epic);
+    }
+    if let Ok(gog) = gog_games {
+        all.extend(gog);
+    }
     all.extend(load_custom_games());
 
     apply_prefs_to_games(&mut all);
     all.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
-    let _ = save_cached_games(&all);
+    if !all.is_empty() {
+        let _ = save_cached_games(&all);
+    }
 
     Ok(all)
 }

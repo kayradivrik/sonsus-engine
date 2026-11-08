@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { tauriApi } from "../api/tauriClient";
 import {
   LibraryQuickFilter,
@@ -43,27 +43,47 @@ export function useLibrary(onError: (msg: string) => void) {
 
   const deferredQuery = useDeferredValue(query);
 
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
+
   const performScan = useCallback(async () => {
     setScanning(true);
     try {
       const fresh = await tauriApi.scanAllLibraries();
-      setGames(fresh);
+      if (fresh && fresh.length > 0) {
+        setGames(fresh);
+      }
     } catch (err) {
-      onError(`Tarama hatası: ${String(err)}`);
+      onErrorRef.current(`Tarama hatası: ${String(err)}`);
     } finally {
       setScanning(false);
     }
-  }, [onError]);
+  }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
+    // Önce SQLite disk önbelleğindeki oyunları 5ms içinde anında yükle
     tauriApi
       .getCachedLibrary()
       .then((cached) => {
-        if (cached.length > 0) setGames(cached);
+        if (isMounted && cached.length > 0) {
+          setGames(cached);
+        }
       })
       .catch(() => {});
 
-    performScan();
+    // Arayüzün kilitlenmesini veya donmasını önlemek için arka plan disk/ağ taramasını hafif gecikmeli başlat
+    const timer = setTimeout(() => {
+      if (isMounted) {
+        performScan();
+      }
+    }, 1200);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
   }, [performScan]);
 
   const replaceSingleGame = useCallback((updated: UnifiedGame) => {

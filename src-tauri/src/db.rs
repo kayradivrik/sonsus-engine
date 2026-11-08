@@ -31,6 +31,8 @@ pub fn db_path() -> Result<PathBuf, String> {
 pub fn open_db() -> Result<Connection, String> {
     let path = db_path()?;
     let conn = Connection::open(path).map_err(|e| e.to_string())?;
+    conn.busy_timeout(std::time::Duration::from_secs(5))
+        .map_err(|e| e.to_string())?;
     conn.execute_batch(
         "PRAGMA journal_mode = WAL;
         PRAGMA synchronous = NORMAL;

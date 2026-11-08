@@ -398,11 +398,29 @@ export function buildHeroCandidates(game: UnifiedGame): string[] {
     }
   };
 
+  const addPathVariants = (pathOrUrl?: string | null) => {
+    if (!pathOrUrl) return;
+    if (pathOrUrl.startsWith("http://") || pathOrUrl.startsWith("https://")) {
+      pushUnique(pathOrUrl);
+      return;
+    }
+    let clean = pathOrUrl;
+    if (clean.startsWith("file://")) {
+      clean = clean.replace(/^file:\/\//, "");
+    }
+    if (isLocalFilePath(clean)) {
+      pushUnique(convertFileSrc(clean, "asset"));
+      pushUnique(convertFileSrc(clean, "sonsusmedia"));
+    } else {
+      pushUnique(clean);
+    }
+  };
+
   if (game.hero_path_or_url) {
-    pushUnique(resolveMediaSrc(game.hero_path_or_url));
+    addPathVariants(game.hero_path_or_url);
   }
   if (game.cover_path_or_url) {
-    pushUnique(resolveMediaSrc(game.cover_path_or_url));
+    addPathVariants(game.cover_path_or_url);
   }
   pushUnique(game.fallback_cover_url);
 
@@ -414,10 +432,13 @@ export function buildHeroCandidates(game: UnifiedGame): string[] {
       `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${game.platform_id}/library_hero.jpg`
     );
     pushUnique(
-      `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${game.platform_id}/capsule_616x353.jpg`
+      `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.platform_id}/header.jpg`
     );
     pushUnique(
       `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${game.platform_id}/header.jpg`
+    );
+    pushUnique(
+      `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${game.platform_id}/capsule_616x353.jpg`
     );
     pushUnique(
       `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${game.platform_id}/library_600x900.jpg`

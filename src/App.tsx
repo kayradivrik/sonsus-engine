@@ -372,18 +372,23 @@ export default function App() {
     [replaceSingleGame, showToast]
   );
 
+  const gamesRef = useRef(games);
+  gamesRef.current = games;
+  const handleLaunchRef = useRef(handleLaunch);
+  handleLaunchRef.current = handleLaunch;
+
   // Sistem tepsisinden doğrudan oyun başlatma dinleyicisi
   useEffect(() => {
     const unlisten = listen<string>("tray-launch-game", (e) => {
-      const target = games.find((g) => g.id === e.payload);
+      const target = gamesRef.current.find((g) => g.id === e.payload);
       if (target) {
-        handleLaunch(target);
+        handleLaunchRef.current(target);
       }
     });
     return () => {
       unlisten.then((f) => f());
     };
-  }, [games, handleLaunch]);
+  }, []);
 
   const handleSaveSettings = async (next: AppSettings) => {
     await tauriApi.updateAppSettings(next);
