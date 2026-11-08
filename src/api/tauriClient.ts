@@ -178,4 +178,11 @@ export const tauriApi = {
 
   cleanGamePrefix: (gameId: string) =>
     invoke<string>("clean_game_prefix", { gameId }),
+
+  // --- Disk Alanı Analizi & Shader / Çöp Temizleyici ---
+  analyzeDiskStorage: () =>
+    invoke<import("../types/game").StorageAnalysisResult>("analyze_disk_storage"),
+
+  cleanStorageItem: (categoryId: string) =>
+    invoke<number>("clean_storage_item", { categoryId }),
 };

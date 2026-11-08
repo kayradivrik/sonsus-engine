@@ -608,3 +608,15 @@ pub fn clean_game_prefix(game_id: String) -> Result<String, String> {
         Ok("Bu oyun için özel bir önek klasörü bulunamadı.".to_string())
     }
 }
+
+// --- Disk Alanı Analizi & Shader / Çöp Temizleyici ---
+
+#[tauri::command]
+pub fn analyze_disk_storage() -> crate::cleaner::StorageAnalysisResult {
+    crate::cleaner::analyze_storage()
+}
+
+#[tauri::command]
+pub fn clean_storage_item(category_id: String) -> Result<u64, String> {
+    crate::cleaner::clean_storage_category(&category_id)
+}

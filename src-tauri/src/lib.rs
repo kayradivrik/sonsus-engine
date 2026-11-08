@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod cleaner;
 pub mod commands;
 pub mod covers;
 pub mod db;
@@ -18,8 +19,8 @@ pub mod saves;
 pub mod tray;
 
 use commands::{
-    add_custom_game, apply_steam_esports_preset_command, check_game_update,
-    clean_game_prefix, clear_launch_logs, connect_epic_account, connect_gog_account,
+    add_custom_game, analyze_disk_storage, apply_steam_esports_preset_command, check_game_update,
+    clean_game_prefix, clean_storage_item, clear_launch_logs, connect_epic_account, connect_gog_account,
     create_desktop_shortcut, create_game_save_backup, disconnect_epic_account,
     disconnect_gog_account, fetch_game_cover, get_active_downloads, get_app_settings,
     get_cached_library, get_curated_deals, get_game_hook_profile, get_game_save_backups,
@@ -124,6 +125,8 @@ pub fn run() {
             create_desktop_shortcut,
             open_game_install_dir,
             clean_game_prefix,
+            analyze_disk_storage,
+            clean_storage_item,
         ])
         .run(tauri::generate_context!())
         .expect("sonsus-engine başlatılırken hata oluştu");

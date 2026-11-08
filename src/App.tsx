@@ -17,6 +17,7 @@ import { OnboardingScreen } from "./components/OnboardingScreen";
 import { PaginationBar } from "./components/PaginationBar";
 import { SettingsModal } from "./components/SettingsModal";
 import { StatsModal } from "./components/StatsModal";
+import { StorageCleanerModal } from "./components/StorageCleanerModal";
 import { TopStatusBar } from "./components/TopStatusBar";
 import { UltraFpsModal } from "./components/UltraFpsModal";
 import { VirtualGameGrid } from "./components/VirtualGameGrid";
@@ -84,6 +85,7 @@ export default function App() {
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [isFirstRunOnboarding, setIsFirstRunOnboarding] = useState(false);
   const [ultraFpsOpen, setUltraFpsOpen] = useState(false);
+  const [storageCleanerOpen, setStorageCleanerOpen] = useState(false);
   const [launchLogsOpen, setLaunchLogsOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
   const [quickAccessOpen, setQuickAccessOpen] = useState(false);
@@ -106,6 +108,7 @@ export default function App() {
     paletteOpen ||
     addCustomOpen ||
     statsOpen ||
+    storageCleanerOpen ||
     onboardingOpen ||
     ultraFpsOpen ||
     launchLogsOpen;
@@ -288,6 +291,8 @@ export default function App() {
           setAddCustomOpen(false);
         } else if (statsOpen) {
           setStatsOpen(false);
+        } else if (storageCleanerOpen) {
+          setStorageCleanerOpen(false);
         } else if (downloadsOpen) {
           setDownloadsOpen(false);
         } else if (onboardingOpen && !isFirstRunOnboarding) {
@@ -470,6 +475,7 @@ export default function App() {
           }}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenUltraFps={() => setUltraFpsOpen(true)}
+          onOpenStorageCleaner={() => setStorageCleanerOpen(true)}
         />
 
         {/* Filtre Şeridi (Kütüphane sekmesinde veya Arama yapıldığında görünür) */}
@@ -714,6 +720,14 @@ export default function App() {
       {/* ⚡ E-Spor & CS2 Ultra FPS Motoru Modal */}
       {ultraFpsOpen && (
         <UltraFpsModal onClose={() => setUltraFpsOpen(false)} />
+      )}
+
+      {/* 🧹 Disk Alanı Analizcisi & Shader Temizleyici Modal */}
+      {storageCleanerOpen && (
+        <StorageCleanerModal
+          onClose={() => setStorageCleanerOpen(false)}
+          showToast={showToast}
+        />
       )}
 
       {/* 📋 Canlı Çalıştırma & Çökme Günlükleri Modal */}

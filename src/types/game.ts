@@ -448,6 +448,21 @@ export function buildHeroCandidates(game: UnifiedGame): string[] {
   return candidates;
 }
 
+export interface CleanableCategory {
+  id: string;
+  title: string;
+  description: string;
+  path: string;
+  size_bytes: number;
+  item_count: number;
+  safe_to_delete: boolean;
+}
+
+export interface StorageAnalysisResult {
+  total_reclaimable_bytes: number;
+  categories: CleanableCategory[];
+}
+
 export function formatBytes(bytes?: number | null): string {
   if (!bytes || bytes <= 0) return "—";
   const gb = bytes / (1024 * 1024 * 1024);

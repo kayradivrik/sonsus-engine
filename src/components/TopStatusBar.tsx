@@ -3,6 +3,7 @@ import {
   Compass,
   Download,
   Gamepad2,
+  HardDrive,
   LayoutGrid,
   Library,
   List,
@@ -35,6 +36,7 @@ interface TopStatusBarProps {
   onOpenOnboarding: () => void;
   onOpenSettings: () => void;
   onOpenUltraFps: () => void;
+  onOpenStorageCleaner: () => void;
 }
 
 export function TopStatusBar({
@@ -56,6 +58,7 @@ export function TopStatusBar({
   onOpenOnboarding,
   onOpenSettings,
   onOpenUltraFps,
+  onOpenStorageCleaner,
 }: TopStatusBarProps) {
   return (
     <header className="h-16 w-full max-w-[1880px] mx-auto px-6 sm:px-8 xl:px-12 2xl:px-16 flex items-center justify-between gap-4 shrink-0">
@@ -76,11 +79,10 @@ export function TopStatusBar({
           <button
             type="button"
             onClick={() => onTabChange("home")}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer outline-none ${
-              currentTab === "home"
-                ? "bg-white text-black shadow-md font-bold"
-                : "text-zinc-400 hover:text-white"
-            }`}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer outline-none ${currentTab === "home"
+              ? "bg-white text-black shadow-md font-bold"
+              : "text-zinc-400 hover:text-white"
+              }`}
           >
             <Compass className="w-3.5 h-3.5" />
             <span>Ana Sayfa</span>
@@ -89,11 +91,10 @@ export function TopStatusBar({
           <button
             type="button"
             onClick={() => onTabChange("library")}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer outline-none ${
-              currentTab === "library"
-                ? "bg-white text-black shadow-md font-bold"
-                : "text-zinc-400 hover:text-white"
-            }`}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer outline-none ${currentTab === "library"
+              ? "bg-white text-black shadow-md font-bold"
+              : "text-zinc-400 hover:text-white"
+              }`}
           >
             <Library className="w-3.5 h-3.5" />
             <span>Kütüphane</span>
@@ -154,11 +155,10 @@ export function TopStatusBar({
         <button
           type="button"
           onClick={onOpenDownloads}
-          className={`h-9 px-3 rounded-full border flex items-center gap-1.5 text-xs font-medium transition-all cursor-pointer outline-none ${
-            activeDownloadsCount > 0
-              ? "bg-white text-black border-white font-bold shadow-md"
-              : "bg-zinc-900/80 hover:bg-zinc-800 border-white/10 hover:border-white/20 text-zinc-300 hover:text-white"
-          }`}
+          className={`h-9 px-3 rounded-full border flex items-center gap-1.5 text-xs font-medium transition-all cursor-pointer outline-none ${activeDownloadsCount > 0
+            ? "bg-white text-black border-white font-bold shadow-md"
+            : "bg-zinc-900/80 hover:bg-zinc-800 border-white/10 hover:border-white/20 text-zinc-300 hover:text-white"
+            }`}
           title="Uygulama İçi İndirme & Doğrulama Yöneticisi"
         >
           <Download className="w-3.5 h-3.5" />
@@ -196,6 +196,16 @@ export function TopStatusBar({
           title="Kütüphaneyi Yeniden Tara (R)"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${scanning ? "animate-spin text-white" : ""}`} />
+        </button>
+
+        {/* Disk & Shader Temizleyici */}
+        <button
+          type="button"
+          onClick={onOpenStorageCleaner}
+          className="w-9 h-9 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 hover:border-white/20 flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer outline-none"
+          title="Disk Alanı & Shader Temizleyici"
+        >
+          <HardDrive className="w-3.5 h-3.5" />
         </button>
 
         {/* İstatistikler */}
