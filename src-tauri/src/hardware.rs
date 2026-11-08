@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -111,6 +111,7 @@ pub fn read_hp_hardware_status() -> HardwareThermalStatus {
     }
 }
 
+#[cfg(not(windows))]
 pub fn set_hardware_profile(profile: &str) -> Result<String, String> {
     // 1. powerprofilesctl aracılığıyla dene (Root şifresi istemez, masaüstüyle senkronizedir)
     let mapped_profile = match profile {
@@ -138,4 +139,42 @@ pub fn set_hardware_profile(profile: &str) -> Result<String, String> {
     }
 
     Err("Güç profili değiştirilemedi. powerprofiles-daemon kurulu olduğundan emin olun.".into())
+}
+
+
+#[cfg(windows)]
+pub fn get_hardware_status() -> HardwareThermalStatus {
+    let mut active_profile = "balanced".to_string();
+    if let Ok(output) = Command::new("powercfg").args(["/getactivescheme"]).output() {
+        let text = String::from_utf8_lossy(&output.stdout).to_lowercase();
+        if text.contains("yüksek") || text.contains("high") || text.contains("performance") {
+            active_profile = "performance".to_string();
+        } else if text.contains("tasarruf") || text.contains("saver") {
+            active_profile = "power-saver".to_string();
+        }
+    }
+
+    HardwareThermalStatus {
+        cpu_temp_celsius: None,
+        battery_watts: None,
+        fans: Vec::new(),
+        active_profile,
+        available_profiles: vec!["performance".into(), "balanced".into(), "power-saver".into()],
+        is_hp_victus: false,
+    }
+}
+
+#[cfg(windows)]
+pub fn set_hardware_profile(profile: &str) -> Result<String, String> {
+    let guid = match profile {
+        "performance" => "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c",
+        "power-saver" | "quiet" | "cool" => "a1841308-3541-4fab-bc81-f71556f20b4a",
+        _ => "381b4222-f694-41f0-9685-ff5bb260df2e",
+    };
+
+    let status = Command::new("powercfg").args(["/setactive", guid]).status();
+    match status {
+        Ok(s) if s.success() => Ok(format!("Windows güç planı '{profile}' olarak ayarlandı.")),
+        _ => Err("Windows güç planı değiştirilemedi.".into()),
+    }
 }

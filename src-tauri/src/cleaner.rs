@@ -54,6 +54,44 @@ pub fn analyze_storage() -> StorageAnalysisResult {
     let mut categories = Vec::new();
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/home"));
 
+    
+    // Windows DirectX & GPU Shader Cache (%LOCALAPPDATA%\D3DSCache)
+    if cfg!(windows) {
+        if let Ok(local_appdata) = std::env::var("LOCALAPPDATA") {
+            let d3d_cache = PathBuf::from(&local_appdata).join("D3DSCache");
+            if d3d_cache.exists() {
+                let (size, count) = dir_size_and_count(&d3d_cache);
+                if size > 0 {
+                    categories.push(CleanableCategory {
+                        id: "d3d_shader_cache".into(),
+                        title: "DirectX Shader Önbelleği (D3DSCache)".into(),
+                        description: "Windows ve DirectX oyunlarının derlenmiş grafik shader önbellekleri.".into(),
+                        path: d3d_cache.to_string_lossy().into(),
+                        size_bytes: size,
+                        item_count: count,
+                        safe_to_delete: true,
+                    });
+                }
+            }
+
+            let nvidia_dx = PathBuf::from(&local_appdata).join("NVIDIA").join("DXCache");
+            if nvidia_dx.exists() {
+                let (size, count) = dir_size_and_count(&nvidia_dx);
+                if size > 0 {
+                    categories.push(CleanableCategory {
+                        id: "nvidia_dx_cache".into(),
+                        title: "Nvidia DirectX / Vulkan Önbelleği".into(),
+                        description: "Nvidia sürücüsünün oluşturduğu DirectX grafik önbellekleri.".into(),
+                        path: nvidia_dx.to_string_lossy().into(),
+                        size_bytes: size,
+                        item_count: count,
+                        safe_to_delete: true,
+                    });
+                }
+            }
+        }
+    }
+
     // 1. Steam Shader Önbelleği (~/.local/share/Steam/steamapps/shadercache)
     let steam_shader = home.join(".local/share/Steam/steamapps/shadercache");
     if steam_shader.exists() {
@@ -168,6 +206,33 @@ pub fn clean_storage_category(category_id: &str) -> Result<u64, String> {
     let home = dirs::home_dir().ok_or_else(|| "Ev dizini bulunamadı".to_string())?;
 
     match category_id {
+        
+        "d3d_shader_cache" => {
+            let mut sz = 0;
+            if let Ok(local_appdata) = std::env::var("LOCALAPPDATA") {
+                let p = PathBuf::from(local_appdata).join("D3DSCache");
+                if p.exists() {
+                    let (s, _) = dir_size_and_count(&p);
+                    sz = s;
+                    let _ = fs::remove_dir_all(&p);
+                    let _ = fs::create_dir_all(&p);
+                }
+            }
+            Ok(sz)
+        }
+        "nvidia_dx_cache" => {
+            let mut sz = 0;
+            if let Ok(local_appdata) = std::env::var("LOCALAPPDATA") {
+                let p = PathBuf::from(local_appdata).join("NVIDIA").join("DXCache");
+                if p.exists() {
+                    let (s, _) = dir_size_and_count(&p);
+                    sz = s;
+                    let _ = fs::remove_dir_all(&p);
+                    let _ = fs::create_dir_all(&p);
+                }
+            }
+            Ok(sz)
+        }
         "steam_shadercache" => {
             let p = home.join(".local/share/Steam/steamapps/shadercache");
             let (sz, _) = dir_size_and_count(&p);
