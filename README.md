@@ -11,6 +11,10 @@
   <img src="https://img.shields.io/badge/RAM-~69MB_Rust-purple.svg" alt="Low RAM">
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/hero_preview.jpg" alt="Sonsus Engine Cinematic Showcase" width="100%" style="border-radius: 14px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
+</p>
+
 ---
 
 **sonsus-engine**, **Steam**, **Epic Games**, **GOG** ve **Harici / Yerel** oyun kütüphanelerini tek bir yüksek performanslı, `#000000` pitch-black sinematik arayüzde birleştiren; **Tauri v2 (Rust) + React 19 (TypeScript) + Tailwind CSS v4** tabanlı masaüstü oyun kütüphanesi yöneticisi ve donanım kontrol merkezidir.
