@@ -27,9 +27,10 @@
 
 ## 🌟 Öne Çıkan Özellikler (`v1.0.0 Final`)
 
-### 🎮 1. HP Victus 15 Donanım & Omen Tuşu Entegrasyonu
-- **Akıllı Omen Tuşu (350ms Çift Tıklama Mantığı):**
-  - **Tek Tık:** Victus ACPI donanım çipini anında **Performans (Oyun/Turbo Fan)** modu ile **Sessiz/Ofis** modu arasında değiştirir ve KDE masaüstü bildirimi gönderir.
+### 🎮 1. Evrensel Donanım & Oyuncu Tuşları Entegrasyonu (Asus ROG, Lenovo Legion, HP Omen & Victus, Alienware)
+- **Akıllı Donanım / Gaming Tuşu (350ms Çift Tıklama Algılama):**
+  - **Desteklenen Tuşlar:** Asus ROG/TUF tuşu, Lenovo Legion Fn+Q / Vantage, HP Omen tuşu, Dell Alienware tuşları ve genel multimedya butonları.
+  - **Tek Tık:** Linux ACPI güç yönetimini anında **Performans (Oyun/Turbo Fan)** modu ile **Sessiz/Ofis** modu arasında değiştirir ve masaüstü bildirimi gönderir.
   - **Çift Tık:** Sonsus Engine'i sıfır gecikmeyle açar.
   - **Single-Instance Koruması:** Arka planda uygulama zaten açıksa asla gereksiz yeni pencereler açmaz; mevcut oturumu korur.
 - **Canlı Fan & Termal Monitörü:**
@@ -67,10 +68,11 @@ chmod +x run.sh
 ./run.sh --dev    # Canlı geliştirme modunda başlatır
 ```
 
-### HP Victus 15 Omen Tuşu Servisi (İsteğe Bağlı)
+### Evrensel Gaming Tuşu & Performans Servisi (İsteğe Bağlı)
 ```bash
-sudo cp scripts/hp-victus-omen.service /etc/systemd/system/
-sudo systemctl daemon-reload && sudo systemctl enable --now hp-victus-omen.service
+sudo cp scripts/sonsus_gamekey_daemon.py /usr/local/bin/
+sudo cp scripts/sonsus-gamekey.service /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now sonsus-gamekey.service
 ```
 
 ---
