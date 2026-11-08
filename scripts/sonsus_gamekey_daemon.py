@@ -2,11 +2,15 @@
 """
 Sonsus Engine - Universal Gaming Key & Hardware Daemon
 Desteklenen Markalar ve Donanımlar:
-- Asus ROG / TUF: ROG Key (KEY_PROG1 / KEY_PROG3)
-- Lenovo Legion: Legion Fn+Q / Vantage Key (KEY_PROG1 / KEY_PROG2)
-- HP Omen / Victus: Omen Gaming Hub Key (KEY_PROG2)
+- HP Omen / Victus: Omen Gaming Hub Key (KEY_PROG2 - 149)
+- Asus ROG / TUF: ROG Key (KEY_PROG1 - 148 / KEY_PROG3 - 202)
+- Lenovo Legion: Legion Fn+Q / Vantage Key (KEY_PROG1 - 148 / KEY_PROG2 - 149)
 - Dell Alienware: Alienware Command Center Key
-- Evrensel / Herhangi Bir Bilgisayar: F12 veya Özel Klavye Oyun Tuşları
+- Evrensel Oyun Tuşları (148, 149, 156, 202, 203)
+
+Davranış:
+- TEK BASIŞ (Single Tap): Sonsus Engine Başlatıcıyı aç (veya açıksa öne getir).
+- ÇİFT BASIŞ (Double Tap): ACPI Termal / Fan Profilini Değiştir (Performans 🔥 <-> Sessiz 🍃).
 """
 import struct
 import subprocess
@@ -21,60 +25,89 @@ EVENT_SIZE = struct.calcsize(FORMAT)
 
 # Evrensel Gaming Tuş Kodları (Linux input-event-codes)
 # 148: KEY_PROG1 (Asus ROG, Lenovo Vantage)
-# 149: KEY_PROG2 (HP Omen / Victus)
+# 149: KEY_PROG2 (HP Omen / Victus Gaming Hub)
 # 202: KEY_PROG3 (Asus TUF Gaming)
 # 203: KEY_PROG4
 # 156: KEY_BOOKMARKS / Game Center
 GAMING_KEYS = {148, 149, 202, 203, 156}
 
-def get_current_username():
-    # Aktif masaüstü kullanıcısını bul
-    try:
-        user = subprocess.check_output(['loginctl', 'list-users'], text=True)
-        for line in user.splitlines():
-            parts = line.split()
-            if len(parts) >= 2 and parts[0].isdigit() and parts[0] != '0':
-                return parts[1]
-    except Exception:
-        pass
-    return os.environ.get('SUDO_USER') or os.environ.get('USER') or 'fsociecty'
+def get_active_user_env():
+    """
+    Sistem açılışında veya oturum değiştiğinde aktif masaüstü kullanıcısını ve
+    Wayland/X11 soketlerini dinamik tespit eder. Asla 'root'a kilitlenmez.
+    """
+    for uid_dir in sorted(glob.glob('/run/user/[0-9]*'), reverse=True):
+        try:
+            uid = int(os.path.basename(uid_dir))
+            if uid >= 1000:
+                import pwd
+                pw = pwd.getpwuid(uid)
+                username = pw.pw_name
+                home = pw.pw_dir
 
-USERNAME = get_current_username()
-USER_ID = 1000
-try:
-    import pwd
-    USER_ID = pwd.getpwnam(USERNAME).pw_uid
-except Exception:
-    pass
+                wayland_sock = None
+                for sock in sorted(glob.glob(f'{uid_dir}/wayland-[0-9]*'), reverse=True):
+                    if not sock.endswith('.lock') and os.path.exists(sock):
+                        wayland_sock = os.path.basename(sock)
+                        break
 
-def notify_user(title, body, icon='dialog-information'):
+                env = {
+                    'USER': username,
+                    'LOGNAME': username,
+                    'HOME': home,
+                    'UID': str(uid),
+                    'XDG_RUNTIME_DIR': uid_dir,
+                    'DBUS_SESSION_BUS_ADDRESS': f'unix:path={uid_dir}/bus',
+                    'DISPLAY': ':0',
+                }
+                if wayland_sock:
+                    env['WAYLAND_DISPLAY'] = wayland_sock
+                return username, uid, env
+        except Exception:
+            continue
+
+    # Güvenli varsayılan
+    return 'fsociecty', 1000, {
+        'USER': 'fsociecty',
+        'LOGNAME': 'fsociecty',
+        'HOME': '/home/fsociecty',
+        'UID': '1000',
+        'XDG_RUNTIME_DIR': '/run/user/1000',
+        'DBUS_SESSION_BUS_ADDRESS': 'unix:path=/run/user/1000/bus',
+        'DISPLAY': ':0',
+        'WAYLAND_DISPLAY': 'wayland-1',
+    }
+
+def notify_user(title, body, icon='utilities-system-monitor'):
+    username, uid, env = get_active_user_env()
     try:
-        subprocess.run([
-            'sudo', '-u', USERNAME,
+        cmd = [
+            'sudo', '-u', username,
             'env',
-            f'DISPLAY={os.environ.get("DISPLAY", ":0")}',
-            f'WAYLAND_DISPLAY={os.environ.get("WAYLAND_DISPLAY", "wayland-0")}',
-            f'XDG_RUNTIME_DIR=/run/user/{USER_ID}',
-            f'DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{USER_ID}/bus',
-            'notify-send',
-            '-u', 'normal',
-            '-i', icon,
-            title,
-            body
-        ], timeout=2)
-    except Exception:
-        pass
+            f'XDG_RUNTIME_DIR={env["XDG_RUNTIME_DIR"]}',
+            f'DBUS_SESSION_BUS_ADDRESS={env["DBUS_SESSION_BUS_ADDRESS"]}',
+            f'DISPLAY={env.get("DISPLAY", ":0")}',
+        ]
+        if 'WAYLAND_DISPLAY' in env:
+            cmd.append(f'WAYLAND_DISPLAY={env["WAYLAND_DISPLAY"]}')
+        cmd += ['notify-send', '-u', 'normal', '-i', icon, title, body]
+        subprocess.run(cmd, timeout=2)
+    except Exception as e:
+        print(f"Notify error: {e}")
 
 def get_platform_profile():
-    # 1. Evrensel Linux ACPI Platform Profile
-    acpi_path = '/sys/firmware/acpi/platform_profile'
-    if os.path.exists(acpi_path):
-        try:
-            with open(acpi_path, 'r') as f:
-                return f.read().strip()
-        except Exception:
-            pass
-    # 2. powerprofilesctl Fallback
+    # HP WMI veya ACPI Platform Profile
+    acpi_paths = [
+        '/sys/devices/platform/hp-wmi/platform-profile/platform-profile-0/profile',
+        '/sys/firmware/acpi/platform_profile',
+    ]
+    for p in acpi_paths:
+        if os.path.exists(p):
+            try:
+                with open(p, 'r') as f:
+                    return f.read().strip()
+            except Exception:
+                pass
     try:
         res = subprocess.run(['powerprofilesctl', 'get'], stdout=subprocess.PIPE, text=True)
         return res.stdout.strip()
@@ -83,15 +116,18 @@ def get_platform_profile():
     return 'balanced'
 
 def set_platform_profile(mode):
-    acpi_path = '/sys/firmware/acpi/platform_profile'
-    if os.path.exists(acpi_path):
-        try:
-            with open(acpi_path, 'w') as f:
-                f.write(mode)
-                return True
-        except Exception:
-            pass
-    # powerprofilesctl fallback
+    acpi_paths = [
+        '/sys/devices/platform/hp-wmi/platform-profile/platform-profile-0/profile',
+        '/sys/firmware/acpi/platform_profile',
+    ]
+    for p in acpi_paths:
+        if os.path.exists(p):
+            try:
+                with open(p, 'w') as f:
+                    f.write(mode)
+                    return True
+            except Exception:
+                pass
     pp_mode = 'power-saver' if mode in ('quiet', 'cool') else mode
     try:
         subprocess.run(['powerprofilesctl', 'set', pp_mode], check=False)
@@ -100,35 +136,72 @@ def set_platform_profile(mode):
         pass
     return False
 
-def on_single_click():
+def get_sonsus_pids():
+    username, uid, _ = get_active_user_env()
+    try:
+        res = subprocess.run(['pgrep', '-u', username, '-f', 'sonsus-engine'], stdout=subprocess.PIPE, text=True)
+        pids = [int(p) for p in res.stdout.strip().split() if p.isdigit()]
+        return pids
+    except Exception:
+        return []
+
+def open_or_focus_sonsus():
+    """
+    Sonsus Engine'i başlatır veya zaten açıksa SIGUSR1 ile öne getirir.
+    """
+    pids = get_sonsus_pids()
+    if pids:
+        print(f"Sonsus Engine zaten açık (PIDler: {pids}), SIGUSR1 gönderiliyor...")
+        for p in pids:
+            try:
+                os.kill(p, 10)  # SIGUSR1
+            except Exception as e:
+                print(f"Sinyal hatası ({p}): {e}")
+        notify_user("🎮 Sonsus Engine", "Uygulama penceresi öne getirildi!", "utilities-system-monitor")
+        return
+
+    username, uid, env = get_active_user_env()
+    binary_path = '/home/fsociecty/Masaüstü/launcher/src-tauri/target/release/sonsus-engine'
+    print(f"Sonsus Engine başlatılıyor: {binary_path} (Kullanıcı: {username})")
+    notify_user("🚀 Sonsus Engine", "Başlatılıyor...", "utilities-system-monitor")
+
+    cmd = [
+        'sudo', '-u', username,
+        'env',
+        f'USER={username}',
+        f'LOGNAME={username}',
+        f'HOME={env["HOME"]}',
+        f'XDG_RUNTIME_DIR={env["XDG_RUNTIME_DIR"]}',
+        f'DBUS_SESSION_BUS_ADDRESS={env["DBUS_SESSION_BUS_ADDRESS"]}',
+        f'DISPLAY={env.get("DISPLAY", ":0")}',
+    ]
+    if 'WAYLAND_DISPLAY' in env:
+        cmd.append(f'WAYLAND_DISPLAY={env["WAYLAND_DISPLAY"]}')
+    cmd.append(binary_path)
+
+    try:
+        subprocess.Popen(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True
+        )
+    except Exception as e:
+        print(f"Başlatma hatası: {e}")
+
+def toggle_power_profile():
+    """
+    Çift basışta donanım fan/güç profilini değiştirir.
+    """
     curr = get_platform_profile()
     if curr != 'performance':
         set_platform_profile('performance')
-        notify_user("🔥 Sonsus Engine: PERFORMANS MODU", "Oyun & Turbo Fanlar Devrede!", "applications-games")
-        print("Profile switched to PERFORMANCE")
+        notify_user("🔥 Sonsus Engine: PERFORMANS MODU", "Turbo Fanlar & Maksimum Saat Hızı Devrede!", "applications-games")
+        print("Profil PERFORMANS moduna alındı")
     else:
         set_platform_profile('quiet')
-        notify_user("🍃 Sonsus Engine: SESSIZ / OFİS MODU", "Düşük Güç & Fısıltı Sessizliği Devrede!", "battery")
-        print("Profile switched to QUIET")
-
-def is_sonsus_running():
-    try:
-        res = subprocess.run(['pgrep', '-u', USERNAME, '-f', 'sonsus-engine'], stdout=subprocess.PIPE)
-        return len(res.stdout.strip()) > 0
-    except Exception:
-        return False
-
-def on_double_click():
-    if is_sonsus_running():
-        notify_user("🎮 Sonsus Engine", "Uygulama zaten açık!", "utilities-system-monitor")
-        return
-    notify_user("🚀 Sonsus Engine", "Başlatılıyor...", "utilities-system-monitor")
-    subprocess.Popen([
-        'systemd-run',
-        '--user',
-        f'--machine={USERNAME}@.host',
-        '/home/fsociecty/Masaüstü/launcher/src-tauri/target/release/sonsus-engine'
-    ])
+        notify_user("🍃 Sonsus Engine: SESSIZ / OFİS MODU", "Fısıltı Fan Eğrisi & Düşük Güç Devrede!", "battery")
+        print("Profil SESSIZ moda alındı")
 
 click_count = 0
 timer = None
@@ -140,10 +213,13 @@ def timer_callback():
         c = click_count
         click_count = 0
         timer = None
+
     if c == 1:
-        on_single_click()
+        # Tek Basış: Omen Hub tuşuna basıldığında Sonsus Engine'i AÇ!
+        open_or_focus_sonsus()
     elif c >= 2:
-        on_double_click()
+        # Çift Basış: Hızlı Fan / Performans Modu Geçişi!
+        toggle_power_profile()
 
 def listen_device(dev):
     global click_count, timer
@@ -153,26 +229,27 @@ def listen_device(dev):
                 data = f.read(EVENT_SIZE)
                 if len(data) == EVENT_SIZE:
                     tv_sec, tv_usec, ev_type, ev_code, ev_val = struct.unpack(FORMAT, data)
+                    # Yalnızca Tuşa Basma Olayı (ev_type=1, ev_val=1)
                     if ev_type == 1 and ev_val == 1 and ev_code in GAMING_KEYS:
-                        print(f"Gaming Key Pressed: {ev_code} on {dev}")
+                        print(f"Gaming Key Algılandı: Kod={ev_code} Cihaz={dev}")
                         with lock:
                             click_count += 1
                             if timer is not None:
                                 timer.cancel()
-                            timer = threading.Timer(0.35, timer_callback)
+                            timer = threading.Timer(0.30, timer_callback)
                             timer.start()
     except Exception:
         pass
 
 def main():
-    print("Sonsus Engine Universal Game Key Daemon Başlatıldı...")
+    print("Sonsus Engine Universal Gaming Key Daemon Başlatıldı...")
     devices = glob.glob('/dev/input/event*')
     threads = []
     for d in devices:
         t = threading.Thread(target=listen_device, args=(d,), daemon=True)
         t.start()
         threads.append(t)
-    
+
     while True:
         time.sleep(10)
 

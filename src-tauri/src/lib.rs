@@ -49,6 +49,24 @@ pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
             let _ = setup_system_tray(app.handle());
+
+            #[cfg(unix)]
+            {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    use tokio::signal::unix::{signal, SignalKind};
+                    if let Ok(mut sig) = signal(SignalKind::user_defined1()) {
+                        while sig.recv().await.is_some() {
+                            if let Some(win) = handle.get_webview_window("main") {
+                                let _ = win.show();
+                                let _ = win.unminimize();
+                                let _ = win.set_focus();
+                            }
+                        }
+                    }
+                });
+            }
+
             Ok(())
         })
         .on_window_event(|window, event| {
