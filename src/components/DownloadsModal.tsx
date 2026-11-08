@@ -132,28 +132,36 @@ export function DownloadsModal({
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
-                      {isDownloading && (
-                        <button
-                          type="button"
-                          onClick={() => handlePause(task)}
-                          className="h-8 px-3 rounded-full bg-zinc-800 hover:bg-zinc-700 border border-white/10 text-zinc-300 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
-                          title="İndirmeyi duraklat"
-                        >
-                          <Pause className="w-3.5 h-3.5" />
-                          <span>Duraklat</span>
-                        </button>
-                      )}
+                      {task.platform === "steam" ? (
+                        <span className="px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-[10px] font-semibold text-blue-300">
+                          Steam İstemcisi
+                        </span>
+                      ) : (
+                        <>
+                          {isDownloading && (
+                            <button
+                              type="button"
+                              onClick={() => handlePause(task)}
+                              className="h-8 px-3 rounded-full bg-zinc-800 hover:bg-zinc-700 border border-white/10 text-zinc-300 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                              title="İndirmeyi duraklat"
+                            >
+                              <Pause className="w-3.5 h-3.5" />
+                              <span>Duraklat</span>
+                            </button>
+                          )}
 
-                      {(isPaused || isFailed) && (
-                        <button
-                          type="button"
-                          onClick={() => handleResume(task)}
-                          className="h-8 px-3 rounded-full bg-white hover:bg-zinc-200 text-black text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                          title="Kaldığı yerden devam ettir"
-                        >
-                          <Play className="w-3.5 h-3.5 fill-black" />
-                          <span>Devam Et</span>
-                        </button>
+                          {(isPaused || isFailed) && (
+                            <button
+                              type="button"
+                              onClick={() => handleResume(task)}
+                              className="h-8 px-3 rounded-full bg-white hover:bg-zinc-200 text-black text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                              title="Kaldığı yerden devam ettir"
+                            >
+                              <Play className="w-3.5 h-3.5 fill-black" />
+                              <span>Devam Et</span>
+                            </button>
+                          )}
+                        </>
                       )}
 
                       <button

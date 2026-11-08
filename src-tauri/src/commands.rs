@@ -200,7 +200,11 @@ pub fn remove_download_task(
 
 #[tauri::command]
 pub fn get_active_downloads(state: State<'_, AppState>) -> Vec<DownloadTaskInfo> {
-    state.downloads.list_tasks()
+    let mut tasks = state.downloads.list_tasks();
+    let custom_steam = state.settings.lock().ok().and_then(|s| s.custom_steam_root.clone());
+    let mut steam_tasks = crate::steam_downloads::get_steam_active_downloads(custom_steam.as_deref());
+    tasks.append(&mut steam_tasks);
+    tasks
 }
 
 #[tauri::command]

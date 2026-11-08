@@ -1,3 +1,4 @@
+pub mod steam_downloads;
 pub mod auth;
 pub mod cleaner;
 pub mod commands;

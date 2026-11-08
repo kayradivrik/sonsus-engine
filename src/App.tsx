@@ -209,14 +209,31 @@ export default function App() {
       .catch(() => {});
 
     tauriApi.getSystemDiagnostics().then(setDiagnostics).catch(() => {});
-    tauriApi
-      .getActiveDownloads()
-      .then((list) => {
-        const next = new Map<string, DownloadTaskInfo>();
-        for (const item of list) next.set(item.game_id, item);
-        setDownloadsMap(next);
-      })
-      .catch(() => {});
+    const refreshDownloads = () => {
+      tauriApi
+        .getActiveDownloads()
+        .then((list) => {
+          setDownloadsMap((prev) => {
+            const next = new Map(prev);
+            // Güncel steam veya dahili indirmeleri eşitle
+            for (const item of list) {
+              next.set(item.game_id, item);
+            }
+            // Artık var olmayan steam indirmelerini temizle
+            const currentIds = new Set(list.map((l) => l.game_id));
+            for (const [k, v] of next.entries()) {
+              if (v.platform === "steam" && !currentIds.has(k)) {
+                next.delete(k);
+              }
+            }
+            return next;
+          });
+        })
+        .catch(() => {});
+    };
+
+    refreshDownloads();
+    const dlInterval = setInterval(refreshDownloads, 2000);
 
     const unStart = listen<string>("game-started", (e) => {
       setRunningId(e.payload);
@@ -252,6 +269,7 @@ export default function App() {
       unExit.then((f) => f());
       unDlUpdate.then((f) => f());
       unDlRemove.then((f) => f());
+      clearInterval(dlInterval);
     };
   }, [showToast, handleGameUpdated]);
 
