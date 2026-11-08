@@ -10,9 +10,9 @@ import {
   RefreshCw,
   Search,
   Sliders,
+  SlidersHorizontal,
   Terminal,
   User,
-  Zap,
 } from "lucide-react";
 import { AppNavTab, ViewMode } from "../types/game";
 import { SonsusLogo } from "./ui/SonsusLogo";
@@ -131,15 +131,15 @@ export function TopStatusBar({
           <span className="hidden md:inline">Oyun Ekle</span>
         </button>
 
-        {/* E-Spor Ultra FPS Modülü */}
+        {/* Performans Modülü */}
         <button
           type="button"
           onClick={onOpenUltraFps}
           className="h-9 px-3 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 hover:border-white/20 text-zinc-300 hover:text-white flex items-center gap-1.5 text-xs font-medium transition-all cursor-pointer outline-none"
-          title="⚡ CS2 & Linux E-Spor Ultra FPS Çekirdek Kilidi"
+          title="Performans ve CS2 Ayarları"
         >
-          <Zap className="w-3.5 h-3.5 text-zinc-300" />
-          <span>Ultra FPS</span>
+          <SlidersHorizontal className="w-3.5 h-3.5 text-zinc-400" />
+          <span>Performans</span>
         </button>
 
         {/* Oyun Kolu Durumu */}
