@@ -135,11 +135,11 @@ export function TopStatusBar({
         <button
           type="button"
           onClick={onOpenUltraFps}
-          className="h-9 px-3.5 rounded-full bg-white/10 hover:bg-white/15 border border-white/20 hover:border-white/40 text-white flex items-center gap-1.5 text-xs font-semibold transition-all cursor-pointer outline-none shadow-sm"
+          className="h-9 px-3 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 hover:border-white/20 text-zinc-300 hover:text-white flex items-center gap-1.5 text-xs font-medium transition-all cursor-pointer outline-none"
           title="⚡ CS2 & Linux E-Spor Ultra FPS Çekirdek Kilidi"
         >
-          <Zap className="w-3.5 h-3.5 text-zinc-200" />
-          <span className="tracking-wide">Ultra FPS</span>
+          <Zap className="w-3.5 h-3.5 text-zinc-300" />
+          <span>Ultra FPS</span>
         </button>
 
         {/* Oyun Kolu Durumu */}
