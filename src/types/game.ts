@@ -328,7 +328,11 @@ export function platformLabel(platform: Platform): string {
 }
 
 export function isLocalFilePath(pathOrUrl: string): boolean {
-  return pathOrUrl.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(pathOrUrl);
+  return (
+    pathOrUrl.startsWith("/") ||
+    pathOrUrl.startsWith("file://") ||
+    /^[a-zA-Z]:[\\/]/.test(pathOrUrl)
+  );
 }
 
 export function resolveMediaSrc(pathOrUrl?: string | null): string | null {
@@ -336,8 +340,12 @@ export function resolveMediaSrc(pathOrUrl?: string | null): string | null {
   if (pathOrUrl.startsWith("http://") || pathOrUrl.startsWith("https://")) {
     return pathOrUrl;
   }
-  if (isLocalFilePath(pathOrUrl)) {
-    return convertFileSrc(pathOrUrl, "sonsusmedia");
+  let cleanPath = pathOrUrl;
+  if (cleanPath.startsWith("file://")) {
+    cleanPath = cleanPath.replace(/^file:\/\//, "");
+  }
+  if (isLocalFilePath(cleanPath)) {
+    return convertFileSrc(cleanPath, "sonsusmedia");
   }
   return pathOrUrl;
 }
@@ -353,11 +361,15 @@ export function buildCoverCandidates(game: UnifiedGame, bustCacheKey?: number): 
   };
 
   if (game.cover_path_or_url) {
-    if (isLocalFilePath(game.cover_path_or_url)) {
-      pushUnique(`${convertFileSrc(game.cover_path_or_url, "sonsusmedia")}${suffix}`);
-      pushUnique(convertFileSrc(game.cover_path_or_url, "asset"));
+    let clean = game.cover_path_or_url;
+    if (clean.startsWith("file://")) {
+      clean = clean.replace(/^file:\/\//, "");
+    }
+    if (isLocalFilePath(clean)) {
+      pushUnique(`${convertFileSrc(clean, "sonsusmedia")}${suffix}`);
+      pushUnique(convertFileSrc(clean, "asset"));
     } else {
-      pushUnique(game.cover_path_or_url);
+      pushUnique(clean);
     }
   }
 
@@ -396,13 +408,16 @@ export function buildHeroCandidates(game: UnifiedGame): string[] {
 
   if (game.platform === "steam") {
     pushUnique(
-      `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${game.platform_id}/header.jpg`
+      `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.platform_id}/library_hero.jpg`
+    );
+    pushUnique(
+      `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${game.platform_id}/library_hero.jpg`
     );
     pushUnique(
       `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${game.platform_id}/capsule_616x353.jpg`
     );
     pushUnique(
-      `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.platform_id}/library_hero.jpg`
+      `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${game.platform_id}/header.jpg`
     );
     pushUnique(
       `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${game.platform_id}/library_600x900.jpg`
