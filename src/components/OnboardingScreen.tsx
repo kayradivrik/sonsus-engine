@@ -220,11 +220,11 @@ export function OnboardingScreen({
           </div>
 
           {/* Steam */}
-          <div className="p-3.5 rounded-xl bg-[#0e0e14] border border-white/10 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 font-bold text-xs flex items-center justify-center">
+          <div className="p-4 rounded-xl bg-[#0d0d12] border border-white/10 hover:border-white/20 transition-all flex items-center justify-between">
+            <div className="flex items-center gap-3.5">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600/20 to-blue-900/10 border border-blue-500/30 text-blue-400 font-black text-xs flex items-center justify-center shadow-inner">
                 ST
-              </span>
+              </div>
               <div>
                 <div className="text-xs font-bold text-white flex items-center gap-1.5">
                   <span>Steam</span>
@@ -234,23 +234,23 @@ export function OnboardingScreen({
                 </div>
                 <div className="text-[11px] text-zinc-400">
                   {auth?.steam_connected
-                    ? `${auth.steam_persona} (ID: ${auth.steam_id64?.slice(-5) || "ok"})`
+                    ? `${auth.steam_persona} • ID: ${auth.steam_id64?.slice(-6) || "..."}`
                     : t.steamNotFound}
                 </div>
               </div>
             </div>
-            <span className="text-[10px] text-zinc-500 font-mono">
-              {auth?.steam_connected ? (lang === "tr" ? "Otomatik" : "Auto-detected") : "—"}
+            <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] text-zinc-400 font-medium font-mono">
+              {auth?.steam_connected ? (lang === "tr" ? "Otomatik Bağlandı" : "Auto-detected") : "—"}
             </span>
           </div>
 
           {/* Epic Games */}
-          <div className="p-3.5 rounded-xl bg-[#0e0e14] border border-white/10 space-y-2.5">
+          <div className="p-4 rounded-xl bg-[#0d0d12] border border-white/10 hover:border-white/20 transition-all space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="w-8 h-8 rounded-lg bg-zinc-800 text-zinc-200 font-bold text-xs flex items-center justify-center">
+              <div className="flex items-center gap-3.5">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-zinc-700/30 to-zinc-900 border border-white/15 text-white font-black text-xs flex items-center justify-center shadow-inner">
                   EP
-                </span>
+                </div>
                 <div>
                   <div className="text-xs font-bold text-white flex items-center gap-1.5">
                     <span>Epic Games</span>
@@ -269,7 +269,7 @@ export function OnboardingScreen({
                   type="button"
                   onClick={handleDisconnectEpic}
                   disabled={epicBusy}
-                  className="px-3 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-medium cursor-pointer"
+                  className="h-7 px-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-xs font-semibold cursor-pointer transition-colors"
                 >
                   {t.disconnect}
                 </button>
@@ -278,9 +278,9 @@ export function OnboardingScreen({
                   href={oauthUrls[0]}
                   target="_blank"
                   rel="noreferrer"
-                  className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium flex items-center gap-1"
+                  className="h-7 px-3 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"
                 >
-                  <span>Giriş Kodu Al</span>
+                  <span>{t.getLoginCode}</span>
                   <ExternalLink className="w-3 h-3 text-zinc-400" />
                 </a>
               )}
@@ -290,16 +290,16 @@ export function OnboardingScreen({
               <div className="flex items-center gap-2 pt-1">
                 <input
                   type="text"
-                  placeholder="authorizationCode yapıştırın"
+                  placeholder={t.pasteAuthCode}
                   value={epicCode}
                   onChange={(e) => setEpicCode(e.target.value)}
-                  className="flex-1 h-8 px-3 rounded-lg bg-zinc-900 border border-white/10 text-xs text-white placeholder-zinc-500"
+                  className="flex-1 h-8 px-3 rounded-lg bg-zinc-950 border border-white/10 text-xs text-white placeholder-zinc-500 focus:border-white/30"
                 />
                 <button
                   type="button"
                   onClick={handleConnectEpic}
                   disabled={!epicCode.trim() || epicBusy}
-                  className="h-8 px-3 rounded-lg bg-white hover:bg-zinc-200 disabled:opacity-50 text-black font-bold text-xs cursor-pointer"
+                  className="h-8 px-4 rounded-lg bg-white hover:bg-zinc-200 disabled:opacity-40 text-black font-extrabold text-xs cursor-pointer transition-colors"
                 >
                   {t.connect}
                 </button>
@@ -308,12 +308,12 @@ export function OnboardingScreen({
           </div>
 
           {/* GOG */}
-          <div className="p-3.5 rounded-xl bg-[#0e0e14] border border-white/10 space-y-2.5">
+          <div className="p-4 rounded-xl bg-[#0d0d12] border border-white/10 hover:border-white/20 transition-all space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 font-bold text-xs flex items-center justify-center">
+              <div className="flex items-center gap-3.5">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-600/20 to-purple-900/10 border border-purple-500/30 text-purple-400 font-black text-xs flex items-center justify-center shadow-inner">
                   GG
-                </span>
+                </div>
                 <div>
                   <div className="text-xs font-bold text-white flex items-center gap-1.5">
                     <span>GOG.com</span>
@@ -332,7 +332,7 @@ export function OnboardingScreen({
                   type="button"
                   onClick={handleDisconnectGog}
                   disabled={gogBusy}
-                  className="px-3 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-medium cursor-pointer"
+                  className="h-7 px-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-xs font-semibold cursor-pointer transition-colors"
                 >
                   {t.disconnect}
                 </button>
@@ -341,9 +341,9 @@ export function OnboardingScreen({
                   href={oauthUrls[1]}
                   target="_blank"
                   rel="noreferrer"
-                  className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium flex items-center gap-1"
+                  className="h-7 px-3 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"
                 >
-                  <span>Giriş Kodu Al</span>
+                  <span>{t.getLoginCode}</span>
                   <ExternalLink className="w-3 h-3 text-zinc-400" />
                 </a>
               )}
@@ -353,16 +353,16 @@ export function OnboardingScreen({
               <div className="flex items-center gap-2 pt-1">
                 <input
                   type="text"
-                  placeholder="GOG kodunu yapıştırın"
+                  placeholder={t.pasteGogCode}
                   value={gogCode}
                   onChange={(e) => setGogCode(e.target.value)}
-                  className="flex-1 h-8 px-3 rounded-lg bg-zinc-900 border border-white/10 text-xs text-white placeholder-zinc-500"
+                  className="flex-1 h-8 px-3 rounded-lg bg-zinc-950 border border-white/10 text-xs text-white placeholder-zinc-500 focus:border-white/30"
                 />
                 <button
                   type="button"
                   onClick={handleConnectGog}
                   disabled={!gogCode.trim() || gogBusy}
-                  className="h-8 px-3 rounded-lg bg-white hover:bg-zinc-200 disabled:opacity-50 text-black font-bold text-xs cursor-pointer"
+                  className="h-8 px-4 rounded-lg bg-white hover:bg-zinc-200 disabled:opacity-40 text-black font-extrabold text-xs cursor-pointer transition-colors"
                 >
                   {t.connect}
                 </button>

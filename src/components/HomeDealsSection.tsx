@@ -1,9 +1,11 @@
+import { useTranslation } from "../i18n/useTranslation";
 import React, { useState, useEffect } from "react";
 import { Gift, ExternalLink } from "lucide-react";
 import { GameDealItem } from "../types/game";
 import { tauriApi } from "../api/tauriClient";
 
 export const HomeDealsSection: React.FC = () => {
+  const { t } = useTranslation();
   const [deals, setDeals] = useState<GameDealItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,10 +32,10 @@ export const HomeDealsSection: React.FC = () => {
           </span>
           <div>
             <h2 className="text-base font-bold text-white tracking-wide">
-              Haftalık Fırsatlar & Ücretsiz Oyunlar
+              {t.weeklyDeals}
             </h2>
             <p className="text-[11px] text-zinc-400">
-              Epic Games ve Steam vitrinindeki indirimler
+              {t.weeklyDealsSub}
             </p>
           </div>
         </div>
@@ -79,7 +81,7 @@ export const HomeDealsSection: React.FC = () => {
                         : "bg-zinc-800 border border-white/20 text-zinc-100"
                     }`}
                   >
-                    {deal.is_free ? "ÜCRETSİZ" : `-%${deal.discount_percent}`}
+                    {deal.is_free ? "{t.freeBadge}" : `-%${deal.discount_percent}`}
                   </span>
                   <span className="px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-md text-[9px] uppercase tracking-wider text-zinc-400 font-medium border border-white/10">
                     {deal.store}

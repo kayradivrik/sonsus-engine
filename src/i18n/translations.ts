@@ -1,6 +1,20 @@
 export type Language = "tr" | "en";
 
 export interface Translations {
+  // Additional labels
+  getLoginCode: string;
+  pasteAuthCode: string;
+  pasteGogCode: string;
+  viewCategory: string;
+  actionAndShooter: string;
+  adventureAndRpg: string;
+  indiePicks: string;
+  quickLaunchRecent: string;
+  storeSteam: string;
+  storeEpic: string;
+  storeGog: string;
+  storeCustom: string;
+
   appName: string;
   home: string;
   library: string;
@@ -95,6 +109,19 @@ export interface Translations {
 
 export const translations: Record<Language, Translations> = {
   tr: {
+    getLoginCode: "Giriş Kodu Al",
+    pasteAuthCode: "authorizationCode yapıştırın",
+    pasteGogCode: "GOG kodunu yapıştırın",
+    viewCategory: "Kategoriyi Göster",
+    actionAndShooter: "Aksiyon & Nişancı Oyunları",
+    adventureAndRpg: "Macera & Rol Yapma (RPG)",
+    indiePicks: "Seçkin Bağımsız (Indie) Yapımlar",
+    quickLaunchRecent: "Son Oynananlar & Hızlı Başlat",
+    storeSteam: "Steam",
+    storeEpic: "Epic",
+    storeGog: "GOG",
+    storeCustom: "Özel",
+
     appName: "sonsus-engine",
     home: "Ana Sayfa",
     library: "Kütüphane",
@@ -187,6 +214,19 @@ export const translations: Record<Language, Translations> = {
     perfProfile: "Yüksek Performans",
   },
   en: {
+    getLoginCode: "Get Auth Code",
+    pasteAuthCode: "Paste authorizationCode here",
+    pasteGogCode: "Paste GOG code here",
+    viewCategory: "View All",
+    actionAndShooter: "Action & Shooter Games",
+    adventureAndRpg: "Adventure & RPG Games",
+    indiePicks: "Featured Indie Games",
+    quickLaunchRecent: "Recent & Quick Launch",
+    storeSteam: "Steam",
+    storeEpic: "Epic",
+    storeGog: "GOG",
+    storeCustom: "Custom",
+
     appName: "sonsus-engine",
     home: "Home",
     library: "Library",

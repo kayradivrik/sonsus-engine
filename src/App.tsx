@@ -1,3 +1,4 @@
+import { useTranslation } from "./i18n/useTranslation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { tauriApi } from "./api/tauriClient";
@@ -36,6 +37,7 @@ import {
 } from "./types/game";
 
 export default function App() {
+  const { t } = useTranslation();
   const [currentTab, setCurrentTab] = useState<AppNavTab>("home");
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const showToast = useCallback((msg: string) => {
@@ -549,7 +551,7 @@ export default function App() {
                 {/* 3. Epic Games Tarzı Kategorize Raflar */}
                 {recentGames.length > 0 && (
                   <HomeCategoryShelf
-                    title="Son Oynananlar & Hızlı Başlat"
+                    title={t.quickLaunchRecent}
                     badgeIcon="⚡"
                     games={recentGames}
                     runningId={runningId}
@@ -562,7 +564,7 @@ export default function App() {
 
                 {/* Aksiyon & Nişancı Kategorisi */}
                 <HomeCategoryShelf
-                  title="Aksiyon & Nişancı Oyunları"
+                  title={t.actionAndShooter}
                   badgeIcon="🔥"
                   games={games.filter((g) =>
                     g.genres?.some((genre) =>
@@ -584,7 +586,7 @@ export default function App() {
 
                 {/* Macera & RPG Kategorisi */}
                 <HomeCategoryShelf
-                  title="Macera & Rol Yapma (RPG)"
+                  title={t.adventureAndRpg}
                   badgeIcon="🗡️"
                   games={games.filter((g) =>
                     g.genres?.some((genre) =>
@@ -606,7 +608,7 @@ export default function App() {
 
                 {/* Bağımsız / Indie Kategorisi */}
                 <HomeCategoryShelf
-                  title="Seçkin Bağımsız (Indie) Yapımlar"
+                  title={t.indiePicks}
                   badgeIcon="🎨"
                   games={games.filter((g) =>
                     g.genres?.some((genre) =>

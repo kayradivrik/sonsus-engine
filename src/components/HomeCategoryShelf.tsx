@@ -1,3 +1,4 @@
+import { useTranslation } from "../i18n/useTranslation";
 import React, { useRef } from "react";
 import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 import { UnifiedGame } from "../types/game";
@@ -26,6 +27,7 @@ export const HomeCategoryShelf: React.FC<HomeCategoryShelfProps> = ({
   onViewCategoryAll,
   onContextMenu,
 }) => {
+  const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   if (!games || games.length === 0) return null;
@@ -55,7 +57,7 @@ export const HomeCategoryShelf: React.FC<HomeCategoryShelfProps> = ({
               onClick={onViewCategoryAll}
               className="px-3 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-zinc-300 hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer mr-2"
             >
-              <span>Kategoriyi Göster</span>
+              <span>{t.viewCategory}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           )}

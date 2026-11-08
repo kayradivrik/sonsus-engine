@@ -1,3 +1,4 @@
+import { useTranslation } from "../i18n/useTranslation";
 import { RefObject, useRef } from "react";
 import { ChevronLeft, ChevronRight, EyeOff, Heart, Search, X } from "lucide-react";
 import { GenreCountItem, LibraryCounts } from "../hooks/useLibrary";
@@ -51,6 +52,7 @@ export function FilterStrip({
   visibleCount,
   counts,
 }: FilterStripProps) {
+  const { t } = useTranslation();
   const pillScrollRef = useRef<HTMLDivElement>(null);
 
   const scrollPills = (delta: number) => {
@@ -58,12 +60,12 @@ export function FilterStrip({
   };
 
   const stores: { key: "all" | Platform; label: string; count: number }[] = [
-    { key: "all", label: "Tümü", count: counts.all },
+    { key: "all", label: t.all, count: counts.all },
     { key: "steam", label: "Steam", count: counts.steam },
     { key: "epic", label: "Epic", count: counts.epic },
     { key: "gog", label: "GOG", count: counts.gog },
     ...(counts.custom > 0 || platformFilter === "custom"
-      ? [{ key: "custom" as const, label: "Özel", count: counts.custom }]
+      ? [{ key: "custom" as const, label: t.storeCustom, count: counts.custom }]
       : []),
   ];
 
@@ -73,7 +75,7 @@ export function FilterStrip({
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-4 flex-wrap">
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white leading-none">
-            Kütüphane
+            {t.library}
           </h1>
 
           {/* Kütüphane İçi Hızlı Durum Filtre Kapsülleri */}
@@ -87,7 +89,7 @@ export function FilterStrip({
                   : "text-zinc-400 hover:text-white"
               }`}
             >
-              <span>Tümü</span>
+              <span>{t.all}</span>
               <span className="text-[10px] ml-1.5 opacity-60 tabular-nums">
                 {counts.all}
               </span>
@@ -102,7 +104,7 @@ export function FilterStrip({
                   : "text-zinc-400 hover:text-white"
               }`}
             >
-              <span>Yüklü</span>
+              <span>{t.installed}</span>
               <span className="text-[10px] ml-1.5 opacity-60 tabular-nums">
                 {counts.installed}
               </span>
@@ -117,7 +119,7 @@ export function FilterStrip({
                   : "text-zinc-400 hover:text-white"
               }`}
             >
-              <span>Bulutta</span>
+              <span>{t.cloud}</span>
               <span className="text-[10px] ml-1.5 opacity-60 tabular-nums">
                 {counts.cloud}
               </span>
@@ -141,7 +143,7 @@ export function FilterStrip({
                   statusFilter === "favorites" ? "fill-black" : ""
                 }`}
               />
-              <span>Favoriler</span>
+              <span>{t.favorites}</span>
               {counts.favorites > 0 && (
                 <span className="text-[10px] opacity-60 tabular-nums">
                   {counts.favorites}
@@ -193,7 +195,7 @@ export function FilterStrip({
             type="text"
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="Kütüphanede ara... (/)"
+            placeholder={`${t.library} ${t.searchPlaceholder}`}
             className="w-full h-9 rounded-full bg-zinc-900/80 hover:bg-zinc-900 border border-white/10 focus:border-white/30 pl-9 pr-8 text-[13px] text-zinc-100 placeholder:text-zinc-500 outline-none transition-colors"
           />
           {query && (
