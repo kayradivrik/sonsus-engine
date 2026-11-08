@@ -12,6 +12,7 @@ interface HomeCategoryShelfProps {
   onLaunch: (game: UnifiedGame) => void;
   onToggleFavorite: (game: UnifiedGame) => void;
   onViewCategoryAll?: () => void;
+  onContextMenu?: (game: UnifiedGame, x: number, y: number) => void;
 }
 
 export const HomeCategoryShelf: React.FC<HomeCategoryShelfProps> = ({
@@ -23,6 +24,7 @@ export const HomeCategoryShelf: React.FC<HomeCategoryShelfProps> = ({
   onLaunch,
   onToggleFavorite,
   onViewCategoryAll,
+  onContextMenu,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -88,6 +90,7 @@ export const HomeCategoryShelf: React.FC<HomeCategoryShelfProps> = ({
               onOpenDetail={onOpenDetail}
               onLaunch={onLaunch}
               onToggleFavorite={onToggleFavorite}
+              onContextMenu={onContextMenu}
             />
           </div>
         ))}

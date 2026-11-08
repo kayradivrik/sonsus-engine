@@ -168,4 +168,14 @@ export const tauriApi = {
   // --- Canlı İndirimler & Ücretsiz Oyunlar ---
   getCuratedDeals: () =>
     invoke<import("../types/game").GameDealItem[]>("get_curated_deals"),
+
+  // --- Sağ Tık Kısayol, Dizin & Prefix ---
+  createDesktopShortcut: (game: UnifiedGame) =>
+    invoke<string>("create_desktop_shortcut", { game }),
+
+  openGameInstallDir: (game: UnifiedGame) =>
+    invoke<void>("open_game_install_dir", { game }),
+
+  cleanGamePrefix: (gameId: string) =>
+    invoke<string>("clean_game_prefix", { gameId }),
 };

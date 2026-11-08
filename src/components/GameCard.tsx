@@ -16,6 +16,7 @@ interface GameCardProps {
   onOpenDetail: (game: UnifiedGame, autoOpenInstall?: boolean) => void;
   onLaunch: (game: UnifiedGame) => void;
   onToggleFavorite: (game: UnifiedGame) => void;
+  onContextMenu?: (game: UnifiedGame, x: number, y: number) => void;
 }
 
 /**
@@ -30,6 +31,7 @@ export const GameCard = memo(function GameCard({
   onOpenDetail,
   onLaunch,
   onToggleFavorite,
+  onContextMenu,
 }: GameCardProps) {
   const candidates = useMemo(() => buildCoverCandidates(game), [game]);
   const [candidateIdx, setCandidateIdx] = useState(0);
@@ -64,6 +66,12 @@ export const GameCard = memo(function GameCard({
   return (
     <div
       onClick={() => onOpenDetail(game, false)}
+      onContextMenu={(e) => {
+        if (onContextMenu) {
+          e.preventDefault();
+          onContextMenu(game, e.clientX, e.clientY);
+        }
+      }}
       className="perf-card group flex flex-col cursor-pointer select-none"
     >
       {/* Yuvarlatılmış Dikey Poster */}

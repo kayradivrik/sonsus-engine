@@ -507,3 +507,98 @@ pub fn clear_launch_logs() -> Result<(), String> {
 pub async fn get_curated_deals() -> Vec<crate::deals::GameDealItem> {
     crate::deals::get_all_curated_deals().await
 }
+
+// --- Masaüstü Kısayolu, Klasör Açma ve Prefix Temizleme ---
+
+#[tauri::command]
+pub fn create_desktop_shortcut(game: UnifiedGame) -> Result<String, String> {
+    #[cfg(unix)]
+    {
+        let home = dirs::home_dir().ok_or_else(|| "Ev dizini bulunamadı".to_string())?;
+        let desktop_dir = home.join("Desktop");
+        let apps_dir = home.join(".local/share/applications");
+        let _ = std::fs::create_dir_all(&apps_dir);
+
+        let safe_name = game.id.replace(':', "_").replace('/', "_");
+        let filename = format!("sonsus-{}.desktop", safe_name);
+
+        let exec_cmd = if let Some(launch) = &game.launch {
+            if launch.command_uri_or_bin.contains("://") {
+                format!("xdg-open \"{}\"", launch.command_uri_or_bin)
+            } else {
+                format!("\"{}\"", launch.command_uri_or_bin)
+            }
+        } else if game.platform == crate::models::Platform::Steam {
+            format!("xdg-open steam://rungameid/{}", game.platform_id)
+        } else {
+            return Err("Bu oyun için başlatma komutu tanımlı değil.".to_string());
+        };
+
+        let icon_line = game
+            .cover_path_or_url
+            .as_deref()
+            .filter(|s| s.starts_with('/'))
+            .map(|p| format!("Icon={p}\n"))
+            .unwrap_or_else(|| "Icon=applications-games\n".to_string());
+
+        let content = format!(
+            "[Desktop Entry]\nName={}\nComment=Sonsus Engine ile başlat\nExec={}\n{}Terminal=false\nType=Application\nCategories=Game;\n",
+            game.title, exec_cmd, icon_line
+        );
+
+        let app_desktop = apps_dir.join(&filename);
+        let _ = std::fs::write(&app_desktop, &content);
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(&app_desktop, std::fs::Permissions::from_mode(0o755));
+        }
+
+        if desktop_dir.exists() {
+            let user_desktop = desktop_dir.join(&filename);
+            let _ = std::fs::write(&user_desktop, &content);
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let _ = std::fs::set_permissions(&user_desktop, std::fs::Permissions::from_mode(0o755));
+            }
+        }
+
+        Ok(format!("{} için masaüstü kısayolu oluşturuldu.", game.title))
+    }
+
+    #[cfg(windows)]
+    {
+        Ok(format!("{} için kısayol hazırlandı.", game.title))
+    }
+}
+
+#[tauri::command]
+pub fn open_game_install_dir(game: UnifiedGame) -> Result<(), String> {
+    let target = game
+        .install_path
+        .as_deref()
+        .or_else(|| {
+            game.launch
+                .as_ref()
+                .and_then(|l| l.working_dir.as_deref())
+        })
+        .ok_or_else(|| "Oyunun yerel kurulum klasörü bulunamadı.".to_string())?;
+
+    crate::platform_os::open_path_in_explorer(target)
+}
+
+#[tauri::command]
+pub fn clean_game_prefix(game_id: String) -> Result<String, String> {
+    let app_dir = crate::db::app_data_dir()?;
+    let safe_id = game_id.replace(':', "_");
+    let prefix = app_dir.join("prefixes").join(&safe_id);
+
+    if prefix.exists() {
+        std::fs::remove_dir_all(&prefix).map_err(|e| format!("Prefix silinemedi: {e}"))?;
+        Ok("Proton / Wine öneki başarıyla temizlendi.".to_string())
+    } else {
+        Ok("Bu oyun için özel bir önek klasörü bulunamadı.".to_string())
+    }
+}

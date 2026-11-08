@@ -10,6 +10,8 @@ import { GameTable } from "./components/GameTable";
 import { HomeCategoryShelf } from "./components/HomeCategoryShelf";
 import { HomeDealsSection } from "./components/HomeDealsSection";
 import { HomeHeroSlider } from "./components/HomeHeroSlider";
+import { GameContextMenu, ContextMenuPosition } from "./components/GameContextMenu";
+import { QuickAccessOverlay } from "./components/QuickAccessOverlay";
 import { LaunchLogsModal } from "./components/LaunchLogsModal";
 import { OnboardingScreen } from "./components/OnboardingScreen";
 import { PaginationBar } from "./components/PaginationBar";
@@ -83,6 +85,8 @@ export default function App() {
   const [isFirstRunOnboarding, setIsFirstRunOnboarding] = useState(false);
   const [ultraFpsOpen, setUltraFpsOpen] = useState(false);
   const [launchLogsOpen, setLaunchLogsOpen] = useState(false);
+  const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
+  const [quickAccessOpen, setQuickAccessOpen] = useState(false);
 
   const [downloadsMap, setDownloadsMap] = useState<Map<string, DownloadTaskInfo>>(
     () => new Map()
@@ -150,6 +154,29 @@ export default function App() {
           game.collection_tag ?? null
         );
         handleGameUpdated(updated);
+      } catch (err) {
+        showToast(String(err));
+      }
+    },
+    [handleGameUpdated, showToast]
+  );
+
+  const handleToggleHide = useCallback(
+    async (game: UnifiedGame) => {
+      try {
+        const nextHide = !game.is_hidden;
+        const updated = await tauriApi.setGamePreferences(
+          game,
+          Boolean(game.is_favorite),
+          nextHide,
+          game.collection_tag ?? null
+        );
+        handleGameUpdated(updated);
+        showToast(
+          nextHide
+            ? `${game.title} kütüphaneden gizlendi.`
+            : `${game.title} gizliliği kaldırıldı.`
+        );
       } catch (err) {
         showToast(String(err));
       }
@@ -234,6 +261,12 @@ export default function App() {
   // Kütüphane kısayolları (`Ctrl+K`, `/`, `ESC`, `R`)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (e.shiftKey && e.key === "F12") {
+        e.preventDefault();
+        setQuickAccessOpen((prev) => !prev);
+        return;
+      }
+
       if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
         e.preventDefault();
         if (!onboardingOpen) {
@@ -295,6 +328,36 @@ export default function App() {
     []
   );
 
+  const handleContextMenu = useCallback((game: UnifiedGame, x: number, y: number) => {
+    setContextMenu({ x, y, game });
+  }, []);
+
+  const handleCreateShortcut = useCallback(async (game: UnifiedGame) => {
+    try {
+      const msg = await tauriApi.createDesktopShortcut(game);
+      showToast(msg);
+    } catch (e: any) {
+      showToast(`Hata: ${e}`);
+    }
+  }, [showToast]);
+
+  const handleOpenFolder = useCallback(async (game: UnifiedGame) => {
+    try {
+      await tauriApi.openGameInstallDir(game);
+    } catch (e: any) {
+      showToast(`Klasör açılamadı: ${e}`);
+    }
+  }, [showToast]);
+
+  const handleCleanPrefix = useCallback(async (game: UnifiedGame) => {
+    try {
+      const msg = await tauriApi.cleanGamePrefix(game.id);
+      showToast(msg);
+    } catch (e: any) {
+      showToast(`Hata: ${e}`);
+    }
+  }, [showToast]);
+
   const handleLaunch = useCallback(
     async (game: UnifiedGame) => {
       try {
@@ -308,6 +371,19 @@ export default function App() {
     },
     [replaceSingleGame, showToast]
   );
+
+  // Sistem tepsisinden doğrudan oyun başlatma dinleyicisi
+  useEffect(() => {
+    const unlisten = listen<string>("tray-launch-game", (e) => {
+      const target = games.find((g) => g.id === e.payload);
+      if (target) {
+        handleLaunch(target);
+      }
+    });
+    return () => {
+      unlisten.then((f) => f());
+    };
+  }, [games, handleLaunch]);
 
   const handleSaveSettings = async (next: AppSettings) => {
     await tauriApi.updateAppSettings(next);
@@ -438,6 +514,7 @@ export default function App() {
                     onOpenDetail={(g) => handleOpenDetail(g, false)}
                     onLaunch={handleLaunch}
                     onToggleFavorite={handleToggleFavorite}
+                    onContextMenu={handleContextMenu}
                   />
                 )}
 
@@ -456,6 +533,7 @@ export default function App() {
                   onOpenDetail={(g) => handleOpenDetail(g, false)}
                   onLaunch={handleLaunch}
                   onToggleFavorite={handleToggleFavorite}
+                  onContextMenu={handleContextMenu}
                   onViewCategoryAll={() => {
                     setGenreFilter("Action");
                     setCurrentTab("library");
@@ -477,6 +555,7 @@ export default function App() {
                   onOpenDetail={(g) => handleOpenDetail(g, false)}
                   onLaunch={handleLaunch}
                   onToggleFavorite={handleToggleFavorite}
+                  onContextMenu={handleContextMenu}
                   onViewCategoryAll={() => {
                     setGenreFilter("Adventure");
                     setCurrentTab("library");
@@ -498,6 +577,7 @@ export default function App() {
                   onOpenDetail={(g) => handleOpenDetail(g, false)}
                   onLaunch={handleLaunch}
                   onToggleFavorite={handleToggleFavorite}
+                  onContextMenu={handleContextMenu}
                   onViewCategoryAll={() => {
                     setGenreFilter("Indie");
                     setCurrentTab("library");
@@ -519,6 +599,7 @@ export default function App() {
                     onOpenDetail={handleOpenDetail}
                     onLaunch={handleLaunch}
                     onToggleFavorite={handleToggleFavorite}
+                    onContextMenu={handleContextMenu}
                   />
                 ) : (
                   <GameTable
@@ -634,6 +715,26 @@ export default function App() {
       {launchLogsOpen && (
         <LaunchLogsModal onClose={() => setLaunchLogsOpen(false)} />
       )}
+
+      {/* Oyun Kartı Sağ Tık Menüsü */}
+      <GameContextMenu
+        position={contextMenu}
+        onClose={() => setContextMenu(null)}
+        onLaunch={handleLaunch}
+        onOpenDetail={(g) => handleOpenDetail(g, false)}
+        onToggleFavorite={handleToggleFavorite}
+        onToggleHide={handleToggleHide}
+        onCreateShortcut={handleCreateShortcut}
+        onOpenFolder={handleOpenFolder}
+        onCleanPrefix={handleCleanPrefix}
+      />
+
+      {/* Oyun İçi Hızlı Erişim / Steam Deck Menüsü (Shift + F12) */}
+      <QuickAccessOverlay
+        open={quickAccessOpen}
+        onClose={() => setQuickAccessOpen(false)}
+        runningGameTitle={runningId ? gamesById.get(runningId)?.title : null}
+      />
 
       {/* Bildirim Balonu */}
       {toastMsg && (

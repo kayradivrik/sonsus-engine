@@ -41,6 +41,7 @@ import {
   HookProfile,
   OnlineGameDetails,
   RunnerInfo,
+  SaveBackupInfo,
   UnifiedGame,
   buildCoverCandidates,
   createEmptyHookProfile,
@@ -67,7 +68,7 @@ interface GameDetailViewProps {
   onNotify: (msg: string) => void;
 }
 
-type DetailSection = "overview" | "requirements" | "reviews" | "hooks";
+type DetailSection = "overview" | "requirements" | "reviews" | "hooks" | "saves";
 
 const BACKEND_OPTIONS: SelectOption<DisplayBackend>[] = [
   { value: "auto", label: "Otomatik Algıla" },
@@ -152,6 +153,61 @@ export function GameDetailView({
   const [confirmUninstall, setConfirmUninstall] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
 
+  const [saveBackups, setSaveBackups] = useState<SaveBackupInfo[]>([]);
+  const [loadingSaves, setLoadingSaves] = useState(false);
+  const [savingBackup, setSavingBackup] = useState(false);
+  const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
+
+  const fetchSaveBackups = () => {
+    setLoadingSaves(true);
+    tauriApi
+      .getGameSaveBackups(game.id)
+      .then(setSaveBackups)
+      .catch(() => {})
+      .finally(() => setLoadingSaves(false));
+  };
+
+  const handleCreateSaveBackup = async () => {
+    setSavingBackup(true);
+    setSaveFeedback(null);
+    try {
+      const res = await tauriApi.createGameSaveBackup(game);
+      setSaveFeedback(`Kayıt dosyaları arşivlendi: ${res.file_name} (${formatBytes(res.size_bytes)})`);
+      fetchSaveBackups();
+    } catch (e: any) {
+      setSaveFeedback(`Yedekleme hatası: ${e}`);
+    } finally {
+      setSavingBackup(false);
+    }
+  };
+
+  const handleRestoreSaveBackup = async (backup: SaveBackupInfo) => {
+    setSavingBackup(true);
+    setSaveFeedback(null);
+    try {
+      await tauriApi.restoreGameSaveBackup(backup.full_path, game);
+      setSaveFeedback(`Yedek başarıyla geri yüklendi: ${backup.file_name}`);
+    } catch (e: any) {
+      setSaveFeedback(`Geri yükleme hatası: ${e}`);
+    } finally {
+      setSavingBackup(false);
+    }
+  };
+
+  const handleSyncCloudSaves = async () => {
+    setSavingBackup(true);
+    setSaveFeedback(null);
+    try {
+      const msg = await tauriApi.syncGameCloudSaves(game);
+      setSaveFeedback(msg);
+      fetchSaveBackups();
+    } catch (e: any) {
+      setSaveFeedback(`Bulut eşitleme hatası: ${e}`);
+    } finally {
+      setSavingBackup(false);
+    }
+  };
+
   const [hook, setHook] = useState<HookProfile>(createEmptyHookProfile());
   const [hasCustomHook, setHasCustomHook] = useState(false);
   const [suspendText, setSuspendText] = useState("");
@@ -221,6 +277,7 @@ export function GameDetailView({
       pageScrollRef.current.scrollTop = 0;
     }
     loadOnlineInfo(false);
+    fetchSaveBackups();
 
     tauriApi
       .getGameHookProfile(game.id)
@@ -1024,6 +1081,30 @@ export function GameDetailView({
                   <span className="w-2 h-2 rounded-full bg-white" />
                 )}
               </button>
+
+              <button
+                type="button"
+                onClick={() => setSection("saves")}
+                className={`h-full px-4 rounded-full text-xs font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  section === "saves"
+                    ? "bg-white text-black font-semibold"
+                    : "text-zinc-400 hover:text-zinc-100"
+                }`}
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>Kayıt Dosyaları & Yedekler</span>
+                {saveBackups.length > 0 && (
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                      section === "saves"
+                        ? "bg-black/15 text-black"
+                        : "bg-white/10 text-zinc-200"
+                    }`}
+                  >
+                    {saveBackups.length}
+                  </span>
+                )}
+              </button>
             </div>
           </div>
 
@@ -1666,6 +1747,119 @@ export function GameDetailView({
                     <span>Varsayılana Dön</span>
                   </button>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* SEKME 5: KAYIT DOSYALARI & YEDEKLER */}
+          {section === "saves" && (
+            <div className="space-y-6">
+              {/* Üst Kart: Aksiyonlar & Bilgi */}
+              <div className="p-6 rounded-2xl bg-[#09090d] border border-white/[0.08] space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div>
+                    <h3 className="text-base font-bold text-white flex items-center gap-2">
+                      <Save className="w-4 h-4 text-zinc-300" />
+                      <span>Kayıt Dosyaları & Otomatik Yedekleme</span>
+                    </h3>
+                    <p className="text-[11px] text-zinc-400 mt-1 max-w-2xl leading-relaxed">
+                      Format atma, Proton öneki bozulması veya çökme durumlarında oyun ilerlemenizi kaybetmemek için kayıt dosyalarını arşivleyin veya bulutla eşitleyin.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={handleSyncCloudSaves}
+                      disabled={savingBackup}
+                      className="h-9 px-4 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-xs font-semibold text-zinc-200 hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      <Cloud className="w-3.5 h-3.5" />
+                      <span>Bulutla Eşitle</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleCreateSaveBackup}
+                      disabled={savingBackup}
+                      className="h-9 px-5 rounded-full bg-white hover:bg-zinc-200 text-black text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow disabled:opacity-50"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>{savingBackup ? "Yedekleniyor..." : "Şimdi Yedek Oluştur"}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {saveFeedback && (
+                  <div className="p-3 rounded-xl bg-zinc-950 border border-white/15 text-xs text-zinc-200 flex items-center justify-between">
+                    <span>{saveFeedback}</span>
+                    <button
+                      type="button"
+                      onClick={() => setSaveFeedback(null)}
+                      className="text-zinc-500 hover:text-zinc-300 cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Yedek Listesi */}
+              <div className="p-6 rounded-2xl bg-[#09090d] border border-white/[0.08] space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                    <span>Mevcut Yedek Arşivleri</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-zinc-300 font-mono">
+                      {saveBackups.length} arşiv
+                    </span>
+                  </h4>
+
+                  <button
+                    type="button"
+                    onClick={fetchSaveBackups}
+                    disabled={loadingSaves}
+                    className="text-xs text-zinc-400 hover:text-white flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${loadingSaves ? "animate-spin" : ""}`} />
+                    <span>Yenile</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2.5">
+                  {loadingSaves && saveBackups.length === 0 ? (
+                    <div className="py-12 text-center text-zinc-500 text-xs">
+                      Yedekler taranıyor...
+                    </div>
+                  ) : saveBackups.length === 0 ? (
+                    <div className="py-12 text-center text-zinc-500 text-xs bg-zinc-950 rounded-xl border border-white/5">
+                      Bu oyun için henüz yerel bir kayıt yedeği bulunmuyor. &apos;Şimdi Yedek Oluştur&apos; butonuna tıklayarak ilk yedeğinizi alabilirsiniz.
+                    </div>
+                  ) : (
+                    saveBackups.map((b) => (
+                      <div
+                        key={b.full_path}
+                        className="p-3.5 rounded-xl bg-zinc-950 border border-white/[0.06] flex items-center justify-between gap-4"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold text-white text-xs truncate">{b.file_name}</div>
+                          <div className="text-[11px] text-zinc-400 mt-0.5">
+                            Boyut: {formatBytes(b.size_bytes)} • Tarih:{" "}
+                            {new Date(b.created_epoch * 1000).toLocaleString("tr-TR")}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRestoreSaveBackup(b)}
+                          disabled={savingBackup}
+                          className="h-8 px-4 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-xs font-semibold text-zinc-200 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          Geri Yükle
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
           )}

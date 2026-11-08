@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Bell,
+  Download,
   FolderOpen,
   FolderSearch,
   HardDrive,
@@ -20,6 +21,8 @@ import {
   DisplayBackend,
   InstallLocationOption,
   LaunchLogEntry,
+  RemoteRunnerRelease,
+  RunnerInstallProgress,
   SystemDiagnostics,
   formatBytes,
 } from "../types/game";
@@ -34,7 +37,7 @@ interface SettingsModalProps {
   onSave: (next: AppSettings) => Promise<void>;
 }
 
-type SettingsSection = "storage" | "hooks" | "integrations" | "diagnostics";
+type SettingsSection = "storage" | "hooks" | "integrations" | "diagnostics" | "runners";
 
 const BACKEND_OPTIONS: SelectOption<DisplayBackend>[] = [
   { value: "auto", label: "Otomatik Algıla" },
@@ -66,6 +69,55 @@ export function SettingsModal({
   const [saving, setSaving] = useState(false);
   const [logs, setLogs] = useState<LaunchLogEntry[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
+  const [remoteRunners, setRemoteRunners] = useState<RemoteRunnerRelease[]>([]);
+  const [loadingRunners, setLoadingRunners] = useState(false);
+  const [installingTag, setInstallingTag] = useState<string | null>(null);
+  const [installProgress, setInstallProgress] = useState<RunnerInstallProgress | null>(null);
+
+  const fetchRunners = async () => {
+    setLoadingRunners(true);
+    try {
+      const data = await tauriApi.listRemoteGeProton();
+      setRemoteRunners(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingRunners(false);
+    }
+  };
+
+  useEffect(() => {
+    if (open && activeSection === "runners") {
+      fetchRunners();
+    }
+  }, [open, activeSection]);
+
+  useEffect(() => {
+    let unlisten: any;
+    import("@tauri-apps/api/event").then(({ listen }) => {
+      listen<RunnerInstallProgress>("runner-install-progress", (event) => {
+        setInstallProgress(event.payload);
+      }).then((u) => {
+        unlisten = u;
+      });
+    });
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
+
+  const handleInstallRunner = async (rel: RemoteRunnerRelease) => {
+    setInstallingTag(rel.tag_name);
+    try {
+      await tauriApi.installGeProton(rel.tag_name, rel.download_url);
+      await fetchRunners();
+    } catch (e: any) {
+      console.error(e);
+    } finally {
+      setInstallingTag(null);
+      setInstallProgress(null);
+    }
+  };
 
   const fetchLogs = async () => {
     setLoadingLogs(true);
@@ -262,6 +314,19 @@ export function SettingsModal({
             >
               <Terminal className="w-4 h-4" />
               <span>Başlatma & Çökme Günlükleri</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveSection("runners")}
+              className={`w-full h-11 px-4 rounded-full text-xs font-semibold flex items-center gap-3 transition-colors cursor-pointer ${
+                activeSection === "runners"
+                  ? "bg-white text-black"
+                  : "bg-[#0c0c11] hover:bg-[#14141c] text-zinc-300 border border-white/[0.07]"
+              }`}
+            >
+              <Download className="w-4 h-4" />
+              <span>GE-Proton İndirici (Runner)</span>
             </button>
           </aside>
 
@@ -1037,6 +1102,148 @@ export function SettingsModal({
                                 {log.output_tail}
                               </div>
                             )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </section>
+              </>
+            )}
+
+            {activeSection === "runners" && (
+              <>
+                {/* Kurulu Runner Sürümleri */}
+                <section className="p-6 rounded-2xl bg-[#09090d] border border-white/[0.08] space-y-4">
+                  <div>
+                    <h2 className="text-base font-bold text-white">
+                      Sistemde Algılanan Proton / Wine Katmanları
+                    </h2>
+                    <p className="text-[11px] text-zinc-400 mt-0.5">
+                      Steam, Heroic veya yerel dizinlerde bulunan uyumluluk çalıştırıcıları.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                    {(diagnostics?.runners ?? []).length === 0 ? (
+                      <div className="col-span-2 py-6 text-center text-zinc-500 text-xs bg-zinc-950 rounded-xl border border-white/5">
+                        Kurulu bir Proton veya Wine sürümü bulunamadı. Aşağıdan GE-Proton indirebilirsiniz.
+                      </div>
+                    ) : (
+                      diagnostics?.runners.map((r) => (
+                        <div
+                          key={r.path}
+                          className="p-3.5 rounded-xl bg-zinc-950 border border-white/[0.06] flex items-center justify-between gap-3"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-white text-xs truncate">{r.name}</div>
+                            <div className="text-[10px] text-zinc-500 font-mono truncate mt-0.5">
+                              {r.path}
+                            </div>
+                          </div>
+                          <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-white/10 text-zinc-300 border border-white/10 shrink-0">
+                            {r.kind}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </section>
+
+                {/* GE-Proton GitHub İndirici */}
+                <section className="p-6 rounded-2xl bg-[#09090d] border border-white/[0.08] space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-base font-bold text-white flex items-center gap-2">
+                        <span>GloriousEggroll GE-Proton Sürümleri</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-zinc-300 font-mono">
+                          GitHub Releases
+                        </span>
+                      </h2>
+                      <p className="text-[11px] text-zinc-400 mt-0.5">
+                        Tek tıkla en güncel GE-Proton sürümünü indirip ~/.steam/root/compatibilitytools.d/ dizinine kurar.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={fetchRunners}
+                      disabled={loadingRunners}
+                      className="h-8 px-3 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-white/10 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${loadingRunners ? "animate-spin" : ""}`} />
+                      <span>Sürümleri Yenile</span>
+                    </button>
+                  </div>
+
+                  {installProgress && (
+                    <div className="p-4 rounded-xl bg-zinc-950 border border-white/15 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-white">
+                          İndiriliyor: {installProgress.tag_name}
+                        </span>
+                        <span className="font-mono text-zinc-300">
+                          {installProgress.percent.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-white transition-all duration-150"
+                          style={{ width: `${installProgress.percent}%` }}
+                        />
+                      </div>
+                      <div className="text-[10px] text-zinc-400 font-mono">
+                        {installProgress.status_text}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-2.5 pt-2">
+                    {loadingRunners && remoteRunners.length === 0 ? (
+                      <div className="py-12 text-center text-zinc-500 text-xs">
+                        GitHub sürümleri alınıyor...
+                      </div>
+                    ) : remoteRunners.length === 0 ? (
+                      <div className="py-12 text-center text-zinc-500 text-xs bg-zinc-950 rounded-xl border border-white/5">
+                        Sürümler yüklenemedi. Lütfen internet bağlantınızı kontrol edip yenileyin.
+                      </div>
+                    ) : (
+                      remoteRunners.map((rel) => {
+                        const isInstalling = installingTag === rel.tag_name;
+                        return (
+                          <div
+                            key={rel.tag_name}
+                            className="p-3.5 rounded-xl bg-zinc-950 border border-white/[0.06] flex items-center justify-between gap-4"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-white text-xs">{rel.name}</span>
+                                {rel.is_installed && (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-semibold border border-white/20">
+                                    ✓ Kurulu
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-zinc-400 mt-0.5">
+                                Boyut: {formatBytes(rel.size_bytes)} • Yayın Tarihi:{" "}
+                                {new Date(rel.published_at).toLocaleDateString("tr-TR")}
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleInstallRunner(rel)}
+                              disabled={isInstalling || rel.is_installed}
+                              className={`h-8 px-4 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 disabled:opacity-50 ${
+                                rel.is_installed
+                                  ? "bg-zinc-900 text-zinc-500 border border-white/5 cursor-default"
+                                  : isInstalling
+                                  ? "bg-zinc-800 text-zinc-300"
+                                  : "bg-white hover:bg-zinc-200 text-black shadow"
+                              }`}
+                            >
+                              {isInstalling ? "İndiriliyor..." : rel.is_installed ? "Yüklendi" : "İndir ve Kur"}
+                            </button>
                           </div>
                         );
                       })
