@@ -64,7 +64,7 @@ export function TopStatusBar({
   onOpenVictusControl,
 }: TopStatusBarProps) {
   return (
-    <header className="h-16 w-full max-w-[1880px] mx-auto px-6 sm:px-8 xl:px-12 2xl:px-16 flex items-center justify-between gap-4 shrink-0">
+    <header className="h-16 w-full max-w-[1920px] mx-auto px-6 sm:px-8 xl:px-12 2xl:px-16 flex items-center justify-between gap-4 shrink-0">
       {/* Sol: Yeni Vektörel Kinetik sonsus-engine Amblemi + Ana Sayfa & Kütüphane Sekmeleri */}
       <div className="flex items-center gap-6 shrink-0">
         <div

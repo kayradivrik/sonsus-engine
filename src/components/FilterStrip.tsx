@@ -68,7 +68,7 @@ export function FilterStrip({
   ];
 
   return (
-    <section className="w-full max-w-[1880px] mx-auto px-6 sm:px-8 xl:px-12 2xl:px-16 pt-3 pb-6 shrink-0">
+    <section className="w-full max-w-[1920px] mx-auto px-6 sm:px-8 xl:px-12 2xl:px-16 pt-3 pb-6 shrink-0">
       {/* 1. Satır: Başlık + Durum Kapsülleri (Yüklü/Bulut/Favori) + Sıralama Menüsü & Sayaç */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-4 flex-wrap">

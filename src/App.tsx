@@ -515,7 +515,7 @@ export default function App() {
         )}
 
         <main ref={mainScrollRef} className="flex-1 overflow-y-auto pb-14">
-          <div className="w-full max-w-[1880px] mx-auto px-6 sm:px-8 xl:px-12 2xl:px-16">
+          <div className="w-full max-w-[1920px] mx-auto px-6 sm:px-8 xl:px-12 2xl:px-16">
             {currentTab === "home" ? (
               <>
                 {/* 1. Büyük Sinematik Öne Çıkanlar Slider'ı */}

@@ -146,9 +146,9 @@ export const HomeHeroSlider: React.FC<HomeHeroSliderProps> = ({
   return (
     <div className="w-full mb-12">
       {/* Epic Games Store Tarzı İki Kolonlu Vitrin (Sol: Geniş Sinematik Afiş, Sağ: Ayrı Yan Kart Listesi) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+      <div className="flex flex-col lg:flex-row gap-3.5 items-stretch w-full">
         {/* SOL: Sinematik Ana Afiş (Görseli Asla Kapatmayan Tam Alan) */}
-        <div className="lg:col-span-9 xl:col-span-10 relative h-[420px] md:h-[480px] lg:h-[510px] rounded-3xl overflow-hidden bg-black border border-white/10 shadow-2xl group flex flex-col justify-end">
+        <div className="flex-1 min-w-0 relative h-[400px] sm:h-[460px] md:h-[490px] lg:h-[510px] rounded-3xl overflow-hidden bg-black border border-white/10 shadow-2xl group flex flex-col justify-end">
           {/* Arka Plan Görseli */}
           <div className="absolute inset-0 overflow-hidden">
             {activeHeroImg ? (
@@ -242,7 +242,7 @@ export const HomeHeroSlider: React.FC<HomeHeroSliderProps> = ({
         </div>
 
         {/* SAĞ: Epic Games Tarzı Ayrı Yan Sütun Listesi (Afişin Dışında!) */}
-        <div className="hidden lg:flex lg:col-span-3 xl:col-span-2 flex-col justify-between gap-2 h-[420px] md:h-[480px] lg:h-[510px]">
+        <div className="hidden lg:flex w-64 xl:w-72 2xl:w-80 shrink-0 flex-col justify-between gap-2 h-[400px] sm:h-[460px] md:h-[490px] lg:h-[510px]">
           {slides.map((g, idx) => (
             <HeroSlideThumb
               key={g.id}
