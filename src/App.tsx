@@ -18,6 +18,8 @@ import { OnboardingScreen } from "./components/OnboardingScreen";
 import { PaginationBar } from "./components/PaginationBar";
 import { SettingsModal } from "./components/SettingsModal";
 import { StatsModal } from "./components/StatsModal";
+import { DebloatManagerModal } from "./components/DebloatManagerModal";
+import { QuickAppStoreModal } from "./components/QuickAppStoreModal";
 import { StorageCleanerModal } from "./components/StorageCleanerModal";
 import { TopStatusBar } from "./components/TopStatusBar";
 import { UltraFpsModal } from "./components/UltraFpsModal";
@@ -90,6 +92,8 @@ export default function App() {
   const [ultraFpsOpen, setUltraFpsOpen] = useState(false);
   const [storageCleanerOpen, setStorageCleanerOpen] = useState(false);
   const [victusControlOpen, setVictusControlOpen] = useState(false);
+  const [debloatOpen, setDebloatOpen] = useState(false);
+  const [quickAppStoreOpen, setQuickAppStoreOpen] = useState(false);
   const [launchLogsOpen, setLaunchLogsOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
   const [quickAccessOpen, setQuickAccessOpen] = useState(false);
@@ -114,6 +118,8 @@ export default function App() {
     statsOpen ||
     storageCleanerOpen ||
     victusControlOpen ||
+    debloatOpen ||
+    quickAppStoreOpen ||
     onboardingOpen ||
     ultraFpsOpen ||
     launchLogsOpen;
@@ -526,6 +532,8 @@ export default function App() {
           onOpenUltraFps={() => setUltraFpsOpen(true)}
           onOpenStorageCleaner={() => setStorageCleanerOpen(true)}
           onOpenVictusControl={() => setVictusControlOpen(true)}
+          onOpenDebloat={() => setDebloatOpen(true)}
+          onOpenQuickAppStore={() => setQuickAppStoreOpen(true)}
         />
 
         {/* Filtre Şeridi (Kütüphane sekmesinde veya Arama yapıldığında görünür) */}
@@ -785,6 +793,24 @@ export default function App() {
         <VictusControlModal
           onClose={() => setVictusControlOpen(false)}
           showToast={showToast}
+        />
+      )}
+
+      {/* 🛡️ Windows 11 Debloat & Telemetri Temizleyicisi Modal */}
+      {debloatOpen && (
+        <DebloatManagerModal
+          isOpen={debloatOpen}
+          onClose={() => setDebloatOpen(false)}
+          onNotify={(_title, msg) => showToast(msg)}
+        />
+      )}
+
+      {/* 📦 Hızlı Uygulama & Oyun Araçları Deposu Modal */}
+      {quickAppStoreOpen && (
+        <QuickAppStoreModal
+          isOpen={quickAppStoreOpen}
+          onClose={() => setQuickAppStoreOpen(false)}
+          onNotify={(_title, msg) => showToast(msg)}
         />
       )}
 

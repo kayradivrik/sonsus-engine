@@ -45,7 +45,13 @@ export function StatsModal({
     let installedCount = 0;
     let favCount = 0;
     let playedCount = 0;
-    const byStore = { steam: 0, epic: 0, gog: 0, custom: 0 };
+    const byStore: Record<import("../types/game").Platform, number> = {
+      steam: 0,
+      epic: 0,
+      gog: 0,
+      xbox: 0,
+      custom: 0,
+    };
     const genreMap = new Map<string, number>();
 
     for (const g of visible) {

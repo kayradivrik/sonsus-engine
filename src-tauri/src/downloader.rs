@@ -221,7 +221,7 @@ impl DownloadManager {
                 let task = self.spawn_managed_job(app, game, target_dir, true)?;
                 Ok(Some(task))
             }
-            Platform::Custom => Err("Yerel özel oyunlar için mağaza dosya doğrulaması bulunmuyor.".into()),
+            Platform::Custom | Platform::Xbox => Err("Yerel özel ve Xbox oyunları için mağaza dosya doğrulaması bulunmuyor.".into()),
         }
     }
 
@@ -303,8 +303,8 @@ impl DownloadManager {
                         .into(),
                 );
             }
-            Platform::Custom => {
-                return Err("Özel oyun zaten yerel diskte kayıtlı.".into());
+            Platform::Custom | Platform::Xbox => {
+                return Err("Özel veya Xbox oyunu zaten yerel diskte kayıtlı.".into());
             }
         };
 

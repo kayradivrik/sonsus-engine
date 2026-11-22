@@ -70,6 +70,15 @@ export function OnboardingScreen({
 
   if (!open) return null;
 
+  const handleOpenAuthUrl = async (url: string, defaultUrl: string) => {
+    const target = url && url.startsWith("http") ? url : defaultUrl;
+    try {
+      await tauriApi.openExternalUrl(target);
+    } catch {
+      window.open(target, "_blank");
+    }
+  };
+
   const handleConnectEpic = async () => {
     if (!epicCode.trim()) return;
     setEpicBusy(true);
@@ -172,30 +181,22 @@ export function OnboardingScreen({
           </div>
 
           <div className="flex items-center gap-2.5">
-            {/* TR / EN Dil Seçim Butonları */}
-            <div className="flex items-center p-1 rounded-xl bg-black/70 border border-white/10 shadow-inner text-xs font-semibold">
-              <button
-                type="button"
-                onClick={() => setLang("tr")}
-                className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                  lang === "tr"
-                    ? "bg-white text-black font-extrabold shadow-sm scale-100"
-                    : "text-zinc-400 hover:text-white"
-                }`}
-              >
-                TR
-              </button>
-              <button
-                type="button"
-                onClick={() => setLang("en")}
-                className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                  lang === "en"
-                    ? "bg-white text-black font-extrabold shadow-sm scale-100"
-                    : "text-zinc-400 hover:text-white"
-                }`}
-              >
-                EN
-              </button>
+            {/* Çoklu Dil Seçim Butonları */}
+            <div className="flex items-center p-1 rounded-xl bg-black/70 border border-white/10 shadow-inner text-xs font-semibold gap-0.5">
+              {(["tr", "en", "de", "es", "fr", "ru"] as const).map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => setLang(l)}
+                  className={`px-2 py-1 rounded-lg transition-all cursor-pointer uppercase text-[11px] ${
+                    lang === l
+                      ? "bg-white text-black font-black shadow-sm"
+                      : "text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  {l}
+                </button>
+              ))}
             </div>
 
             {!isFirstRun && (
@@ -292,15 +293,19 @@ export function OnboardingScreen({
                   {t.disconnect}
                 </button>
               ) : (
-                <a
-                  href={oauthUrls[0]}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="h-7.5 px-3 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleOpenAuthUrl(
+                      oauthUrls[0],
+                      "https://www.epicgames.com/id/login?redirectUrl=https%3A%2F%2Fwww.epicgames.com%2Fid%2Fapi%2Fredirect%3FclientId%3D34a02cf8f4414e29b15921876da36f9a%26responseType%3Dcode"
+                    )
+                  }
+                  className="h-7.5 px-3 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <span>{t.getLoginCode}</span>
                   <ExternalLink className="w-3 h-3 text-zinc-400" />
-                </a>
+                </button>
               )}
             </div>
 
@@ -358,15 +363,19 @@ export function OnboardingScreen({
                   {t.disconnect}
                 </button>
               ) : (
-                <a
-                  href={oauthUrls[1]}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="h-7.5 px-3 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleOpenAuthUrl(
+                      oauthUrls[1],
+                      "https://auth.gog.com/auth?client_id=46899977096215655&redirect_uri=https%3A%2F%2Fembed.gog.com%2Fon_login_success%3Forigin%3Dclient&response_type=code&layout=galaxy"
+                    )
+                  }
+                  className="h-7.5 px-3 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <span>{t.getLoginCode}</span>
                   <ExternalLink className="w-3 h-3 text-zinc-400" />
-                </a>
+                </button>
               )}
             </div>
 

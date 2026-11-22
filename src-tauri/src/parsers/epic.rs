@@ -279,6 +279,14 @@ pub fn find_legendary_binary_path() -> Option<String> {
     }
     #[cfg(windows)]
     if let Some(local) = dirs::data_local_dir() {
+        let winget_leg = local.join("Microsoft/WinGet/Packages/derrod.legendary_Microsoft.Winget.Source_8wekyb3d8bbwe/legendary.exe");
+        if winget_leg.exists() {
+            return Some(winget_leg.to_string_lossy().into_owned());
+        }
+        let winapps_leg = local.join("Microsoft/WindowsApps/legendary.exe");
+        if winapps_leg.exists() {
+            return Some(winapps_leg.to_string_lossy().into_owned());
+        }
         let user_heroic = local
             .join("Programs/heroic/resources/app.asar.unpacked/build/bin/x64/win32/legendary.exe");
         if user_heroic.exists() {

@@ -26,6 +26,7 @@ import {
   RunnerInstallProgress,
   SystemDiagnostics,
   formatBytes,
+  isWindows,
 } from "../types/game";
 import { CustomSelect, SelectOption } from "./ui/CustomSelect";
 
@@ -286,7 +287,7 @@ export function SettingsModal({
               }`}
             >
               <MonitorCog className="w-4 h-4" />
-              <span>Proton, MangoHud & Hook</span>
+              <span>{isWindows ? "Windows 11 Optimizasyon & Hook" : "Proton, MangoHud & Hook"}</span>
             </button>
 
             <button
@@ -315,18 +316,20 @@ export function SettingsModal({
               <span>Başlatma & Çökme Günlükleri</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveSection("runners")}
-              className={`w-full h-11 px-4 rounded-full text-xs font-semibold flex items-center gap-3 transition-colors cursor-pointer ${
-                activeSection === "runners"
-                  ? "bg-white text-black"
-                  : "bg-[#0c0c11] hover:bg-[#14141c] text-zinc-300 border border-white/[0.07]"
-              }`}
-            >
-              <Download className="w-4 h-4" />
-              <span>GE-Proton İndirici (Runner)</span>
-            </button>
+            {!isWindows && (
+              <button
+                type="button"
+                onClick={() => setActiveSection("runners")}
+                className={`w-full h-11 px-4 rounded-full text-xs font-semibold flex items-center gap-3 transition-colors cursor-pointer ${
+                  activeSection === "runners"
+                    ? "bg-white text-black"
+                    : "bg-[#0c0c11] hover:bg-[#14141c] text-zinc-300 border border-white/[0.07]"
+                }`}
+              >
+                <Download className="w-4 h-4" />
+                <span>GE-Proton İndirici (Runner)</span>
+              </button>
+            )}
           </aside>
 
           {/* Sağ İçerik Kartları */}
@@ -395,37 +398,39 @@ export function SettingsModal({
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-[11px] text-zinc-400 mb-1.5">
-                        Wine / Proton Prefix Klasörü (Linux)
-                      </label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          placeholder="/home/kullanici/Games/Prefixes"
-                          value={draft.default_prefix_dir ?? ""}
-                          onChange={(e) =>
-                            setDraft({
-                              ...draft,
-                              default_prefix_dir: e.target.value || null,
-                            })
-                          }
-                          className="flex-1 h-10 rounded-xl bg-black border border-white/12 focus:border-white/35 px-3.5 text-xs font-mono text-zinc-100 outline-none"
-                        />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            pickIntoField(draft.default_prefix_dir, (picked) =>
-                              setDraft({ ...draft, default_prefix_dir: picked })
-                            )
-                          }
-                          className="h-10 px-3 rounded-xl bg-[#14141c] hover:bg-[#1d1d28] border border-white/12 text-zinc-300 hover:text-white cursor-pointer"
-                          title="Klasör seç"
-                        >
-                          <FolderSearch className="w-4 h-4 text-zinc-300" />
-                        </button>
+                    {!isWindows && (
+                      <div>
+                        <label className="block text-[11px] text-zinc-400 mb-1.5">
+                          Wine / Proton Prefix Klasörü (Linux)
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="/home/kullanici/Games/Prefixes"
+                            value={draft.default_prefix_dir ?? ""}
+                            onChange={(e) =>
+                              setDraft({
+                                ...draft,
+                                default_prefix_dir: e.target.value || null,
+                              })
+                            }
+                            className="flex-1 h-10 rounded-xl bg-black border border-white/12 focus:border-white/35 px-3.5 text-xs font-mono text-zinc-100 outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              pickIntoField(draft.default_prefix_dir, (picked) =>
+                                setDraft({ ...draft, default_prefix_dir: picked })
+                              )
+                            }
+                            className="h-10 px-3 rounded-xl bg-[#14141c] hover:bg-[#1d1d28] border border-white/12 text-zinc-300 hover:text-white cursor-pointer"
+                            title="Klasör seç"
+                          >
+                            <FolderSearch className="w-4 h-4 text-zinc-300" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -563,11 +568,14 @@ export function SettingsModal({
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <h2 className="text-base font-bold text-white">
-                      Varsayılan Proton, MangoHud, FSR & Çözünürlük Hook&apos;u
+                      {isWindows
+                        ? "Varsayılan Windows 11 Performans & Başlatma Hook'u"
+                        : "Varsayılan Proton, MangoHud, FSR & Çözünürlük Hook'u"}
                     </h2>
                     <p className="text-[11px] text-zinc-400 mt-0.5">
-                      Özel profili olmayan tüm oyunlar başlatılırken bu kurallar
-                      uygulanır.
+                      {isWindows
+                        ? "Windows 11 üzerinde oyunlar yerel DirectX / Vulkan ile başlatılırken bu performans kuralları uygulanır."
+                        : "Özel profili olmayan tüm oyunlar başlatılırken bu kurallar uygulanır."}
                     </p>
                   </div>
                   <label className="flex items-center gap-2 cursor-pointer text-white font-semibold shrink-0">
@@ -589,44 +597,48 @@ export function SettingsModal({
                   </label>
                 </div>
 
-                <div>
-                  <label className="block text-[11px] text-zinc-400 mb-1.5">
-                    Varsayılan Uyumluluk Katmanı (Proton / GE-Proton / Wine)
-                  </label>
-                  <CustomSelect
-                    value={draft.default_hook.runner_path ?? ""}
-                    options={runnerOptions}
-                    onChange={(val) =>
-                      setDraft({
-                        ...draft,
-                        default_hook: {
-                          ...draft.default_hook,
-                          runner_path: val || null,
-                        },
-                      })
-                    }
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {!isWindows && (
                   <div>
                     <label className="block text-[11px] text-zinc-400 mb-1.5">
-                      Görüntü Motoru
+                      Varsayılan Uyumluluk Katmanı (Proton / GE-Proton / Wine)
                     </label>
                     <CustomSelect
-                      value={draft.default_hook.display_backend}
-                      options={BACKEND_OPTIONS}
+                      value={draft.default_hook.runner_path ?? ""}
+                      options={runnerOptions}
                       onChange={(val) =>
                         setDraft({
                           ...draft,
                           default_hook: {
                             ...draft.default_hook,
-                            display_backend: val,
+                            runner_path: val || null,
                           },
                         })
                       }
                     />
                   </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {!isWindows && (
+                    <div>
+                      <label className="block text-[11px] text-zinc-400 mb-1.5">
+                        Görüntü Motoru
+                      </label>
+                      <CustomSelect
+                        value={draft.default_hook.display_backend}
+                        options={BACKEND_OPTIONS}
+                        onChange={(val) =>
+                          setDraft({
+                            ...draft,
+                            default_hook: {
+                              ...draft.default_hook,
+                              display_backend: val,
+                            },
+                          })
+                        }
+                      />
+                    </div>
+                  )}
 
                   <div>
                     <label className="block text-[11px] text-zinc-400 mb-1.5">
@@ -690,61 +702,137 @@ export function SettingsModal({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <label className="p-3 rounded-xl bg-black border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
-                    <input
-                      type="checkbox"
-                      checked={draft.default_hook.use_gamemode}
-                      onChange={(e) =>
-                        setDraft({
-                          ...draft,
-                          default_hook: {
-                            ...draft.default_hook,
-                            use_gamemode: e.target.checked,
-                          },
-                        })
-                      }
-                      className="w-4 h-4 accent-white rounded"
-                    />
-                    <span>GameMode (`gamemoderun`)</span>
-                  </label>
+                {isWindows ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label className="p-3 rounded-xl bg-black border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
+                      <input
+                        type="checkbox"
+                        checked={draft.default_hook.pin_p_cores}
+                        onChange={(e) =>
+                          setDraft({
+                            ...draft,
+                            default_hook: {
+                              ...draft.default_hook,
+                              pin_p_cores: e.target.checked,
+                            },
+                          })
+                        }
+                        className="w-4 h-4 accent-white rounded"
+                      />
+                      <span>Intel P-Core Önceliği (i5-13500H)</span>
+                    </label>
 
-                  <label className="p-3 rounded-xl bg-black border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(draft.default_hook.use_mangohud)}
-                      onChange={(e) =>
-                        setDraft({
-                          ...draft,
-                          default_hook: {
-                            ...draft.default_hook,
-                            use_mangohud: e.target.checked,
-                          },
-                        })
-                      }
-                      className="w-4 h-4 accent-white rounded"
-                    />
-                    <span>MangoHud FPS Katmanı</span>
-                  </label>
+                    <label className="p-3 rounded-xl bg-black border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
+                      <input
+                        type="checkbox"
+                        checked={draft.default_hook.force_dgpu}
+                        onChange={(e) =>
+                          setDraft({
+                            ...draft,
+                            default_hook: {
+                              ...draft.default_hook,
+                              force_dgpu: e.target.checked,
+                            },
+                          })
+                        }
+                        className="w-4 h-4 accent-white rounded"
+                      />
+                      <span>Harici GPU Tercihi (RTX 4050)</span>
+                    </label>
 
-                  <label className="p-3 rounded-xl bg-black border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(draft.default_hook.gamescope_fsr)}
-                      onChange={(e) =>
-                        setDraft({
-                          ...draft,
-                          default_hook: {
-                            ...draft.default_hook,
-                            gamescope_fsr: e.target.checked,
-                          },
-                        })
-                      }
-                      className="w-4 h-4 accent-white rounded"
-                    />
-                    <span>Gamescope AMD FSR</span>
-                  </label>
-                </div>
+                    <label className="p-3 rounded-xl bg-black border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
+                      <input
+                        type="checkbox"
+                        checked={draft.default_hook.disable_steam_overlay_preload}
+                        onChange={(e) =>
+                          setDraft({
+                            ...draft,
+                            default_hook: {
+                              ...draft.default_hook,
+                              disable_steam_overlay_preload: e.target.checked,
+                            },
+                          })
+                        }
+                        className="w-4 h-4 accent-white rounded"
+                      />
+                      <span>Gereksiz Overlay&apos;leri Devre Dışı Bırak</span>
+                    </label>
+
+                    <label className="p-3 rounded-xl bg-black border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
+                      <input
+                        type="checkbox"
+                        checked={draft.default_hook.extreme_boost}
+                        onChange={(e) =>
+                          setDraft({
+                            ...draft,
+                            default_hook: {
+                              ...draft.default_hook,
+                              extreme_boost: e.target.checked,
+                            },
+                          })
+                        }
+                        className="w-4 h-4 accent-white rounded"
+                      />
+                      <span>Esports Extreme Boost & Yüksek Öncelik</span>
+                    </label>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <label className="p-3 rounded-xl bg-black border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
+                      <input
+                        type="checkbox"
+                        checked={draft.default_hook.use_gamemode}
+                        onChange={(e) =>
+                          setDraft({
+                            ...draft,
+                            default_hook: {
+                              ...draft.default_hook,
+                              use_gamemode: e.target.checked,
+                            },
+                          })
+                        }
+                        className="w-4 h-4 accent-white rounded"
+                      />
+                      <span>GameMode (`gamemoderun`)</span>
+                    </label>
+
+                    <label className="p-3 rounded-xl bg-black border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(draft.default_hook.use_mangohud)}
+                        onChange={(e) =>
+                          setDraft({
+                            ...draft,
+                            default_hook: {
+                              ...draft.default_hook,
+                              use_mangohud: e.target.checked,
+                            },
+                          })
+                        }
+                        className="w-4 h-4 accent-white rounded"
+                      />
+                      <span>MangoHud FPS Katmanı</span>
+                    </label>
+
+                    <label className="p-3 rounded-xl bg-black border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(draft.default_hook.gamescope_fsr)}
+                        onChange={(e) =>
+                          setDraft({
+                            ...draft,
+                            default_hook: {
+                              ...draft.default_hook,
+                              gamescope_fsr: e.target.checked,
+                            },
+                          })
+                        }
+                        className="w-4 h-4 accent-white rounded"
+                      />
+                      <span>Gamescope AMD FSR</span>
+                    </label>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-[11px] text-zinc-400 mb-1.5">
@@ -904,33 +992,48 @@ export function SettingsModal({
                           {diagnostics.detected_heroic_config || "Yok"}
                         </span>
                       </div>
-                      <div>
-                        Algılanan Proton / Wine Sürümleri:{" "}
-                        <span className="text-white font-semibold">
-                          {diagnostics.runners.length} adet
-                        </span>
+                      {!isWindows && (
+                        <div>
+                          Algılanan Proton / Wine Sürümleri:{" "}
+                          <span className="text-white font-semibold">
+                            {diagnostics.runners.length} adet
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    {!isWindows ? (
+                      <div className="flex flex-wrap gap-2 pt-2">
+                          {[
+                            ["xrandr", diagnostics.has_xrandr],
+                            ["kscreen-doctor", diagnostics.has_kscreen_doctor],
+                            ["gamescope", diagnostics.has_gamescope],
+                            ["gamemoderun", diagnostics.has_gamemoderun],
+                            ["mangohud", diagnostics.has_mangohud],
+                          ].map(([name, ok]) => (
+                            <span
+                              key={String(name)}
+                              className={`px-3 py-1 rounded-full text-[11px] border ${
+                                ok
+                                  ? "border-white/20 bg-white/10 text-white"
+                                  : "border-white/[0.06] text-zinc-600"
+                              }`}
+                            >
+                              {String(name)}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap gap-2 pt-2">
+                        {["DirectX 12 / Vulkan", "Windows 11 Native", "DirectX Shader Cache", "WMI Hardware Telemetry"].map((feature) => (
+                          <span
+                            key={feature}
+                            className="px-3 py-1 rounded-full text-[11px] border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-semibold"
+                          >
+                            ✓ {feature}
+                          </span>
+                        ))}
                       </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2 pt-2">
-                      {[
-                        ["xrandr", diagnostics.has_xrandr],
-                        ["kscreen-doctor", diagnostics.has_kscreen_doctor],
-                        ["gamescope", diagnostics.has_gamescope],
-                        ["gamemoderun", diagnostics.has_gamemoderun],
-                        ["mangohud", diagnostics.has_mangohud],
-                      ].map(([name, ok]) => (
-                        <span
-                          key={String(name)}
-                          className={`px-3 py-1 rounded-full text-[11px] border ${
-                            ok
-                              ? "border-white/20 bg-white/10 text-white"
-                              : "border-white/[0.06] text-zinc-600"
-                          }`}
-                        >
-                          {String(name)}
-                        </span>
-                      ))}
-                    </div>
+                    )}
                   </section>
                 )}
               </>

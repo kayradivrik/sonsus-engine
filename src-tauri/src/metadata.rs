@@ -815,7 +815,7 @@ pub async fn fetch_online_game_details(
             match game.platform {
                 Platform::Epic => fetch_gogdb_release(&client, "epic", &game.platform_id).await,
                 Platform::Gog => fetch_gogdb_release(&client, "gog", &game.platform_id).await,
-                Platform::Steam | Platform::Custom => (StoreSpecificMeta::default(), None),
+                Platform::Steam | Platform::Xbox | Platform::Custom => (StoreSpecificMeta::default(), None),
             }
         },
         async {

@@ -8,7 +8,7 @@ use crate::{
         Platform, UnifiedGame,
     },
     parsers::{epic::find_legendary_binary_path, steam::find_steam_root_with_override},
-    platform_os::{has_binary, open_path_in_explorer, open_uri_scheme, query_disk_space},
+    platform_os::{open_path_in_explorer, open_uri_scheme, query_disk_space},
 };
 use std::{
     fs,
@@ -248,6 +248,9 @@ pub fn uninstall_installed_game(mut game: UnifiedGame) -> Result<UnifiedGame, St
             update_single_cached_game(&game)?;
             Ok(game)
         }
+        Platform::Xbox => {
+            Err("Xbox Game Pass oyunları Windows Ayarları / Xbox App üzerinden kaldırılmalıdır.".into())
+        }
     }
 }
 
@@ -347,7 +350,7 @@ pub fn execute_install_action(payload: InstallGamePayload) -> Result<UnifiedGame
                 Platform::Gog => {
                     crate::parsers::gog::resolve_gog_direct_launch_config(&pb, &game.platform_id)
                 }
-                Platform::Custom => game.launch.clone().unwrap_or(LaunchConfig {
+                Platform::Custom | Platform::Xbox => game.launch.clone().unwrap_or(LaunchConfig {
                     command_uri_or_bin: pb.to_string_lossy().into_owned(),
                     args: vec![],
                     working_dir: Some(pb),
@@ -414,7 +417,7 @@ pub fn execute_install_action(payload: InstallGamePayload) -> Result<UnifiedGame
                         return Err("Heroic veya uyumlu mağaza istemcisi bulunamadı.".into());
                     }
                 }
-                Platform::Custom => {}
+                Platform::Custom | Platform::Xbox => {}
             }
             Ok(game)
         }

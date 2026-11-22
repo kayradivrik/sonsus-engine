@@ -1,6 +1,12 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 
-export type Platform = "steam" | "epic" | "gog" | "custom";
+export type Platform = "steam" | "epic" | "gog" | "xbox" | "custom";
+
+export const isWindows =
+  typeof navigator !== "undefined" &&
+  (navigator.userAgent.includes("Windows") ||
+    (navigator as any).userAgentData?.platform === "Windows" ||
+    (typeof navigator.platform === "string" && navigator.platform.includes("Win")));
 export type InstallStatus = "installed" | "cloud";
 export type LibraryQuickFilter =
   | "all"
@@ -322,6 +328,8 @@ export function platformLabel(platform: Platform): string {
       return "EPIC";
     case "gog":
       return "GOG";
+    case "xbox":
+      return "XBOX";
     case "custom":
       return "ÖZEL";
   }
@@ -501,3 +509,38 @@ export function formatEpochDate(epoch?: number | null): string {
     day: "numeric",
   });
 }
+
+export interface DebloatItem {
+  id: string;
+  title: string;
+  description: string;
+  category: "privacy" | "services" | "gaming" | "apps" | string;
+  icon_key: string;
+  risk_level: "safe" | "recommended" | string;
+  is_applied: boolean;
+}
+
+export interface DebloatResult {
+  success: boolean;
+  message: string;
+  applied_ids: string[];
+}
+
+export interface TimerResolutionStatus {
+  min_ms: number;
+  max_ms: number;
+  current_ms: number;
+  is_esports_active: boolean;
+}
+
+export interface QuickAppItem {
+  id: string;
+  name: string;
+  category: "launchers" | "voice" | "hardware" | "tools" | "runtimes" | string;
+  package_id: string;
+  description: string;
+  icon_key: string;
+  is_installed: boolean;
+  size_estimate: string;
+}
+

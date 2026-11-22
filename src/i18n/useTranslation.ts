@@ -4,11 +4,16 @@ import { Language, translations, Translations } from "./translations";
 const LANG_KEY = "sonsus_language";
 
 export function getStoredLanguage(): Language {
-  const saved = localStorage.getItem(LANG_KEY);
-  if (saved === "tr" || saved === "en") return saved;
+  const saved = localStorage.getItem(LANG_KEY) as Language;
+  if (saved && ["tr", "en", "de", "es", "fr", "ru"].includes(saved)) return saved;
   // Browser / System language detection
   const navLang = navigator.language.toLowerCase();
-  return navLang.startsWith("tr") ? "tr" : "en";
+  if (navLang.startsWith("tr")) return "tr";
+  if (navLang.startsWith("de")) return "de";
+  if (navLang.startsWith("es")) return "es";
+  if (navLang.startsWith("fr")) return "fr";
+  if (navLang.startsWith("ru")) return "ru";
+  return "en";
 }
 
 export function setStoredLanguage(lang: Language) {

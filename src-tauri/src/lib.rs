@@ -1,3 +1,6 @@
+pub mod app_store;
+pub mod debloat;
+pub mod esports;
 pub mod steam_downloads;
 pub mod auth;
 pub mod cleaner;
@@ -21,18 +24,19 @@ pub mod saves;
 pub mod tray;
 
 use commands::{
-    add_custom_game, analyze_disk_storage, apply_steam_esports_preset_command, check_game_update,
+    add_custom_game, analyze_disk_storage, apply_debloat_items_command, apply_steam_esports_preset_command, check_game_update,
     clean_game_prefix, clean_storage_item, clear_launch_logs, connect_epic_account, connect_gog_account,
     create_desktop_shortcut, create_game_save_backup, disconnect_epic_account,
-    disconnect_gog_account, fetch_game_cover, get_active_downloads, get_app_settings,
-    get_cached_library, get_curated_deals, get_game_hook_profile, get_game_save_backups,
+    disconnect_gog_account, fetch_game_cover, flush_system_ram_cache, get_active_downloads, get_app_settings,
+    get_cached_library, get_curated_deals, get_debloat_items_command, get_game_hook_profile, get_game_save_backups,
     get_hardware_thermal_status, get_install_locations, get_launch_logs, get_oauth_login_urls, get_online_game_details,
-    get_store_auth_status, get_system_diagnostics, get_ultra_perf_status, install_boost_helper,
+    get_quick_apps_command, install_quick_app_command, install_batch_quick_apps_command,
+    get_store_auth_status, get_system_diagnostics, get_timer_resolution_info, get_ultra_perf_status, install_boost_helper,
     install_game, install_ge_proton, launch_game, list_remote_ge_proton, open_external_url,
     open_game_folder, open_game_install_dir, pause_game_download, pick_executable, pick_folder,
     remove_download_task, restore_game_save_backup, scan_all_libraries, set_game_hook_profile,
     set_game_preferences, set_hardware_thermal_profile, start_game_download, stop_extreme_boost_now, sync_game_cloud_saves,
-    sync_single_game_status, trigger_extreme_boost_now, uninstall_game, update_app_settings, verify_or_repair_game,
+    sync_single_game_status, toggle_esports_timer_resolution, trigger_extreme_boost_now, uninstall_game, update_app_settings, verify_or_repair_game,
     AppState,
 };
 use db::load_settings;
@@ -49,6 +53,12 @@ pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
             let _ = setup_system_tray(app.handle());
+
+            if let Some(win) = app.get_webview_window("main") {
+                let _ = win.show();
+                let _ = win.unminimize();
+                let _ = win.set_focus();
+            }
 
             #[cfg(unix)]
             {
@@ -150,6 +160,14 @@ pub fn run() {
             clean_storage_item,
             get_hardware_thermal_status,
             set_hardware_thermal_profile,
+            get_debloat_items_command,
+            apply_debloat_items_command,
+            get_timer_resolution_info,
+            toggle_esports_timer_resolution,
+            flush_system_ram_cache,
+            get_quick_apps_command,
+            install_quick_app_command,
+            install_batch_quick_apps_command,
         ])
         .run(tauri::generate_context!())
         .expect("sonsus-engine başlatılırken hata oluştu");

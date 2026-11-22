@@ -44,6 +44,19 @@ fn detect_steam_persona(steam_root: &std::path::Path) -> Option<String> {
 }
 
 fn detect_epic_display_name() -> Option<String> {
+    if let Ok(app_dir) = app_data_dir() {
+        if let Ok(raw) = fs::read_to_string(app_dir.join("epic_auth.json")) {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&raw) {
+                if let Some(name) = json.get("displayName").and_then(|v| v.as_str()).filter(|s| !s.is_empty()) {
+                    return Some(name.to_string());
+                }
+                if json.get("access_token").is_some() {
+                    return Some("Epic Hesabı Bağlı".into());
+                }
+            }
+        }
+    }
+
     let mut user_files = Vec::new();
     if let Some(cfg) = dirs::config_dir() {
         user_files.push(cfg.join("legendary/user.json"));
@@ -158,45 +171,85 @@ pub fn extract_oauth_code(raw: &str) -> Option<String> {
 pub async fn login_epic_with_code(raw_input: &str) -> Result<String, String> {
     let code = extract_oauth_code(raw_input)
         .ok_or_else(|| "Lütfen geçerli bir Epic yetkilendirme kodu girin.".to_string())?;
-    let bin = find_legendary_binary_path().ok_or_else(|| {
-        "Epic Games oturumu için sistemde Legendary motoru bulunamadı.".to_string()
-    })?;
 
-    let bin_clone = bin.clone();
-    let code_clone = code.clone();
+    // 1. Sistemde Legendary kuruluysa öncelikle Legendary aracılığıyla bağla
+    if let Some(bin) = find_legendary_binary_path() {
+        let bin_clone = bin.clone();
+        let code_clone = code.clone();
 
-    let auth_out = tokio::task::spawn_blocking(move || {
-        let mut cmd = Command::new(&bin_clone);
-        cmd.args(["auth", "--code", &code_clone]);
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            cmd.creation_flags(0x0800_0000);
+        let auth_out = tokio::task::spawn_blocking(move || {
+            let mut cmd = Command::new(&bin_clone);
+            cmd.args(["auth", "--code", &code_clone]);
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt;
+                cmd.creation_flags(0x0800_0000);
+            }
+            cmd.output().map_err(|e| e.to_string())
+        })
+        .await
+        .map_err(|e| e.to_string())??;
+
+        if !auth_out.status.success() {
+            let stderr = String::from_utf8_lossy(&auth_out.stderr);
+            return Err(format!("Epic oturumu açılamadı: {}", stderr.trim()));
         }
-        cmd.output().map_err(|e| e.to_string())
-    })
-    .await
-    .map_err(|e| e.to_string())??;
 
-    if !auth_out.status.success() {
-        let stderr = String::from_utf8_lossy(&auth_out.stderr);
-        return Err(format!("Epic oturumu açılamadı: {}", stderr.trim()));
+        // Kütüphane meta dosyalarını (`~/.config/legendary/metadata/*.json`) hemen senkronla
+        let _ = tokio::task::spawn_blocking(move || {
+            let mut list_cmd = Command::new(&bin);
+            list_cmd.args(["list", "--json"]);
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt;
+                list_cmd.creation_flags(0x0800_0000);
+            }
+            let _ = list_cmd.output();
+        })
+        .await;
+
+        return Ok(detect_epic_display_name().unwrap_or_else(|| "Epic Hesabı".into()));
     }
 
-    // Kütüphane meta dosyalarını (`~/.config/legendary/metadata/*.json`) hemen senkronla
-    let _ = tokio::task::spawn_blocking(move || {
-        let mut list_cmd = Command::new(&bin);
-        list_cmd.args(["list", "--json"]);
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            list_cmd.creation_flags(0x0800_0000);
-        }
-        let _ = list_cmd.output();
-    })
-    .await;
+    // 2. Legendary yoksa doğrudan resmi Epic Games OAuth2 API'si ile token al
+    let client = reqwest::Client::new();
+    let params = [
+        ("grant_type", "authorization_code"),
+        ("code", &code),
+        ("token_type", "eg1"),
+    ];
 
-    Ok(detect_epic_display_name().unwrap_or_else(|| "Epic Hesabı".into()))
+    let resp = client
+        .post("https://account-public-service-prod03.ol.epicgames.com/account/api/oauth/token")
+        .header(
+            "Authorization",
+            "basic MzRhMDJjZjhmNDQxNGUyOWIxNTkyMTg3NmRhMzZmOWE6ZGFhZmJjY2M3Mzc3NDUwMzlkMDdiYTc3MzA0ZTA3MWU=",
+        )
+        .form(&params)
+        .send()
+        .await
+        .map_err(|e| format!("Epic Games sunucusuna bağlanılamadı: {e}"))?;
+
+    if !resp.status().is_success() {
+        let err_body = resp.text().await.unwrap_or_default();
+        return Err(format!("Epic Games yetkilendirme hatası: {err_body}"));
+    }
+
+    let token_data: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    let display_name = token_data
+        .get("displayName")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Epic Hesabı")
+        .to_string();
+
+    if let Ok(app_dir) = app_data_dir() {
+        let _ = fs::write(
+            app_dir.join("epic_auth.json"),
+            serde_json::to_string_pretty(&token_data).unwrap_or_default(),
+        );
+    }
+
+    Ok(display_name)
 }
 
 pub fn logout_epic() -> Result<(), String> {
@@ -205,6 +258,9 @@ pub fn logout_epic() -> Result<(), String> {
     }
     if let Some(cfg) = dirs::config_dir() {
         let _ = fs::remove_file(cfg.join("legendary/user.json"));
+    }
+    if let Ok(app_dir) = app_data_dir() {
+        let _ = fs::remove_file(app_dir.join("epic_auth.json"));
     }
     Ok(())
 }

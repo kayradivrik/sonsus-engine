@@ -82,6 +82,9 @@ export function FilterStrip({
     { key: "steam", label: "Steam", count: counts.steam },
     { key: "epic", label: "Epic", count: counts.epic },
     { key: "gog", label: "GOG", count: counts.gog },
+    ...(counts.xbox > 0 || platformFilter === "xbox"
+      ? [{ key: "xbox" as const, label: "Xbox", count: counts.xbox }]
+      : []),
     ...(counts.custom > 0 || platformFilter === "custom"
       ? [{ key: "custom" as const, label: t.storeCustom, count: counts.custom }]
       : []),

@@ -3,7 +3,9 @@
 //! fan/sıcaklık sensörlerini gerçek zamanlı okur ve güç profillerini kontrol eder.
 
 use serde::{Deserialize, Serialize};
+#[cfg(not(windows))]
 use std::fs;
+#[cfg(not(windows))]
 use std::path::Path;
 use std::process::Command;
 
@@ -23,6 +25,7 @@ pub struct HardwareThermalStatus {
     pub is_hp_victus: bool,
 }
 
+#[cfg(not(windows))]
 pub fn read_hp_hardware_status() -> HardwareThermalStatus {
     let mut fans = Vec::new();
 
@@ -143,38 +146,81 @@ pub fn set_hardware_profile(profile: &str) -> Result<String, String> {
 
 
 #[cfg(windows)]
-pub fn get_hardware_status() -> HardwareThermalStatus {
+pub fn read_hp_hardware_status() -> HardwareThermalStatus {
     let mut active_profile = "balanced".to_string();
     if let Ok(output) = Command::new("powercfg").args(["/getactivescheme"]).output() {
         let text = String::from_utf8_lossy(&output.stdout).to_lowercase();
-        if text.contains("yüksek") || text.contains("high") || text.contains("performance") {
+        if text.contains("yüksek") || text.contains("high") || text.contains("performance") || text.contains("nihai") || text.contains("ultimate") {
             active_profile = "performance".to_string();
         } else if text.contains("tasarruf") || text.contains("saver") {
             active_profile = "power-saver".to_string();
         }
     }
 
+    // Windows 11 Model ve Donanım Tespiti (HP Victus / Omen vb.)
+    let mut is_hp_victus = false;
+    let mut battery_watts: Option<f32> = None;
+
+    if let Ok(output) = Command::new("powershell")
+        .args(["-NoProfile", "-Command", "try { (Get-CimInstance Win32_ComputerSystem -ErrorAction SilentlyContinue).Model } catch {}"])
+        .output()
+    {
+        let model = String::from_utf8_lossy(&output.stdout).to_lowercase();
+        if model.contains("victus") || model.contains("omen") || model.contains("hp gaming") {
+            is_hp_victus = true;
+        }
+    }
+
+    // Pil Bilgisi
+    if let Ok(output) = Command::new("powershell")
+        .args(["-NoProfile", "-Command", "try { (Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue).EstimatedChargeRemaining } catch {}"])
+        .output()
+    {
+        let pct_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if let Ok(pct) = pct_str.parse::<f32>() {
+            battery_watts = Some(pct); // Windows'ta pil yüzdesi olarak iletilir
+        }
+    }
+
     HardwareThermalStatus {
         cpu_temp_celsius: None,
-        battery_watts: None,
+        battery_watts,
         fans: Vec::new(),
         active_profile,
         available_profiles: vec!["performance".into(), "balanced".into(), "power-saver".into()],
-        is_hp_victus: false,
+        is_hp_victus,
     }
 }
 
 #[cfg(windows)]
+pub fn get_hardware_status() -> HardwareThermalStatus {
+    read_hp_hardware_status()
+}
+
+#[cfg(windows)]
 pub fn set_hardware_profile(profile: &str) -> Result<String, String> {
-    let guid = match profile {
-        "performance" => "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c",
-        "power-saver" | "quiet" | "cool" => "a1841308-3541-4fab-bc81-f71556f20b4a",
-        _ => "381b4222-f694-41f0-9685-ff5bb260df2e",
+    // HP Victus 13500H + RTX 4050 Termal Güvenlik Koruması:
+    // Kontrolsüz "Nihai Performans" (Ultimate Performance) sürekli maksimum voltaj çekerek
+    // i5-13500H'ı termal darboğaza (throttling) sokabilir. Bu yüzden stabil, serin ve yüksek FPS veren
+    // güvenli Yüksek Performans şeması devreye alınır.
+    let (guid, profile_name) = match profile {
+        "performance" | "ultimate" => (
+            "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c",
+            "Victus Akıllı Yüksek Performans (Termal Korumalı)"
+        ),
+        "power-saver" | "quiet" | "cool" => (
+            "a1841308-3541-4fab-bc81-f71556f20b4a",
+            "Güç Tasarrufu"
+        ),
+        _ => (
+            "381b4222-f694-41f0-9685-ff5bb260df2e",
+            "Dengeli (Varsayılan)"
+        ),
     };
 
     let status = Command::new("powercfg").args(["/setactive", guid]).status();
     match status {
-        Ok(s) if s.success() => Ok(format!("Windows güç planı '{profile}' olarak ayarlandı.")),
+        Ok(s) if s.success() => Ok(format!("Windows güç planı '{profile_name}' moduna alındı.")),
         _ => Err("Windows güç planı değiştirilemedi.".into()),
     }
 }

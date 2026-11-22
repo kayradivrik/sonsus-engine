@@ -50,6 +50,7 @@ import {
   formatPlaytime,
   platformLabel,
   resolveMediaSrc,
+  isWindows,
 } from "../types/game";
 import { InstallModal } from "./InstallModal";
 import { CustomSelect, SelectOption } from "./ui/CustomSelect";
@@ -540,7 +541,7 @@ export function GameDetailView({
               </span>
             )}
 
-            {details?.protondb_tier && (
+            {!isWindows && details?.protondb_tier && (
               <span
                 className={`h-8 px-3.5 rounded-full border text-[11px] font-semibold uppercase tracking-wider flex items-center gap-1.5 ${protonPillClass(
                   details.protondb_tier
@@ -1076,7 +1077,9 @@ export function GameDetailView({
                 }`}
               >
                 <Sliders className="w-3.5 h-3.5" />
-                <span>Proton, MangoHud & Çözünürlük Hook</span>
+                <span>
+                  {isWindows ? "Windows Performans & Hook" : "Proton, MangoHud & Çözünürlük Hook"}
+                </span>
                 {hasCustomHook && hook.enabled && (
                   <span className="w-2 h-2 rounded-full bg-white" />
                 )}
@@ -1526,11 +1529,14 @@ export function GameDetailView({
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-sm font-bold text-white">
-                    {game.title} — Özel Proton, Performans & Çözünürlük Profili
+                    {isWindows
+                      ? `${game.title} — Özel Windows Performans & Başlatma Profili`
+                      : `${game.title} — Özel Proton, Performans & Çözünürlük Profili`}
                   </h2>
                   <p className="text-[11px] text-zinc-400 mt-0.5">
-                    Proton/Wine sürümünü, MangoHud FPS katmanını, FSR keskinleştirmesini ve
-                    ekran çözünürlüğünü bu oyuna özel yapılandırın.
+                    {isWindows
+                      ? "Oyun için özel ekran çözünürlüğü, öncelik ve performans ayarlarını yapılandırın."
+                      : "Proton/Wine sürümünü, MangoHud FPS katmanını, FSR keskinleştirmesini ve ekran çözünürlüğünü bu oyuna özel yapılandırın."}
                   </p>
                 </div>
                 <label className="flex items-center gap-2 cursor-pointer font-semibold text-white shrink-0">
@@ -1546,33 +1552,37 @@ export function GameDetailView({
                 </label>
               </div>
 
-              {/* Uyumluluk Katmanı Seçici (Proton / GE-Proton / Wine) */}
-              <div>
-                <label className="block text-[11px] text-zinc-400 mb-1.5">
-                  Uyumluluk Katmanı (Proton / GE-Proton / Wine Sürümü)
-                </label>
-                <CustomSelect
-                  value={hook.runner_path ?? ""}
-                  options={runnerOptions}
-                  onChange={(val) =>
-                    setHook({ ...hook, runner_path: val || null })
-                  }
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Uyumluluk Katmanı Seçici (Proton / GE-Proton / Wine) - SADECE LINUX */}
+              {!isWindows && (
                 <div>
                   <label className="block text-[11px] text-zinc-400 mb-1.5">
-                    Görüntü Motoru
+                    Uyumluluk Katmanı (Proton / GE-Proton / Wine Sürümü)
                   </label>
                   <CustomSelect
-                    value={hook.display_backend}
-                    options={BACKEND_OPTIONS}
+                    value={hook.runner_path ?? ""}
+                    options={runnerOptions}
                     onChange={(val) =>
-                      setHook({ ...hook, display_backend: val })
+                      setHook({ ...hook, runner_path: val || null })
                     }
                   />
                 </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {!isWindows && (
+                  <div>
+                    <label className="block text-[11px] text-zinc-400 mb-1.5">
+                      Görüntü Motoru
+                    </label>
+                    <CustomSelect
+                      value={hook.display_backend}
+                      options={BACKEND_OPTIONS}
+                      onChange={(val) =>
+                        setHook({ ...hook, display_backend: val })
+                      }
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-[11px] text-zinc-400 mb-1.5">
@@ -1624,44 +1634,99 @@ export function GameDetailView({
                 </div>
               </div>
 
-              {/* Performans Anahtarları (GameMode + MangoHud + Gamescope FSR) */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <label className="p-3 rounded-xl bg-zinc-950 border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
-                  <input
-                    type="checkbox"
-                    checked={hook.use_gamemode}
-                    onChange={(e) =>
-                      setHook({ ...hook, use_gamemode: e.target.checked })
-                    }
-                    className="w-4 h-4 accent-white rounded"
-                  />
-                  <span>GameMode (`gamemoderun`)</span>
-                </label>
+              {/* Performans Anahtarları */}
+              {isWindows ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="p-3 rounded-xl bg-zinc-950 border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
+                    <input
+                      type="checkbox"
+                      checked={hook.pin_p_cores}
+                      onChange={(e) =>
+                        setHook({ ...hook, pin_p_cores: e.target.checked })
+                      }
+                      className="w-4 h-4 accent-white rounded"
+                    />
+                    <span>Intel P-Core Önceliği (i5-13500H)</span>
+                  </label>
 
-                <label className="p-3 rounded-xl bg-zinc-950 border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(hook.use_mangohud)}
-                    onChange={(e) =>
-                      setHook({ ...hook, use_mangohud: e.target.checked })
-                    }
-                    className="w-4 h-4 accent-white rounded"
-                  />
-                  <span>MangoHud FPS Katmanı</span>
-                </label>
+                  <label className="p-3 rounded-xl bg-zinc-950 border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
+                    <input
+                      type="checkbox"
+                      checked={hook.force_dgpu}
+                      onChange={(e) =>
+                        setHook({ ...hook, force_dgpu: e.target.checked })
+                      }
+                      className="w-4 h-4 accent-white rounded"
+                    />
+                    <span>Harici GPU Tercihi (RTX 4050)</span>
+                  </label>
 
-                <label className="p-3 rounded-xl bg-zinc-950 border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(hook.gamescope_fsr)}
-                    onChange={(e) =>
-                      setHook({ ...hook, gamescope_fsr: e.target.checked })
-                    }
-                    className="w-4 h-4 accent-white rounded"
-                  />
-                  <span>Gamescope AMD FSR</span>
-                </label>
-              </div>
+                  <label className="p-3 rounded-xl bg-zinc-950 border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
+                    <input
+                      type="checkbox"
+                      checked={hook.disable_steam_overlay_preload}
+                      onChange={(e) =>
+                        setHook({
+                          ...hook,
+                          disable_steam_overlay_preload: e.target.checked,
+                        })
+                      }
+                      className="w-4 h-4 accent-white rounded"
+                    />
+                    <span>Gereksiz Overlay&apos;leri Devre Dışı Bırak</span>
+                  </label>
+
+                  <label className="p-3 rounded-xl bg-zinc-950 border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
+                    <input
+                      type="checkbox"
+                      checked={hook.extreme_boost}
+                      onChange={(e) =>
+                        setHook({ ...hook, extreme_boost: e.target.checked })
+                      }
+                      className="w-4 h-4 accent-white rounded"
+                    />
+                    <span>Esports Extreme Boost & Yüksek Öncelik</span>
+                  </label>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <label className="p-3 rounded-xl bg-zinc-950 border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
+                    <input
+                      type="checkbox"
+                      checked={hook.use_gamemode}
+                      onChange={(e) =>
+                        setHook({ ...hook, use_gamemode: e.target.checked })
+                      }
+                      className="w-4 h-4 accent-white rounded"
+                    />
+                    <span>GameMode (`gamemoderun`)</span>
+                  </label>
+
+                  <label className="p-3 rounded-xl bg-zinc-950 border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(hook.use_mangohud)}
+                      onChange={(e) =>
+                        setHook({ ...hook, use_mangohud: e.target.checked })
+                      }
+                      className="w-4 h-4 accent-white rounded"
+                    />
+                    <span>MangoHud FPS Katmanı</span>
+                  </label>
+
+                  <label className="p-3 rounded-xl bg-zinc-950 border border-white/[0.08] flex items-center gap-2.5 cursor-pointer text-zinc-200">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(hook.gamescope_fsr)}
+                      onChange={(e) =>
+                        setHook({ ...hook, gamescope_fsr: e.target.checked })
+                      }
+                      className="w-4 h-4 accent-white rounded"
+                    />
+                    <span>Gamescope AMD FSR</span>
+                  </label>
+                </div>
+              )}
 
               <div>
                 <label className="block text-[11px] text-zinc-400 mb-1.5">

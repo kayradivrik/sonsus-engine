@@ -195,4 +195,30 @@ export const tauriApi = {
 
   setHardwareThermalProfile: (profile: string) =>
     invoke<string>("set_hardware_thermal_profile", { profile }),
+
+  // --- Windows 11 Debloat Yöneticisi ---
+  getDebloatItems: () =>
+    invoke<import("../types/game").DebloatItem[]>("get_debloat_items_command"),
+
+  applyDebloatItems: (ids: string[]) =>
+    invoke<import("../types/game").DebloatResult>("apply_debloat_items_command", { ids }),
+
+  getTimerResolutionInfo: () =>
+    invoke<import("../types/game").TimerResolutionStatus>("get_timer_resolution_info"),
+
+  toggleEsportsTimerResolution: (enable: boolean) =>
+    invoke<import("../types/game").TimerResolutionStatus>("toggle_esports_timer_resolution", { enable }),
+
+  flushSystemRamCache: () =>
+    invoke<number>("flush_system_ram_cache"),
+
+  // --- Hızlı Uygulama İndiricisi & Oyun Araçları ---
+  getQuickApps: () =>
+    invoke<import("../types/game").QuickAppItem[]>("get_quick_apps_command"),
+
+  installQuickApp: (packageId: string) =>
+    invoke<string>("install_quick_app_command", { packageId }),
+
+  installBatchQuickApps: (packageIds: string[]) =>
+    invoke<string[]>("install_batch_quick_apps_command", { packageIds }),
 };

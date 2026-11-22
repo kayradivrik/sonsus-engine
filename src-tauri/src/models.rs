@@ -11,6 +11,7 @@ pub enum Platform {
     Steam,
     Epic,
     Gog,
+    Xbox,
     Custom,
 }
 
@@ -20,6 +21,7 @@ impl Platform {
             Platform::Steam => "steam",
             Platform::Epic => "epic",
             Platform::Gog => "gog",
+            Platform::Xbox => "xbox",
             Platform::Custom => "custom",
         }
     }
@@ -431,4 +433,22 @@ pub struct SystemDiagnostics {
     pub has_mangohud: bool,
     pub displays: Vec<DisplayOutputInfo>,
     pub runners: Vec<RunnerInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DebloatItem {
+    pub id: String,
+    pub title: String,
+    pub description: String,
+    pub category: String, // "privacy" | "services" | "gaming" | "apps"
+    pub icon_key: String, // "telemetry" | "cortana" | "edge" | "bing" | "copilot" | "onedrive" | "xbox" | "diagnostics" | "widgets" | "gamedvr"
+    pub risk_level: String, // "safe" | "recommended"
+    pub is_applied: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DebloatResult {
+    pub success: bool,
+    pub message: String,
+    pub applied_ids: Vec<String>,
 }

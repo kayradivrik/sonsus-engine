@@ -144,10 +144,14 @@ pub fn open_path_in_explorer(path: &Path) -> Result<(), String> {
 pub fn open_uri_scheme(uri: &str) -> Result<(), String> {
     #[cfg(windows)]
     {
-        Command::new("cmd")
-            .args(["/C", "start", "", uri])
-            .spawn()
-            .map_err(|e| format!("URI başlatılamadı ({uri}): {e}"))?;
+        let escaped = uri.replace('\'', "''");
+        let ps_res = Command::new("powershell")
+            .args(["-NoProfile", "-NonInteractive", "-Command", &format!("Start-Process '{}'", escaped)])
+            .spawn();
+
+        if ps_res.is_err() {
+            let _ = Command::new("explorer").arg(uri).spawn();
+        }
         return Ok(());
     }
 

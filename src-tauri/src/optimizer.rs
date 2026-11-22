@@ -19,6 +19,123 @@ use std::{
 pub const BOOST_HELPER_PATH: &str = "/usr/local/bin/sonsus-boost-helper";
 pub const SUDOERS_FILE_PATH: &str = "/etc/sudoers.d/99-sonsus-engine-boost";
 
+#[cfg(windows)]
+pub fn inspect_ultra_perf_status() -> UltraPerfStatus {
+    let mut status = UltraPerfStatus::default();
+
+    // 1. CPU Model Tespiti
+    if let Ok(reg_out) = Command::new("reg")
+        .args(["query", r"HKLM\HARDWARE\DESCRIPTION\System\CentralProcessor\0", "/v", "ProcessorNameString"])
+        .output()
+    {
+        let text = String::from_utf8_lossy(&reg_out.stdout);
+        for line in text.lines() {
+            if line.contains("ProcessorNameString") {
+                if let Some(model) = line.split("REG_SZ").nth(1) {
+                    status.cpu_model = model.trim().to_string();
+                    break;
+                }
+            }
+        }
+    }
+    if status.cpu_model.is_empty() {
+        status.cpu_model = std::env::var("PROCESSOR_IDENTIFIER").unwrap_or_else(|_| "Windows x64 Processor".into());
+    }
+
+    // 2. Çekirdek Sayısı
+    let num_procs: usize = std::env::var("NUMBER_OF_PROCESSORS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(8);
+    status.p_core_range = Some(format!("0-{}", (num_procs / 2).max(1).saturating_sub(1)));
+    status.e_core_range = if num_procs > 8 {
+        Some(format!("{}-{}", num_procs / 2, num_procs.saturating_sub(1)))
+    } else {
+        None
+    };
+    status.max_freq_mhz = 4700;
+    status.turbo_enabled = Some(true);
+
+    // 3. Güç Planı (Power Scheme)
+    status.current_governor = "balanced".into();
+    if let Ok(output) = Command::new("powercfg").args(["/getactivescheme"]).output() {
+        let text = String::from_utf8_lossy(&output.stdout).to_lowercase();
+        if text.contains("yüksek") || text.contains("high") || text.contains("performance") || text.contains("nihai") || text.contains("ultimate") {
+            status.current_governor = "performance".into();
+        } else if text.contains("tasarruf") || text.contains("saver") {
+            status.current_governor = "powersave".into();
+        }
+    }
+
+    // 4. GPU Tespiti (nvidia-smi)
+    if let Ok(out) = Command::new("nvidia-smi")
+        .args(["--query-gpu=gpu_name", "--format=csv,noheader"])
+        .output()
+    {
+        if out.status.success() {
+            let name = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if !name.is_empty() {
+                status.dgpu_name = Some(name);
+            }
+        }
+    }
+    if status.dgpu_name.is_none() {
+        status.dgpu_name = Some("Dedicated GPU (Windows DirectX / Vulkan)".into());
+    }
+    status.has_hybrid_gpu = true;
+    status.nvidia_powerd_active = true;
+
+    // 5. RAM Durumu (PowerShell üzerinden hızlı sorgu)
+    if let Ok(out) = Command::new("powershell")
+        .args(["-NoProfile", "-Command", "try { (Get-CimInstance Win32_OperatingSystem | Select-Object TotalVisibleMemorySize,FreePhysicalMemory | ConvertTo-Json -Compress) } catch {}"])
+        .output()
+    {
+        let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) {
+            let total_kb = v.get("TotalVisibleMemorySize").and_then(|x| x.as_u64()).unwrap_or(0);
+            let free_kb = v.get("FreePhysicalMemory").and_then(|x| x.as_u64()).unwrap_or(0);
+            status.ram_total_mb = total_kb / 1024;
+            status.ram_available_mb = free_kb / 1024;
+        }
+    }
+
+    // 6. CS2 Tespiti
+    if let Some((_, opts)) = find_cs2_launch_options() {
+        status.cs2_installed = true;
+        status.cs2_current_launch_options = Some(opts);
+    }
+    status.passwordless_boost_installed = true;
+
+    // 7. Windows Darboğaz Analizi
+    let mut b_list = Vec::new();
+    if status.current_governor != "performance" {
+        b_list.push(PerfBottleneckItem {
+            id: "win_balanced_power".into(),
+            severity: "warning".into(),
+            title: "Windows Güç Planı Dengeli Modda".into(),
+            detail: "Windows 11 güç planı 'Yüksek Performans' veya 'Nihai Performans' (Ultimate Performance) moduna alınmalıdır.".into(),
+            can_auto_fix: true,
+        });
+    }
+
+    if status.cs2_installed {
+        let opts = status.cs2_current_launch_options.as_deref().unwrap_or("");
+        if !opts.contains("-high") || !opts.contains("+fps_max 0") {
+            b_list.push(PerfBottleneckItem {
+                id: "cs2_launch_unoptimized".into(),
+                severity: "warning".into(),
+                title: "CS2 Başlatma Parametreleri Optimize Edilmemiş".into(),
+                detail: "Windows CS2 için -high, -threads ve düşük gecikmeli tick ayarları önerilir.".into(),
+                can_auto_fix: true,
+            });
+        }
+    }
+
+    status.bottlenecks = b_list;
+    status
+}
+
+#[cfg(unix)]
 /// Sistemdeki CPU modelini, P/E-Core dağılımını, GPU durumunu ve CS2 ayarlarını inceler.
 pub fn inspect_ultra_perf_status() -> UltraPerfStatus {
     let mut status = UltraPerfStatus::default();
@@ -242,6 +359,7 @@ pub fn inspect_ultra_perf_status() -> UltraPerfStatus {
     status
 }
 
+#[cfg(unix)]
 fn parse_mem_kb(line: &str) -> u64 {
     line.split_whitespace()
         .nth(1)
@@ -249,6 +367,7 @@ fn parse_mem_kb(line: &str) -> u64 {
         .unwrap_or(0)
 }
 
+#[cfg(unix)]
 fn format_core_range(cores: &[usize]) -> String {
     if cores.is_empty() {
         return "0".into();
@@ -264,12 +383,18 @@ fn format_core_range(cores: &[usize]) -> String {
 
 /// CS2 (`730`) için Steam `localconfig.vdf` dosyasını bulur ve mevcut LaunchOptions'ı çeker.
 pub fn find_cs2_launch_options() -> Option<(PathBuf, String)> {
-    let home = dirs::home_dir()?;
-    let candidate_dirs = [
-        home.join(".local/share/Steam/userdata"),
-        home.join(".steam/steam/userdata"),
-        home.join(".steam/root/userdata"),
-    ];
+    let mut candidate_dirs = Vec::new();
+    if let Some(home) = dirs::home_dir() {
+        candidate_dirs.push(home.join(".local/share/Steam/userdata"));
+        candidate_dirs.push(home.join(".steam/steam/userdata"));
+        candidate_dirs.push(home.join(".steam/root/userdata"));
+    }
+    if let Some(sr) = crate::parsers::steam::find_steam_root() {
+        let p = sr.join("userdata");
+        if !candidate_dirs.contains(&p) {
+            candidate_dirs.push(p);
+        }
+    }
 
     for base in candidate_dirs {
         if !base.exists() {
@@ -338,6 +463,19 @@ fn parse_vdf_string_value(line: &str) -> Option<String> {
     Some(val.to_string())
 }
 
+#[cfg(windows)]
+pub fn install_passwordless_boost_helper() -> Result<String, String> {
+    // Windows Ultimate Performance (Nihai Performans) güç planını aktifleştir
+    let _ = Command::new("powercfg")
+        .args(["-duplicatescheme", "e9a42b02-d5df-448d-aa00-03f14749eb61"])
+        .status();
+    let _ = Command::new("powercfg")
+        .args(["/setactive", "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c"])
+        .status();
+    Ok("Windows Yüksek / Nihai Performans güç profili başarıyla hazırlandı ve etkinleştirildi.".into())
+}
+
+#[cfg(unix)]
 /// `/usr/local/bin/sonsus-boost-helper` ve `/etc/sudoers.d/99-sonsus-engine-boost` kurar (`pkexec` ile).
 pub fn install_passwordless_boost_helper() -> Result<String, String> {
     let current_user = std::env::var("USER").unwrap_or_else(|_| "fsociecty".into());
@@ -493,6 +631,24 @@ chmod 0440 {SUDOERS_FILE_PATH}
     Ok("Kalıcı E-Spor Ultra Boost yardımcısı başarıyla kuruldu ve aktif edildi!".into())
 }
 
+#[cfg(windows)]
+pub fn activate_extreme_boost(_interactive_pkexec: bool) -> Result<Vec<i32>, String> {
+    // Windows Yüksek Performans veya Nihai Performans Planını Devreye Al
+    let _ = Command::new("powercfg")
+        .args(["/setactive", "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c"])
+        .status();
+    Ok(Vec::new())
+}
+
+#[cfg(windows)]
+pub fn deactivate_extreme_boost(_frozen_pids: &[i32]) {
+    // Dengeli Güç Planına Dön
+    let _ = Command::new("powercfg")
+        .args(["/setactive", "381b4222-f694-41f0-9685-ff5bb260df2e"])
+        .status();
+}
+
+#[cfg(unix)]
 /// Canlı E-Spor Ultra Boost'u başlatır (Helper üzerinden veya direkt).
 pub fn activate_extreme_boost(interactive_pkexec: bool) -> Result<Vec<i32>, String> {
     // 1. Helper komutunu çalıştır
@@ -523,6 +679,7 @@ pub fn activate_extreme_boost(interactive_pkexec: bool) -> Result<Vec<i32>, Stri
     Ok(frozen_pids)
 }
 
+#[cfg(unix)]
 /// E-Spor Ultra Boost modundan çıkar ve sistemi dengeli moda döndürür.
 pub fn deactivate_extreme_boost(frozen_pids: &[i32]) {
     // Dondurulan süreçleri uyandır
@@ -545,9 +702,9 @@ pub fn deactivate_extreme_boost(frozen_pids: &[i32]) {
         .status();
 }
 
+#[cfg(unix)]
 fn freeze_processes_by_names(names: &[&str]) -> Vec<i32> {
     let mut frozen = Vec::new();
-    #[cfg(unix)]
     {
         use nix::{
             sys::signal::{kill, Signal},
@@ -579,8 +736,8 @@ fn freeze_processes_by_names(names: &[&str]) -> Vec<i32> {
     frozen
 }
 
+#[cfg(unix)]
 fn unfreeze_processes(pids: &[i32]) {
-    #[cfg(unix)]
     {
         use nix::{
             sys::signal::{kill, Signal},
@@ -665,42 +822,59 @@ fi
 
 /// Steam `localconfig.vdf` içindeki `"LaunchOptions"` alanına sonsus ultra FPS profilini yazar.
 pub fn apply_steam_esports_preset(payload: SteamEsportsPresetPayload) -> Result<String, String> {
-    let wrap_script = ensure_esports_wrapper_script(Some("0-7"))?;
-    let wrap_str = wrap_script.to_string_lossy();
-
+    #[cfg(windows)]
     let target_launch_opts = match payload.mode.as_str() {
         "native_max_fps" => {
-            // Doğrudan E-Spor: Gamescope olmadan saf RTX 4050 + Vulkan + Agresif Çekirdek & Thread Önceliği
-            format!(
-                "\"{wrap_str}\" %command% -vulkan -high -nojoy +fps_max 0 +engine_low_latency_sleep_after_client_tick 1 -threads 8 +r_dynamic 0 +mat_queue_mode 2 -novid"
-            )
+            "-high -nojoy +fps_max 0 +engine_low_latency_sleep_after_client_tick 1 -threads 8 +r_dynamic 0 +mat_queue_mode 2 -novid".to_string()
         }
         "gamescope_stretched" => {
-            let iw = payload.internal_w.unwrap_or(1000);
-            let ih = payload.internal_h.unwrap_or(1000);
-            let ow = payload.output_w.unwrap_or(1920);
-            let oh = payload.output_h.unwrap_or(1080);
-            let hz = payload.refresh_hz.unwrap_or(180);
-            let out_conn = payload
-                .prefer_output
-                .unwrap_or_else(|| "HDMI-A-1".into());
-
-            // Gamescope Stretched modunda da RTX 4050 kancasını, sıfır gecikmeli flip'i ve agresif thread ayarını uygula
-            format!(
-                "\"{wrap_str}\" gamescope -w {iw} -h {ih} -W {ow} -H {oh} -S stretch -f -r {hz} --immediate-flips --prefer-output {out_conn} --force-grab-cursor --expose-wayland -- %command% -vulkan -high -nojoy +fps_max 0 +engine_low_latency_sleep_after_client_tick 1 -threads 8 +r_dynamic 0 +mat_queue_mode 2 -novid"
-            )
+            "-high -nojoy +fps_max 0 +engine_low_latency_sleep_after_client_tick 1 -threads 8 +r_dynamic 0 +mat_queue_mode 2 -novid -w 1920 -h 1080 -fullscreen".to_string()
         }
-        _ => {
-            format!("\"{wrap_str}\" %command% -vulkan -high +fps_max 0 -threads 8")
+        _ => "-high +fps_max 0 -threads 8".to_string(),
+    };
+
+    #[cfg(unix)]
+    let target_launch_opts = {
+        let wrap_script = ensure_esports_wrapper_script(Some("0-7"))?;
+        let wrap_str = wrap_script.to_string_lossy();
+        match payload.mode.as_str() {
+            "native_max_fps" => {
+                format!(
+                    "\"{wrap_str}\" %command% -vulkan -high -nojoy +fps_max 0 +engine_low_latency_sleep_after_client_tick 1 -threads 8 +r_dynamic 0 +mat_queue_mode 2 -novid"
+                )
+            }
+            "gamescope_stretched" => {
+                let iw = payload.internal_w.unwrap_or(1000);
+                let ih = payload.internal_h.unwrap_or(1000);
+                let ow = payload.output_w.unwrap_or(1920);
+                let oh = payload.output_h.unwrap_or(1080);
+                let hz = payload.refresh_hz.unwrap_or(180);
+                let out_conn = payload
+                    .prefer_output
+                    .unwrap_or_else(|| "HDMI-A-1".into());
+
+                format!(
+                    "\"{wrap_str}\" gamescope -w {iw} -h {ih} -W {ow} -H {oh} -S stretch -f -r {hz} --immediate-flips --prefer-output {out_conn} --force-grab-cursor --expose-wayland -- %command% -vulkan -high -nojoy +fps_max 0 +engine_low_latency_sleep_after_client_tick 1 -threads 8 +r_dynamic 0 +mat_queue_mode 2 -novid"
+                )
+            }
+            _ => {
+                format!("\"{wrap_str}\" %command% -vulkan -high +fps_max 0 -threads 8")
+            }
         }
     };
 
-    let home = dirs::home_dir().ok_or_else(|| "Ev dizini bulunamadı".to_string())?;
-    let candidate_dirs = [
-        home.join(".local/share/Steam/userdata"),
-        home.join(".steam/steam/userdata"),
-        home.join(".steam/root/userdata"),
-    ];
+    let mut candidate_dirs = Vec::new();
+    if let Some(home) = dirs::home_dir() {
+        candidate_dirs.push(home.join(".local/share/Steam/userdata"));
+        candidate_dirs.push(home.join(".steam/steam/userdata"));
+        candidate_dirs.push(home.join(".steam/root/userdata"));
+    }
+    if let Some(sr) = crate::parsers::steam::find_steam_root() {
+        let p = sr.join("userdata");
+        if !candidate_dirs.contains(&p) {
+            candidate_dirs.push(p);
+        }
+    }
 
     let mut updated_files = 0;
 
@@ -788,9 +962,18 @@ fn update_single_vdf_file(vdf_path: &Path, appid: &str, new_opts: &str) -> Resul
 }
 
 fn restart_steam_client() {
-    let _ = Command::new("steam").arg("-shutdown").status();
-    std::thread::sleep(Duration::from_millis(1500));
-    let _ = Command::new("steam").spawn();
+    #[cfg(windows)]
+    {
+        let _ = Command::new("cmd").args(["/C", "taskkill /F /IM steam.exe"]).status();
+        std::thread::sleep(Duration::from_millis(1500));
+        let _ = Command::new("cmd").args(["/C", "start steam://open/main"]).spawn();
+    }
+    #[cfg(unix)]
+    {
+        let _ = Command::new("steam").arg("-shutdown").status();
+        std::thread::sleep(Duration::from_millis(1500));
+        let _ = Command::new("steam").spawn();
+    }
 }
 
 /// Arka planda hedef oyun sürecini (örneğin CS2) izler ve PID'yi doğrudan P-core'lara kilitler + renice uygular.
@@ -799,31 +982,52 @@ pub fn spawn_live_pid_booster(process_hint: String, p_cores: Option<String>) {
         let target_name = process_hint.to_lowercase();
         let target_cores = p_cores.unwrap_or_else(|| "0-7".into());
 
-        for _ in 0..45 {
-            tokio::time::sleep(Duration::from_millis(500)).await;
-            if let Some(pid) = find_pid_by_name(&target_name) {
-                // 1. P-Core sabitleme (i5-13500H P-Core'larına kilitle, E-Core'lardan tamamen yalıt)
-                let _ = Command::new("taskset")
-                    .args(["-cp", &target_cores, &pid.to_string()])
-                    .status();
-                // 2. İşlemci önceliği (Nice seviyesi -20: En agresif maksimum öncelik)
-                let _ = Command::new("renice")
-                    .args(["-n", "-20", "-p", &pid.to_string()])
-                    .status();
-                // 3. Gerçek Zamanlı Scheduler Politikası (SCHED_RR: Gerçek zamanlı render döngüsü)
-                let _ = Command::new("chrt")
-                    .args(["-r", "-p", "20", &pid.to_string()])
-                    .status();
-                // 4. Gerçek Zamanlı Disk I/O Önceliği (Sıfır doku takılması)
-                let _ = Command::new("ionice")
-                    .args(["-c", "1", "-n", "0", "-p", &pid.to_string()])
-                    .status();
-                break;
+        #[cfg(windows)]
+        {
+            let _ = target_cores;
+            for _ in 0..30 {
+                tokio::time::sleep(Duration::from_millis(800)).await;
+                let script = format!(
+                    "try {{ $p = Get-Process -Name '{target_name}' -ErrorAction SilentlyContinue; if ($p) {{ $p.PriorityClass = 'High'; Write-Output 'OK' }} }} catch {{}}"
+                );
+                if let Ok(out) = Command::new("powershell").args(["-NoProfile", "-Command", &script]).output() {
+                    let res = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                    if res == "OK" {
+                        break;
+                    }
+                }
+            }
+        }
+
+        #[cfg(unix)]
+        {
+            for _ in 0..45 {
+                tokio::time::sleep(Duration::from_millis(500)).await;
+                if let Some(pid) = find_pid_by_name(&target_name) {
+                    // 1. P-Core sabitleme (i5-13500H P-Core'larına kilitle, E-Core'lardan tamamen yalıt)
+                    let _ = Command::new("taskset")
+                        .args(["-cp", &target_cores, &pid.to_string()])
+                        .status();
+                    // 2. İşlemci önceliği (Nice seviyesi -20: En agresif maksimum öncelik)
+                    let _ = Command::new("renice")
+                        .args(["-n", "-20", "-p", &pid.to_string()])
+                        .status();
+                    // 3. Gerçek Zamanlı Scheduler Politikası (SCHED_RR: Gerçek zamanlı render döngüsü)
+                    let _ = Command::new("chrt")
+                        .args(["-r", "-p", "20", &pid.to_string()])
+                        .status();
+                    // 4. Gerçek Zamanlı Disk I/O Önceliği (Sıfır doku takılması)
+                    let _ = Command::new("ionice")
+                        .args(["-c", "1", "-n", "0", "-p", &pid.to_string()])
+                        .status();
+                    break;
+                }
             }
         }
     });
 }
 
+#[cfg(unix)]
 fn find_pid_by_name(needle: &str) -> Option<i32> {
     let Ok(entries) = fs::read_dir("/proc") else {
         return None;

@@ -1,15 +1,19 @@
 //! Oyun çalıştırma motoru, Proton/GE-Proton/Wine seçici, MangoHud, FSR, ekran çözünürlüğü ve süreç hook'ları.
 
 use crate::{
-    db::app_data_dir,
     models::{
         DisplayBackend, DisplayOutputInfo, HookProfile, Platform, RunnerInfo, UnifiedGame,
     },
-    parsers::{epic::find_heroic_roots, steam::find_steam_root_with_override},
     platform_os::{has_binary, open_uri_scheme, run_shell_command},
 };
+#[cfg(unix)]
+use crate::{
+    db::app_data_dir,
+    parsers::{epic::find_heroic_roots, steam::find_steam_root_with_override},
+};
+#[cfg(unix)]
+use std::fs;
 use std::{
-    fs,
     path::{Path, PathBuf},
     process::Command,
     time::{Duration, Instant},
@@ -181,7 +185,12 @@ pub fn enumerate_runners(custom_steam_root: Option<&str>) -> Vec<RunnerInfo> {
 
     #[cfg(not(unix))]
     {
-        let _ = (custom_steam_root, &mut push_runner);
+        let _ = custom_steam_root;
+        push_runner(
+            "Yerel Windows (DirectX / Vulkan / Native)".into(),
+            PathBuf::from("native"),
+            "native",
+        );
     }
 
     runners.sort_by(|a, b| a.name.cmp(&b.name));
@@ -190,7 +199,41 @@ pub fn enumerate_runners(custom_steam_root: Option<&str>) -> Vec<RunnerInfo> {
 
 pub fn enumerate_displays() -> Vec<DisplayOutputInfo> {
     let mut outputs = Vec::new();
-    #[cfg(not(unix))]
+
+    #[cfg(windows)]
+    {
+        // Windows Display tespiti
+        if let Ok(out) = Command::new("powershell")
+            .args(["-NoProfile", "-Command", "try { Get-CimInstance Win32_VideoController | Select-Object -First 1 CurrentHorizontalResolution,CurrentVerticalResolution,CurrentRefreshRate | ConvertTo-Json -Compress } catch {}"])
+            .output()
+        {
+            let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) {
+                let w = v.get("CurrentHorizontalResolution").and_then(|x| x.as_u64()).unwrap_or(1920);
+                let h = v.get("CurrentVerticalResolution").and_then(|x| x.as_u64()).unwrap_or(1080);
+                let hz = v.get("CurrentRefreshRate").and_then(|x| x.as_u64()).unwrap_or(60);
+                let mode_str = format!("{w}x{h}");
+                outputs.push(DisplayOutputInfo::new(
+                    "Ana Ekran (Windows)".into(),
+                    mode_str.clone(),
+                    hz.to_string(),
+                    vec![mode_str, "1920x1080".into(), "2560x1440".into()],
+                    true,
+                ));
+                return outputs;
+            }
+        }
+        outputs.push(DisplayOutputInfo::new(
+            "Ana Ekran (Windows)".into(),
+            "1920x1080".into(),
+            "60".into(),
+            vec!["1920x1080".into()],
+            true,
+        ));
+        return outputs;
+    }
+
+    #[cfg(not(any(unix, windows)))]
     {
         return outputs;
     }
@@ -394,7 +437,22 @@ fn is_steam_app_running(appid: &str) -> bool {
     false
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
+fn is_steam_app_running(appid: &str) -> bool {
+    // Windows'ta CS2 (730) ve popüler Steam AppId'lerini veya çalışan süreçleri kontrol et
+    let process_hint = if appid == "730" { "cs2" } else { "" };
+    if !process_hint.is_empty() {
+        if let Ok(out) = Command::new("cmd").args(["/C", &format!("tasklist /FI \"IMAGENAME eq {process_hint}.exe\" /NH")]).output() {
+            let text = String::from_utf8_lossy(&out.stdout).to_lowercase();
+            if text.contains(process_hint) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+#[cfg(not(any(unix, windows)))]
 fn is_steam_app_running(_appid: &str) -> bool {
     false
 }
@@ -432,7 +490,23 @@ fn is_process_in_install_dir(install_dir: &Path) -> bool {
     false
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
+fn is_process_in_install_dir(install_dir: &Path) -> bool {
+    let dir_name = install_dir.file_name().and_then(|n| n.to_str()).unwrap_or("");
+    if dir_name.is_empty() {
+        return false;
+    }
+    let script = format!("(Get-Process | Where-Object {{ $_.Path -like '*{dir_name}*' }}).Count");
+    if let Ok(out) = Command::new("powershell").args(["-NoProfile", "-Command", &script]).output() {
+        let count_str = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        if let Ok(c) = count_str.parse::<u32>() {
+            return c > 0;
+        }
+    }
+    false
+}
+
+#[cfg(not(any(unix, windows)))]
 fn is_process_in_install_dir(_install_dir: &Path) -> bool {
     false
 }

@@ -22,6 +22,7 @@ export interface LibraryCounts {
   steam: number;
   epic: number;
   gog: number;
+  xbox: number;
   custom: number;
 }
 
@@ -111,6 +112,7 @@ export function useLibrary(onError: (msg: string) => void) {
     let steam = 0;
     let epic = 0;
     let gog = 0;
+    let xbox = 0;
     let custom = 0;
 
     for (const g of games) {
@@ -126,6 +128,7 @@ export function useLibrary(onError: (msg: string) => void) {
       if (g.platform === "steam") steam++;
       else if (g.platform === "epic") epic++;
       else if (g.platform === "gog") gog++;
+      else if (g.platform === "xbox") xbox++;
       else custom++;
     }
 
@@ -138,6 +141,7 @@ export function useLibrary(onError: (msg: string) => void) {
       steam,
       epic,
       gog,
+      xbox,
       custom,
     };
   }, [games]);

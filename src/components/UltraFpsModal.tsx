@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { X, Check, SlidersHorizontal, Loader2 } from "lucide-react";
-import { UltraPerfStatus, SteamEsportsPresetPayload } from "../types/game";
+import { X, Check, SlidersHorizontal, Loader2, Zap, Trash2 } from "lucide-react";
+import { UltraPerfStatus, SteamEsportsPresetPayload, TimerResolutionStatus, isWindows } from "../types/game";
 import { tauriApi } from "../api/tauriClient";
 
 interface UltraFpsModalProps {
@@ -9,6 +9,7 @@ interface UltraFpsModalProps {
 
 export const UltraFpsModal: React.FC<UltraFpsModalProps> = ({ onClose }) => {
   const [status, setStatus] = useState<UltraPerfStatus | null>(null);
+  const [timerStatus, setTimerStatus] = useState<TimerResolutionStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
@@ -23,10 +24,48 @@ export const UltraFpsModal: React.FC<UltraFpsModalProps> = ({ onClose }) => {
     try {
       const data = await tauriApi.getUltraPerfStatus();
       setStatus(data);
+      if (isWindows) {
+        try {
+          const tRes = await tauriApi.getTimerResolutionInfo();
+          setTimerStatus(tRes);
+        } catch {
+          // ignore
+        }
+      }
     } catch (e: any) {
       setFeedback(`Hata: ${e}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleToggleTimerResolution = async () => {
+    setIsBusy(true);
+    try {
+      const nextEnable = !timerStatus?.is_esports_active;
+      const res = await tauriApi.toggleEsportsTimerResolution(nextEnable);
+      setTimerStatus(res);
+      setFeedback(
+        nextEnable
+          ? `0.50ms Esports Timer Resolution aktif (${res.current_ms.toFixed(2)} ms).`
+          : `Standart Timer Resolution geri yüklendi (${res.current_ms.toFixed(2)} ms).`
+      );
+    } catch (e: any) {
+      setFeedback(`Timer resolution hatası: ${e}`);
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const handleFlushRam = async () => {
+    setIsBusy(true);
+    try {
+      const count = await tauriApi.flushSystemRamCache();
+      setFeedback(`${count} adet arka plan sürecinin çalışma belleği (working set) boşaltıldı.`);
+    } catch (e: any) {
+      setFeedback(`RAM temizleme hatası: ${e}`);
+    } finally {
+      setIsBusy(false);
     }
   };
 
@@ -179,7 +218,72 @@ export const UltraFpsModal: React.FC<UltraFpsModalProps> = ({ onClose }) => {
                 </div>
               )}
 
-              <div className="border-t border-zinc-800/80" />
+              {/* Windows 11 Esports Modu: 0.5ms Timer Resolution & Boşta RAM Temizleme */}
+              {isWindows && (
+                <>
+                  <div className="border-t border-zinc-800/80" />
+
+                  <div className="flex items-center justify-between py-1">
+                    <div className="pr-4">
+                      <div className="text-xs font-semibold text-white flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 text-amber-400" />
+                        <span>0.50ms Timer Resolution (Düşük Gecikme)</span>
+                      </div>
+                      <div className="text-[11px] text-zinc-400 mt-0.5 leading-normal">
+                        Giriş gecikmesini (input lag) düşürür. Mevcut:{" "}
+                        <span className="font-mono text-zinc-200">
+                          {timerStatus ? `${timerStatus.current_ms.toFixed(2)} ms` : "1.00 ms"}
+                        </span>
+                        {timerStatus?.is_esports_active && (
+                          <span className="ml-1 text-[10px] text-emerald-400 font-bold font-mono">
+                            (0.5ms Kilitli)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={Boolean(timerStatus?.is_esports_active)}
+                      onClick={handleToggleTimerResolution}
+                      disabled={isBusy}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        timerStatus?.is_esports_active ? "bg-amber-400" : "bg-zinc-800"
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full shadow ring-0 transition duration-200 ease-in-out ${
+                          timerStatus?.is_esports_active
+                            ? "translate-x-5 bg-black"
+                            : "translate-x-0 bg-zinc-400"
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-900/60 border border-zinc-800/80">
+                    <div>
+                      <div className="text-xs font-semibold text-white">
+                        Boşta RAM (Working Set) Temizleyici
+                      </div>
+                      <div className="text-[11px] text-zinc-400 mt-0.5">
+                        Oyun açılmadan önce arka plan önbelleğini boşaltır.
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleFlushRam}
+                      disabled={isBusy}
+                      className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-zinc-400" />
+                      <span>RAM Boşalt</span>
+                    </button>
+                  </div>
+                </>
+              )}
 
               {/* Row 2: Counter-Strike 2 Ayarı */}
               <div className="space-y-2.5">
@@ -244,8 +348,6 @@ export const UltraFpsModal: React.FC<UltraFpsModalProps> = ({ onClose }) => {
                   </button>
                 </div>
               </div>
-
-              <div className="border-t border-zinc-800/80" />
 
               {/* Row 3: Sistem Donanım Bilgisi */}
               {status && (

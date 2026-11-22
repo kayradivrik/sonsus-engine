@@ -9,9 +9,11 @@ import {
   LayoutGrid,
   Library,
   List,
+  Package,
   Plus,
   RefreshCw,
   Search,
+  ShieldAlert,
   Sliders,
   SlidersHorizontal,
   User,
@@ -40,6 +42,8 @@ interface TopStatusBarProps {
   onOpenUltraFps: () => void;
   onOpenStorageCleaner: () => void;
   onOpenVictusControl: () => void;
+  onOpenDebloat?: () => void;
+  onOpenQuickAppStore?: () => void;
 }
 
 export function TopStatusBar({
@@ -63,6 +67,8 @@ export function TopStatusBar({
   onOpenUltraFps,
   onOpenStorageCleaner,
   onOpenVictusControl,
+  onOpenDebloat,
+  onOpenQuickAppStore,
 }: TopStatusBarProps) {
   const { t, lang } = useTranslation();
   return (
@@ -214,6 +220,30 @@ export function TopStatusBar({
         >
           <HardDrive className="w-3.5 h-3.5" />
         </button>
+
+        {/* Windows 11 Debloat Yöneticisi */}
+        {onOpenDebloat && (
+          <button
+            type="button"
+            onClick={onOpenDebloat}
+            className="w-9 h-9 rounded-full bg-zinc-900/80 hover:bg-red-950/40 border border-white/10 hover:border-red-800/50 flex items-center justify-center text-zinc-300 hover:red-400 transition-colors cursor-pointer outline-none"
+            title="Windows 11 Debloat & Telemetri Temizleyicisi"
+          >
+            <ShieldAlert className="w-3.5 h-3.5" />
+          </button>
+        )}
+
+        {/* Hızlı Uygulama & Oyun Araçları Deposu */}
+        {onOpenQuickAppStore && (
+          <button
+            type="button"
+            onClick={onOpenQuickAppStore}
+            className="w-9 h-9 rounded-full bg-zinc-900/80 hover:bg-cyan-950/40 border border-white/10 hover:border-cyan-500/40 flex items-center justify-center text-zinc-300 hover:text-cyan-400 transition-colors cursor-pointer outline-none"
+            title="Hızlı Uygulama & Oyun Araçları Deposu (Steam, Discord, GPU vb.)"
+          >
+            <Package className="w-3.5 h-3.5" />
+          </button>
+        )}
 
         {/* HP Victus Donanım & Fan Kontrolü */}
         <button

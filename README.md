@@ -57,11 +57,21 @@
 
 ## 🚀 Kurulum & Çalıştırma
 
-```bash
-# Depoyu klonlayın
-git clone https://github.com/kayradivrik/sonsus-engine.git
-cd sonsus-engine
+### 🪟 Windows 11
+```powershell
+# Geliştirme (Canlı) Modunda Başlat
+.\run.ps1 -Dev
+# veya CMD:
+run.bat --dev
 
+# Optimize Release Derleme & Başlatma
+.\run.ps1 -Build
+# veya CMD:
+run.bat --build
+```
+
+### 🐧 Linux
+```bash
 # İzinleri verin ve başlatın
 chmod +x run.sh
 ./run.sh          # Optimize release ikilisini başlatır

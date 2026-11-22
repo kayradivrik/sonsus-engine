@@ -2,6 +2,7 @@
 //! Steam shadercache, eski compatdata kalıntıları, Mesa/Nvidia shader önbellekleri
 //! ve Heroic geçici indirme dosyalarını analiz eder ve tek tıkla temizler.
 
+use crate::parsers::steam::find_steam_root;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -89,23 +90,94 @@ pub fn analyze_storage() -> StorageAnalysisResult {
                     });
                 }
             }
+
+            let amd_dx = PathBuf::from(&local_appdata).join("AMD").join("DxCache");
+            if amd_dx.exists() {
+                let (size, count) = dir_size_and_count(&amd_dx);
+                if size > 0 {
+                    categories.push(CleanableCategory {
+                        id: "amd_dx_cache".into(),
+                        title: "AMD Radeon DirectX Önbelleği".into(),
+                        description: "AMD sürücüsünün oluşturduğu DirectX grafik önbellekleri.".into(),
+                        path: amd_dx.to_string_lossy().into(),
+                        size_bytes: size,
+                        item_count: count,
+                        safe_to_delete: true,
+                    });
+                }
+            }
+
+            let crash_dumps = PathBuf::from(&local_appdata).join("CrashDumps");
+            if crash_dumps.exists() {
+                let (size, count) = dir_size_and_count(&crash_dumps);
+                if size > 0 {
+                    categories.push(CleanableCategory {
+                        id: "windows_crash_dumps".into(),
+                        title: "Windows Oyun Çökme Dökümleri (CrashDumps)".into(),
+                        description: "Oyunların çöktüğünde diske bıraktığı büyük bellek döküm (.dmp) dosyaları.".into(),
+                        path: crash_dumps.to_string_lossy().into(),
+                        size_bytes: size,
+                        item_count: count,
+                        safe_to_delete: true,
+                    });
+                }
+            }
+        }
+
+        // Windows Temp Klasörü
+        let temp_dir = std::env::temp_dir();
+        if temp_dir.exists() {
+            let (size, count) = dir_size_and_count(&temp_dir);
+            if size > 0 {
+                categories.push(CleanableCategory {
+                    id: "windows_temp".into(),
+                    title: "Windows Geçici Dosyaları (AppData Temp)".into(),
+                    description: "Oyun yükleyicileri ve arka plan servislerinin geride bıraktığı geçici dosyalar.".into(),
+                    path: temp_dir.to_string_lossy().into(),
+                    size_bytes: size,
+                    item_count: count,
+                    safe_to_delete: true,
+                });
+            }
+        }
+
+        // Windows Steam Shader Önbelleği
+        if let Some(steam_root) = find_steam_root() {
+            let steam_shader = steam_root.join("steamapps/shadercache");
+            if steam_shader.exists() {
+                let (size, count) = dir_size_and_count(&steam_shader);
+                if size > 0 {
+                    categories.push(CleanableCategory {
+                        id: "steam_shadercache".into(),
+                        title: "Steam Shader Önbelleği (Windows)".into(),
+                        description: "Steam oyunları için derlenmiş DirectX/Vulkan shader önbellekleri.".into(),
+                        path: steam_shader.to_string_lossy().into(),
+                        size_bytes: size,
+                        item_count: count,
+                        safe_to_delete: true,
+                    });
+                }
+            }
         }
     }
 
-    // 1. Steam Shader Önbelleği (~/.local/share/Steam/steamapps/shadercache)
-    let steam_shader = home.join(".local/share/Steam/steamapps/shadercache");
-    if steam_shader.exists() {
-        let (size, count) = dir_size_and_count(&steam_shader);
-        if size > 0 {
-            categories.push(CleanableCategory {
-                id: "steam_shadercache".into(),
-                title: "Steam Shader Önbelleği".into(),
-                description: "Oyunlar için derlenmiş GL/Vulkan shader dosyaları. Silindiğinde oyun açılışında otomatik tekrar derlenir.".into(),
-                path: steam_shader.to_string_lossy().into(),
-                size_bytes: size,
-                item_count: count,
-                safe_to_delete: true,
-            });
+    // 1. Steam Shader Önbelleği (Linux ~/.local/share/Steam/steamapps/shadercache)
+    #[cfg(not(windows))]
+    {
+        let steam_shader = home.join(".local/share/Steam/steamapps/shadercache");
+        if steam_shader.exists() {
+            let (size, count) = dir_size_and_count(&steam_shader);
+            if size > 0 {
+                categories.push(CleanableCategory {
+                    id: "steam_shadercache".into(),
+                    title: "Steam Shader Önbelleği".into(),
+                    description: "Oyunlar için derlenmiş GL/Vulkan shader dosyaları. Silindiğinde oyun açılışında otomatik tekrar derlenir.".into(),
+                    path: steam_shader.to_string_lossy().into(),
+                    size_bytes: size,
+                    item_count: count,
+                    safe_to_delete: true,
+                });
+            }
         }
     }
 
@@ -233,12 +305,74 @@ pub fn clean_storage_category(category_id: &str) -> Result<u64, String> {
             }
             Ok(sz)
         }
-        "steam_shadercache" => {
-            let p = home.join(".local/share/Steam/steamapps/shadercache");
-            let (sz, _) = dir_size_and_count(&p);
-            let _ = fs::remove_dir_all(&p);
-            let _ = fs::create_dir_all(&p);
+        "amd_dx_cache" => {
+            let mut sz = 0;
+            if let Ok(local_appdata) = std::env::var("LOCALAPPDATA") {
+                let p = PathBuf::from(local_appdata).join("AMD").join("DxCache");
+                if p.exists() {
+                    let (s, _) = dir_size_and_count(&p);
+                    sz = s;
+                    let _ = fs::remove_dir_all(&p);
+                    let _ = fs::create_dir_all(&p);
+                }
+            }
             Ok(sz)
+        }
+        "windows_crash_dumps" => {
+            let mut sz = 0;
+            if let Ok(local_appdata) = std::env::var("LOCALAPPDATA") {
+                let p = PathBuf::from(local_appdata).join("CrashDumps");
+                if p.exists() {
+                    let (s, _) = dir_size_and_count(&p);
+                    sz = s;
+                    let _ = fs::remove_dir_all(&p);
+                    let _ = fs::create_dir_all(&p);
+                }
+            }
+            Ok(sz)
+        }
+        "windows_temp" => {
+            let temp_dir = std::env::temp_dir();
+            let mut sz = 0;
+            if temp_dir.exists() {
+                if let Ok(entries) = fs::read_dir(&temp_dir) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        let (s, _) = dir_size_and_count(&path);
+                        if path.is_file() {
+                            if fs::remove_file(&path).is_ok() {
+                                sz += s;
+                            }
+                        } else if path.is_dir() {
+                            if fs::remove_dir_all(&path).is_ok() {
+                                sz += s;
+                            }
+                        }
+                    }
+                }
+            }
+            Ok(sz)
+        }
+        "steam_shadercache" => {
+            #[cfg(windows)]
+            {
+                if let Some(steam_root) = find_steam_root() {
+                    let p = steam_root.join("steamapps/shadercache");
+                    let (sz, _) = dir_size_and_count(&p);
+                    let _ = fs::remove_dir_all(&p);
+                    let _ = fs::create_dir_all(&p);
+                    return Ok(sz);
+                }
+                Ok(0)
+            }
+            #[cfg(not(windows))]
+            {
+                let p = home.join(".local/share/Steam/steamapps/shadercache");
+                let (sz, _) = dir_size_and_count(&p);
+                let _ = fs::remove_dir_all(&p);
+                let _ = fs::create_dir_all(&p);
+                Ok(sz)
+            }
         }
         "mesa_shader_cache" => {
             let p = home.join(".cache/mesa_shader_cache");

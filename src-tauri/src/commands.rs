@@ -64,7 +64,7 @@ pub async fn scan_all_libraries(state: State<'_, AppState>) -> Result<Vec<Unifie
         )
     };
 
-    let (steam_games, epic_games, gog_games) = tokio::join!(
+    let (steam_games, epic_games, gog_games, xbox_games) = tokio::join!(
         scan_steam_all(
             steam_api_key.as_deref(),
             steam_id64_override.as_deref(),
@@ -80,6 +80,7 @@ pub async fn scan_all_libraries(state: State<'_, AppState>) -> Result<Vec<Unifie
             }
         },
         tokio::task::spawn_blocking(scan_gog_all),
+        tokio::task::spawn_blocking(crate::parsers::xbox::scan_xbox_all),
     );
 
     let mut all = steam_games;
@@ -88,6 +89,9 @@ pub async fn scan_all_libraries(state: State<'_, AppState>) -> Result<Vec<Unifie
     }
     if let Ok(gog) = gog_games {
         all.extend(gog);
+    }
+    if let Ok(xbox) = xbox_games {
+        all.extend(xbox);
     }
     all.extend(load_custom_games());
 
@@ -611,6 +615,22 @@ pub fn create_desktop_shortcut(game: UnifiedGame) -> Result<String, String> {
 
     #[cfg(windows)]
     {
+        let target_uri = if let Some(launch) = &game.launch {
+            launch.command_uri_or_bin.clone()
+        } else if game.platform == crate::models::Platform::Steam {
+            format!("steam://rungameid/{}", game.platform_id)
+        } else {
+            return Err("Bu oyun için başlatma komutu tanımlı değil.".to_string());
+        };
+
+        if let Some(desktop_dir) = dirs::desktop_dir() {
+            let safe_title = game.title.replace(['\\', '/', ':', '*', '?', '"', '<', '>', '|'], "_");
+            let shortcut_file = desktop_dir.join(format!("{}.url", safe_title));
+            let content = format!("[InternetShortcut]\nURL={target_uri}\n");
+            let _ = std::fs::write(&shortcut_file, content);
+            return Ok(format!("{} için masaüstü kısayolu oluşturuldu.", game.title));
+        }
+
         Ok(format!("{} için kısayol hazırlandı.", game.title))
     }
 }
@@ -660,6 +680,22 @@ pub async fn clean_storage_item(category_id: String) -> Result<u64, String> {
         .map_err(|e| e.to_string())?
 }
 
+// --- Windows 11 Debloat Yöneticisi ---
+
+#[tauri::command]
+pub async fn get_debloat_items_command() -> Result<Vec<crate::models::DebloatItem>, String> {
+    tokio::task::spawn_blocking(crate::debloat::get_debloat_items)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn apply_debloat_items_command(ids: Vec<String>) -> Result<crate::models::DebloatResult, String> {
+    tokio::task::spawn_blocking(move || crate::debloat::apply_debloat_items(ids))
+        .await
+        .map_err(|e| e.to_string())
+}
+
 // --- HP Victus & Donanım Güç / Fan Kontrolü ---
 
 #[tauri::command]
@@ -675,3 +711,47 @@ pub async fn set_hardware_thermal_profile(profile: String) -> Result<String, Str
         .await
         .map_err(|e| e.to_string())?
 }
+
+// --- Windows 11 Esports Gecikme & RAM Optimizasyonu ---
+
+#[tauri::command]
+pub fn get_timer_resolution_info() -> Result<crate::esports::TimerResolutionStatus, String> {
+    crate::esports::query_timer_resolution()
+}
+
+#[tauri::command]
+pub fn toggle_esports_timer_resolution(enable: bool) -> Result<crate::esports::TimerResolutionStatus, String> {
+    crate::esports::set_timer_resolution(enable)
+}
+
+#[tauri::command]
+pub fn flush_system_ram_cache() -> Result<u32, String> {
+    crate::esports::flush_working_set_ram()
+}
+
+// --- Hızlı Uygulama İndiricisi & Oyun Araçları ---
+
+#[tauri::command]
+pub async fn get_quick_apps_command() -> Result<Vec<crate::app_store::QuickAppItem>, String> {
+    tokio::task::spawn_blocking(crate::app_store::get_curated_quick_apps)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn install_quick_app_command(package_id: String) -> Result<String, String> {
+    crate::app_store::install_app_via_winget(&package_id).await
+}
+
+#[tauri::command]
+pub async fn install_batch_quick_apps_command(package_ids: Vec<String>) -> Result<Vec<String>, String> {
+    let mut results = Vec::new();
+    for pkg in package_ids {
+        match crate::app_store::install_app_via_winget(&pkg).await {
+            Ok(msg) => results.push(msg),
+            Err(e) => results.push(format!("Hata ({}): {}", pkg, e)),
+        }
+    }
+    Ok(results)
+}
+
